@@ -429,6 +429,7 @@ def read_tri4(cmd, ofs=0):
     w1 = int.from_bytes(cmd[4:], bo)
 
     tris = []
+    min_idxs = []
     for idx in range(0,4):
         i0 = w1 & 0x0f; w1 >>= 4
         i1 = w1 & 0x0f; w1 >>= 4
@@ -436,9 +437,10 @@ def read_tri4(cmd, ofs=0):
 
         if i0 or i1 or i2:
             tris.append((i0+ofs, i1+ofs, i2+ofs))
+            min_idxs.append(min(i0+ofs, i1+ofs, i2+ofs))
             # tris.append((i0+ofs, i2+ofs, i1+ofs))
 
-    return tris
+    return tris, min_idxs
 
 import ctypes
 
