@@ -215,13 +215,14 @@ class SubMesh:
     def setVtxEnd(self, vtx_end):
         self.vtx_end = vtx_end
 
-    def addTri(self, tri, vtx_idx):
-        ofs = self.tri_index
+    def addTri(self, tri, ofs):
+        ofs += self.tri_index
         t = (
             tri[0] + ofs,
             tri[1] + ofs,
             tri[2] + ofs
         )
+        if self.dbg: logger.debug(f'  f {len(self.tris)} {t} tidx {ofs} M{self.mtxindex:02X}')
         self.tris.append(t)
 
     def addTris(self, tris):
@@ -240,9 +241,48 @@ class SubMesh:
                 v2 = self.verts[t[2]]
                 logger.debug(f'  v0 {_t(v0)} v1 {_t(v1)} v2 {_t(v2)}')
 
+    def addVtx(self, vert, mtx):
+        current_nverts = len(self.verts)
+        # if current_nverts:
+        #     self.tri_index = current_nverts
+
+        vtx = (
+            vert[0] + mtx[0],
+            vert[1] + mtx[1],
+            vert[2] + mtx[2],
+        )
+        self.verts.append(vtx)
+
     def addVtxs(self, verts, n, idx):
         current_nverts = len(self.verts)
+        # if current_nverts and idx == 0:
+        if current_nverts:
+            self.tri_index = current_nverts
+
+        diff = idx - current_nverts
+        if diff > 0:
+            logger.debug(f'  ADD_ZERO {diff}')
+            # if idx == 0: self.tri_index += diff
+            # for i in range(0, diff): self.verts.append((0,0,0))
+
+        pos = self.current_mtx
+        # pos = (0,0,0)
+        if self.dbg: logger.debug(f'  mtx {pos}')
+        for i in range(0, n):
+            v = verts[i]
+            vtx = (
+                v[0] + pos[0],
+                v[1] + pos[1],
+                v[2] + pos[2],
+            )
+            self.verts.append(vtx)
+
+        logger.debug(f'  addvtx ofs {self.vtx_offset:04X} n {n} nvtx {len(verts)} curlen {len(self.verts)} tri_idx {self.tri_index}')
+
+    def _addVtxs(self, verts, n, idx):
+        current_nverts = len(self.verts)
         if current_nverts and idx == 0:
+        # if current_nverts:
             self.tri_index = current_nverts
 
         diff = idx - current_nverts
@@ -266,6 +306,9 @@ class SubMesh:
         logger.debug(f'  addvtx ofs {self.vtx_offset:04X} n {n} nvtx {len(verts)} curlen {len(self.verts)} tri_idx {self.tri_index}')
 
 def collectSubMeshes(model, ro_gundl, idx):
+    # [:6] M24
+    # [6:] M21
+    # (5,24) (6,21)
     ptr_opagdl = ro_gundl['opagdl']
 
     ptr_vtx = ro_gundl['vertices']&0xffffff
@@ -277,12 +320,112 @@ def collectSubMeshes(model, ro_gundl, idx):
     gdl = model.data(ptr_opagdl)
     addr = 0
     bo='big'
-    dbg = idx == 0x3
-    dbg = 1
+    dbg = idx == 0x1
+    # dbg = 1
     # dbg = 0
+
+    matrixmesh_map = {} # matrix idx -> mesh
+    tris2matrix = {} # idx -> mtx where idx is the max tri idx using mtx
+    mtxindex = -1
 
     if dbg:
         n = min(nvtx, 300)
+        for i in range(0, n):
+            v = verts[i]
+            logger.debug(f' v_{i} {v}')
+
+    subMeshes = []
+    currentSubMesh = SubMesh()
+    if dbg: logger.debug(f'[CREATEMESH {idx:02X}] ptr_vtx {ptr_vtx:04X} nvtx {len(verts)}')
+    currentSubMesh.setVtxOffset(ptr_vtx)
+
+    # vtx_offset = 0
+    vtx_idx = 0
+    ntris = 0
+    prevmtx = 0
+    while True:
+        currentSubMesh.dbg = dbg
+        cmd = gdl[addr:addr+8]
+        op = cmd[0]
+
+        if op == G_END:
+            # if len(currentSubMesh.tris):
+            #     subMeshes.append(currentSubMesh)
+            #     if dbg: logger.debug(f'SUBMESH {len(subMeshes)-1:02X} ntris {len(currentSubMesh.tris)} nvtx {currentSubMesh.nverts} -----------^')
+            break
+
+        cmdint = int.from_bytes(cmd, bo)
+
+        if dbg: logger.debug(f'{cmdint:016X} {pdu.GDLcodes[cmd[0]]}')
+
+        if op == G_TRI4:
+            tris, min_idxs = pdu.read_tri4(cmd, 0)
+
+            # [(0, 1, 2), (3, 4, 5), (6, 7, 8), (6, 8, 9)]
+            # [0, 3, 6, 6]
+            # (5, 24), (15, 21)
+            dbgmsg = ''
+            for tri, min_idx in zip(tris, min_idxs):
+                mtx = next((info[1] for info in tris2matrix.values() if min_idx <= info[0]), None)
+                currentSubMesh = matrixmesh_map[mtx]
+                ofs = -vtx_idx if min_idx >= vtx_idx else 0
+                currentSubMesh.addTri(tri, ofs)
+
+                dbgmsg += f'{tri}/{mtx:02X} '
+
+            ntris += len(tris)
+            if dbg:
+                logger.debug(f'  ofs {vtx_ofs:04X} vidx {vtx_idx:02X} tris [{dbgmsg}]')
+                logger.debug(f'  trimap {tris2matrix.items()}')
+        elif op == G_VTX:
+            nverts = ((cmd[1] & 0xf0) >> 4) + 1
+            vtx_idx = cmd[1] & 0xf
+            vtx_ofs = int.from_bytes(cmd[5:8], bo)
+
+            vstart = (vtx_ofs - ptr_vtx) // 12
+            if nverts > 1:
+                currentSubMesh = matrixmesh_map[mtxindex]
+                logger.debug(f'  vstart {vstart} n {nverts} vidx {vtx_idx:01X}')
+                currentSubMesh.addVtxs(verts[vstart:], nverts, vtx_idx)
+                tris2matrix[vtx_idx] = (nverts + vtx_idx-1, mtxindex)
+            else:
+                # mtx = getPositionFromMtxIndex(model, prevmtx)
+                mtx = getPositionFromMtxIndex(model, mtxindex)
+                currentSubMesh = matrixmesh_map[prevmtx]
+                currentSubMesh.addVtx(verts[vstart], mtx)
+
+        elif op == G_MTX:
+            prevmtx = mtxindex
+            mtxindex = (cmdint & 0xffffff) // 0x40
+            logger.debug(f'  MTX {mtxindex:04X}')
+
+            if mtxindex not in matrixmesh_map:
+                currentSubMesh = matrixmesh_map[mtxindex] = SubMesh()
+                currentSubMesh.setMtx(getPositionFromMtxIndex(model, mtxindex))
+                currentSubMesh.mtxindex = mtxindex
+
+        addr += 8
+
+    return list(matrixmesh_map.values())
+
+def _collectSubMeshes(model, ro_gundl, idx):
+    ptr_opagdl = ro_gundl['opagdl']
+
+    ptr_vtx = ro_gundl['vertices']&0xffffff
+    vtxbytes = model.data(ptr_vtx)
+    nvtx = ro_gundl['numvertices']
+    sc = 1
+    verts = pdu.read_vtxs(vtxbytes, nvtx, sc)
+
+    gdl = model.data(ptr_opagdl)
+    addr = 0
+    bo='big'
+    dbg = idx == 0x1
+    # dbg = 1
+    # dbg = 0
+
+    if dbg:
+        n = min(nvtx, 1000)
         for i in range(0, n):
             v = verts[i]
             logger.debug(f' v_{i} {v}')
@@ -314,7 +457,7 @@ def collectSubMeshes(model, ro_gundl, idx):
         
         if op == G_TRI4:
             vtx_ofs = (vtx_offset - currentSubMesh.vtx_offset)//12
-            tris = pdu.read_tri4(cmd, 0)
+            tris, _ = pdu.read_tri4(cmd, 0)
             s = ntris
             ntris += len(tris)
             if dbg: logger.debug(f'  {s}-{ntris-1} ofs {vtx_ofs+vtx_idx*0:04X} {vtx_idx:02X} tris {pdu.read_tri4(cmd, 0)}')
@@ -330,7 +473,7 @@ def collectSubMeshes(model, ro_gundl, idx):
             currentSubMesh.setVtxOffset(vtx_offset)
             vstart = (ofs - ptr_vtx) // 12
             logger.debug(f'  vstart {vstart} n {nverts} vidx {vtx_idx:01X}')
-            currentSubMesh.addVtxs(verts[vstart:], nverts, vtx_idx)
+            currentSubMesh._addVtxs(verts[vstart:], nverts, vtx_idx)
         elif op == G_MTX:
             mtxindex = (cmdint & 0xffffff) // 0x40
             logger.debug(f'  MTX {mtxindex:04X}')
@@ -355,8 +498,9 @@ def collectSubMeshes(model, ro_gundl, idx):
                     logger.debug(f'  (from prev) vstart {vstart} n {nverts} vidx {vtx_idx:01X}')
                     currentSubMesh.addVtxs(verts[vstart:], nverts, vtx_idx)
 
-            currentSubMesh.setMtx(getPositionFromMtxIndex(model, mtxindex))
-            currentSubMesh.mtxindex = mtxindex
+            if currentSubMesh.mtxindex >= 0:
+                currentSubMesh.setMtx(getPositionFromMtxIndex(model, mtxindex))
+                currentSubMesh.mtxindex = mtxindex
 
         addr += 8
         prev = cmd
@@ -389,7 +533,7 @@ def createModelMesh(idx, model, ro_gundl, sc):
     nvtx = ro_gundl['numvertices']
     # verts = pdu.read_vtxs(vtxs, nvtx, sc)
 
-    subMeshes = collectSubMeshes(model, ro_gundl, idx)
+    subMeshes = _collectSubMeshes(model, ro_gundl, idx)
     n_submeshes = len(subMeshes)
     logger.debug(f'idx {idx:02X} n {n_submeshes}')
     for sub_idx, mesh in enumerate(subMeshes):
@@ -436,7 +580,7 @@ def main():
     # modelName = 'GsniperrifleZ'
     # modelName = 'Gm16Z'
     # modelName = 'GshotgunZ'
-    # modelName = 'GpcgunZ'
+    modelName = 'GpcgunZ'
     # modelName = 'PchrdragonZ'
     model = readModel(modelName)
 
