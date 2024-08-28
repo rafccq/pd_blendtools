@@ -1,6 +1,7 @@
 import zlib
 import json
 import os
+import struct
 from pathlib import Path
 from glob import glob
 
@@ -442,19 +443,20 @@ def read_tri4(cmd, ofs=0):
 
 import ctypes
 
-def read_vtxs(bytes, numvtx, sc):
+def read_vtxs(vtxdata, numvtx, sc):
     bo = 'big'
     vtxs = []
     # sc = 0.1
     for i in range(numvtx):
         idx = i*12
-        vtx = bytes[idx:idx+12]
+        vtx = vtxdata[idx:idx+12]
         x = int.from_bytes(vtx[0:2], bo)
         y = int.from_bytes(vtx[2:4], bo)
         z = int.from_bytes(vtx[4:6], bo)
-        s = int.from_bytes(vtx[6:8], bo)
-        t = int.from_bytes(vtx[8:10], bo)
-        flags = vtx[11]
+        flag = vtx[6]
+        color = vtx[7]
+        s = int.from_bytes(vtx[8:10], bo)
+        t = int.from_bytes(vtx[10:12], bo)
 
         x = ctypes.c_short(x & 0xFFFF).value
         y = ctypes.c_short(y & 0xFFFF).value
@@ -462,9 +464,15 @@ def read_vtxs(bytes, numvtx, sc):
         s = ctypes.c_short(s & 0xFFFF).value
         t = ctypes.c_short(t & 0xFFFF).value
 
+        # s = struct.unpack('f', vtx[6:8])[0]
+        # t = struct.unpack('f', vtx[8:10])[0]
+        # s = struct.unpack('f', s.to_bytes(4, 'little'))[0]
+        # t = struct.unpack('f', t.to_bytes(4, 'little'))[0]
+
+
         # vtxs.append([x,y,z,s,t,flags])
         # vtxs.append((x*sc,y*sc,z*sc))
-        vtxs.append((x*sc, z*sc, y*sc))
+        vtxs.append((x*sc, z*sc, y*sc, s, t))
 
     return vtxs
 

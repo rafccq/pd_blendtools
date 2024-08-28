@@ -3,3 +3,4 @@ pd_modeltool/.idea
 pd_modeltool/__pycache__
 *.blend*
 *.log
+tex
