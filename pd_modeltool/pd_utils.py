@@ -522,3 +522,6 @@ def clearCollection(name):
     for mesh in meshes:
         bpy.data.meshes.remove(mesh)
 
+def materials_clear():
+    for mat in bpy.data.materials:
+        if mat.users == 0: bpy.data.materials.remove(mat)

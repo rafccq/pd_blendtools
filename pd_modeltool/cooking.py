@@ -35,29 +35,43 @@ def material_remove(name):
     mat = bpy.data.materials[name]
     bpy.data.materials.remove(mat)
 
-def material_create(texnum):
+def tex_smode(smode):
+    modemap = { 0: 'REPEAT', 1: 'CLIP', 2: 'MIRROR' }
+    return modemap[smode]
+
+def material_create(texnum, smode, use_alpha):
     img_filename = f'{texnum:04X}'
     name = f'Mat_{img_filename}'
     material_remove(name)
 
     material = bpy.data.materials.new(name)
     material.use_nodes = True
+    material.surface_render_method = 'BLENDED'
 
     material_shader = material.node_tree.nodes["Principled BSDF"]
+    material_shader.location.x = 0
+
     texture = material.node_tree.nodes.new('ShaderNodeTexImage')
+    texture.location.x = -300
+    texture.location.y = material_shader.location.y
+
     texture.image = bpy.data.images.load(f'//tex/{img_filename}.bmp')
+    texture.extension = tex_smode(smode)
     material.node_tree.links.new(material_shader.inputs['Base Color'], texture.outputs['Color'])
+
+    if use_alpha:
+        material.node_tree.links.new(material_shader.inputs['Alpha'], texture.outputs['Alpha'])
 
     return material
 
 def mat_name(tex): return f'Mat_{tex:04X}'
 
 # if there is already a material for this texture, don't create a new
-def material_new(texnum):
+def material_new(texnum, smode, use_alpha):
     name = mat_name(texnum)
     if name in bpy.data.materials:
         return bpy.data.materials[name]
-    return material_create(texnum)
+    return material_create(texnum, smode, use_alpha)
 
 def createMesh(verts, faces, idx, sub_idx, tri2tex, mtxindex, tex_configs):
     mesh_data = bpy.data.meshes.new('mesh_data')
@@ -81,21 +95,23 @@ def createMesh(verts, faces, idx, sub_idx, tri2tex, mtxindex, tex_configs):
     # setup UVs and materials
     uv_layer = bm.loops.layers.uv.verify()
     for idx, face in enumerate(bm.faces):
-        texnum = tri2tex[face.index]
+        texnum, smode = tri2tex[face.index]
+        tc = tex_configs[texnum]
+
         matname = mat_name(texnum)
         mat_idx = obj.data.materials.find(matname)
         if mat_idx < 0:
             mat_idx = len(obj.data.materials)
-            mat = material_new(texnum)
+            use_alpha = (tc['format'] == 0 and tc['depth'] == 3) or smode == 1
+            mat = material_new(texnum, smode, use_alpha)
             obj.data.materials.append(mat)
 
         face.material_index = mat_idx
 
         # setup the verts uv data
-        tc = tex_configs[texnum]
         for loop in face.loops:
             vert = verts[loop.vert.index]
-            uv_sc = (1 / (32 * tc[0]), 1 / (32 * tc[1]))
+            uv_sc = (1 / (32 * tc['width']), 1 / (32 * tc['height']))
             uv = (vert[3] * uv_sc[0], vert[4] * uv_sc[1])
             loop[uv_layer].uv = uv
 
@@ -225,11 +241,14 @@ def createJoint(idx, x, y, z):
     # joint.scale = (20, 20, 20)
     bpy.data.collections['Joints'].objects.link(joint)
     
-G_MTX  = 0x01
-G_VTX  = 0x04
-G_TRI4 = 0xb1
-G_END  = 0xb8
-G_PDTEX  = 0xc0
+G_MTX           = 0x01
+G_VTX           = 0x04
+G_TRI4          = 0xb1
+G_CLEARGEOMETRY = 0xb7
+G_END           = 0xb8
+G_PDTEX         = 0xc0
+
+G_TEXTURE_GEN = 0x00040000
 
 def _t(v): return f'({v[0]:.2f}, {v[1]:.2f}, {v[2]:.2f})'
 class SubMesh:
@@ -259,7 +278,7 @@ class SubMesh:
             self.verts.append(v.pos + v.uv)
             self.vtx_buffer.append(v.pos)
 
-    def add_tri(self, tri, texnum):
+    def add_tri(self, tri, texnum, smode):
         # if self.mtxindex == 0x2a: logger.debug(f'>>> TRIANGLE ON MESH 2A')
         ofs = self.tri_index
         t = (
@@ -272,8 +291,9 @@ class SubMesh:
 
         if texnum:
             facenum = len(self.tris) - 1
-            self.tri2tex[facenum] = texnum
-            # if self.dbg: logger.debug(f'  idx {idx} tex {texnum:04X}')
+            self.tri2tex[facenum] = (texnum, smode)
+            # self.tri2tex[facenum] = texnum
+            # if self.dbg: logger.debug(f'    tex {texnum:04X} smode {smode}')
 
     def clear_vtx_buffer(self):
         logger.debug(f'>>> MESH {self.mtxindex:02X} clearbuf')
@@ -317,11 +337,14 @@ def collectSubMeshes(model, ro_gundl, idx):
 
     vtx_buffer = [VtxBufferEntry()]*128
     vtx_buf_size = 0
+
     current_tex = 0
+    smode = 0
+    geom_mode = 0
 
     if dbg:
-        n = min(nvtx, 300)
-        for i in range(0, n):
+        # n = min(nvtx, 300)
+        for i in range(0, nvtx):
             v = verts[i]
             logger.debug(f' v_{i} {v}')
 
@@ -334,6 +357,8 @@ def collectSubMeshes(model, ro_gundl, idx):
         if op == G_END: break
 
         cmdint = int.from_bytes(cmd, bo)
+        w0 = (cmdint & 0xffffffff00000000) >> 32
+        w1 = cmdint & 0xffffffff
 
         if dbg: logger.debug(f'{cmdint:016X} {pdu.GDLcodes[cmd[0]]}')
 
@@ -344,9 +369,9 @@ def collectSubMeshes(model, ro_gundl, idx):
                 v = select_mesh(tri, vtx_buffer)
                 if dbg: logger.debug(f'tri {tri} tex {current_tex:04X}')
                 mesh = matrixmesh_map[v.mtxidx]
-                # if len(mesh.vtx_buffer) == 0:
+                
                 mesh.vtx_from_buffer(vtx_buffer, vtx_buf_size)
-                mesh.add_tri(tri, current_tex)
+                mesh.add_tri(tri, current_tex, smode)
         elif op == G_VTX:
             nverts = ((cmd[1] & 0xf0) >> 4) + 1
             vtx_idx = cmd[1] & 0xf
@@ -374,6 +399,9 @@ def collectSubMeshes(model, ro_gundl, idx):
                 currentSubMesh.dbg = dbg
         elif op == G_PDTEX:
             current_tex = cmdint & 0xffff
+            smode = (w0 >> 22) & 3
+        elif op == G_CLEARGEOMETRY:
+            geom_mode = w1
 
         addr += 8
 
@@ -413,7 +441,7 @@ def createModelMeshes(model, sc):
         width = tc['width']
         height = tc['height']
 
-        tex_configs[texnum] = (width, height)
+        tex_configs[texnum] = tc
         print(f'tex {texnum:04X} w {width:02X} h {height:02X}')
 
     logger.debug('createModelMeshes')
@@ -432,6 +460,7 @@ def clearLog():
 def clearScene():
     pdu.clearCollection('Meshes')
     pdu.clearCollection('Joints')
+    pdu.materials_clear()
 
 def main():
     clearLog() # TMP
@@ -439,7 +468,7 @@ def main():
     createCollectionIfNone('Meshes')
     createCollectionIfNone('Joints')
     # modelName = 'Gk7avengerZ'
-    modelName = 'GdysuperdragonZ'
+    # modelName = 'GdysuperdragonZ'
     # modelName = 'Gleegun1Z'
     # modelName = 'Gfalcon2Z'
     # modelName = 'GcrossbowZ'
@@ -449,7 +478,7 @@ def main():
     # modelName = 'GsniperrifleZ'
     # modelName = 'Gm16Z'
     # modelName = 'GshotgunZ'
-    # modelName = 'GpcgunZ'
+    modelName = 'GpcgunZ'
     # modelName = 'GdruggunZ'
     # modelName = 'GmaianpistolZ'
     # modelName = 'GskminigunZ'
