@@ -9,34 +9,8 @@ from mathutils import Euler, Vector, Matrix
 
 import pd_utils as pdu
 import pdmodel
+import pd_materials as pdm
 from pdmodel import unmask
-
-
-TEXFORMAT_RGBA32     = 0x00 # 32-bit RGBA (8/8/8/8)
-TEXFORMAT_RGBA16     = 0x01 # 16-bit RGBA (5/5/5/1)
-TEXFORMAT_RGB24      = 0x02 # 24-bit RGB (8/8/8)
-TEXFORMAT_RGB15      = 0x03 # 15-bit RGB (5/5/5)
-TEXFORMAT_IA16       = 0x04 # 16-bit grayscale+alpha
-TEXFORMAT_IA8        = 0x05 # 8-bit grayscale+alpha (4/4)
-TEXFORMAT_IA4        = 0x06 # 4-bit grayscale+alpha (3/1)
-TEXFORMAT_I8         = 0x07 # 8-bit grayscale
-TEXFORMAT_I4         = 0x08 # 4-bit grayscale
-TEXFORMAT_RGBA16_CI8 = 0x09 # 16-bit 5551 paletted colour with 8-bit palette indexes
-TEXFORMAT_RGBA16_CI4 = 0x0a # 16-bit 5551 paletted colour with 4-bit palette indexes
-TEXFORMAT_IA16_CI8   = 0x0b # 16-bit 88 paletted greyscale+alpha with 8-bit palette indexes
-TEXFORMAT_IA16_CI4   = 0x0c # 16-bit 88 paletted greyscale+alpha with 4-bit palette indexes
-
-G_IM_FMT_RGBA = 0
-G_IM_FMT_YUV  = 1
-G_IM_FMT_CI   = 2
-G_IM_FMT_IA   = 3
-G_IM_FMT_I    = 4
-
-G_IM_SIZ_4b  = 0
-G_IM_SIZ_8b  = 1
-G_IM_SIZ_16b = 2
-G_IM_SIZ_32b = 3
-G_IM_SIZ_DD  = 5
 
 
 logging.basicConfig(filename='D:/Mega/PD/pd_blend/pd_guns.log',
@@ -57,106 +31,6 @@ def createCollectionIfNone(name):
     if name not in bpy.data.collections:
         collection = bpy.data.collections.new(name)
         ctx.scene.collection.children.link(collection)
-
-def material_remove(name):
-    if name not in bpy.data.materials: return
-    mat = bpy.data.materials[name]
-
-    tree = mat.node_tree
-    img = None
-    if 'Image Texture' in tree:
-        texnode = tree.nodes['Image Texture']
-        img = texnode.image
-
-    bpy.data.materials.remove(mat)
-
-    if img.users == 0:
-        imgname = img.name
-        bpy.data.images.remove(imgname)
-
-def materials_clear():
-    for mat in bpy.data.materials:
-        if mat.users == 0: bpy.data.materials.remove(mat)
-
-def tex_has_alpha(fmt, depth):
-    if fmt == G_IM_FMT_IA and depth in [G_IM_SIZ_4b, G_IM_SIZ_8b, G_IM_SIZ_16b]: return True
-    if fmt == G_IM_FMT_CI and depth in [G_IM_SIZ_4b, G_IM_SIZ_8b]: return True
-    if fmt == G_IM_FMT_RGBA and depth in [G_IM_SIZ_4b, G_IM_SIZ_8b, G_IM_SIZ_16b, G_IM_SIZ_32b]: return True
-
-    return False
-
-def tex_smode(smode):
-    modemap = { 0: 'REPEAT', 1: 'EXTEND', 2: 'MIRROR' }
-    return modemap[smode]
-
-def material_create(texnum, smode, use_alpha, geom_mode):
-    logger.debug(f'new mat {texnum:04X} g {geom_mode:08X}')
-    img_filename = f'{texnum:04X}'
-    # name = f'Mat_{img_filename}'
-    name = mat_name(texnum, smode, geom_mode)
-    material_remove(name)
-
-    material = bpy.data.materials.new(name)
-    material.use_nodes = True
-    material.surface_render_method = 'BLENDED'
-    material.use_transparency_overlap = False
-
-    material_shader = material.node_tree.nodes["Principled BSDF"]
-    material_shader.location.x = 0
-
-    texture = material.node_tree.nodes.new('ShaderNodeTexImage')
-    texture.location.x = -300
-    texture.location.y = material_shader.location.y
-    texture.extension = tex_smode(smode)
-
-    if use_alpha:
-        material.node_tree.links.new(material_shader.inputs['Alpha'], texture.outputs['Alpha'])
-
-    img_filename += '.bmp'
-    if img_filename in bpy.data.images:
-        texture.image = bpy.data.images[img_filename]
-    else:
-        texture.image = bpy.data.images.load(f'//tex/{img_filename}')
-
-    if geom_mode & (G_TEXTURE_GEN | G_LIGHTING):
-        texcoord = material.node_tree.nodes.new('ShaderNodeTexCoord')
-        texcoord.location.x = texture.location.x - 300
-        texcoord.location.y = texture.location.y
-        material.node_tree.links.new(texture.inputs['Vector'], texcoord.outputs['Reflection'])
-        material.node_tree.links.new(material_shader.inputs['Base Color'], texture.outputs['Color'])
-        print(f'{name} ENV MAP')
-    else:
-        attrnode = material.node_tree.nodes.new('ShaderNodeAttribute')
-        attrnode.attribute_name = 'vtxcolor'
-        mixnode = material.node_tree.nodes.new('ShaderNodeMix')
-        mixnode.data_type = 'RGBA'
-        mixnode.blend_type = 'MULTIPLY'
-        mixnode.inputs[0].default_value = 1.0
-
-        texture.location.x = -500
-        attrnode.location = texture.location
-        attrnode.location.y += 300
-
-        mixnode.location = attrnode.location
-        mixnode.location.x += 300
-
-        material.node_tree.links.new(mixnode.inputs['A'], attrnode.outputs['Color'])
-        material.node_tree.links.new(mixnode.inputs['B'], texture.outputs['Color'])
-        material.node_tree.links.new(material_shader.inputs['Base Color'], mixnode.outputs['Result'])
-
-    return material
-
-def mat_name(tex, smode, geom_mode):
-    smode = f'_{smode:02X}' if smode else ''
-    geom_mode = f'_{geom_mode:08X}' if geom_mode else ''
-    return f'Mat_{tex:04X}{smode}{geom_mode}'
-
-# if there is already a material for this texture, don't create a new
-def material_new(texnum, smode, use_alpha, geom_mode):
-    name = mat_name(texnum, smode, geom_mode)
-    if name in bpy.data.materials:
-        return bpy.data.materials[name]
-    return material_create(texnum, smode, use_alpha, geom_mode)
 
 def createMesh(verts, faces, colors, idx, sub_idx, tri2tex, mtxindex, tex_configs):
     mesh_data = bpy.data.meshes.new('mesh_data')
@@ -218,12 +92,12 @@ def createMesh(verts, faces, colors, idx, sub_idx, tri2tex, mtxindex, tex_config
         texnum, smode, geom_mode = tri2tex[face.index]
         tc = tex_configs[texnum]
 
-        matname = mat_name(texnum, smode, geom_mode)
+        matname = pdm.mat_name(texnum, smode, geom_mode)
         mat_idx = obj.data.materials.find(matname)
         if mat_idx < 0:
             mat_idx = len(obj.data.materials)
-            use_alpha = smode == 1 or tex_has_alpha(tc['format'], tc['depth'])
-            mat = material_new(texnum, smode, use_alpha, geom_mode)
+            use_alpha = smode == 1 or pdm.tex_has_alpha(tc['format'], tc['depth'])
+            mat = pdm.material_new(texnum, smode, use_alpha, geom_mode)
             obj.data.materials.append(mat)
 
         face.material_index = mat_idx
@@ -370,8 +244,8 @@ G_CLEARGEOMETRYMODE = 0xb6
 G_PDTEX             = 0xc0
 G_END               = 0xb8
 
-G_LIGHTING    = 0x00020000
-G_TEXTURE_GEN = 0x00040000
+# G_LIGHTING    = 0x00020000
+# G_TEXTURE_GEN = 0x00040000
 
 def _t(v): return f'({v[0]:.2f}, {v[1]:.2f}, {v[2]:.2f})'
 class SubMesh:
@@ -604,7 +478,7 @@ def clearLog():
 def clearScene():
     pdu.clearCollection('Meshes')
     pdu.clearCollection('Joints')
-    materials_clear()
+    # materials_clear()
 
 def main():
     clearLog() # TMP
@@ -613,18 +487,19 @@ def main():
     createCollectionIfNone('Joints')
     modelName = 'Gk7avengerZ'
     modelName = 'GdysuperdragonZ'
+    modelName = 'GdydragonZ'
     # modelName = 'Gleegun1Z'
     # modelName = 'Gfalcon2Z'
     # modelName = 'GcrossbowZ'
     # modelName = 'Gdy357Z'
-    modelName = 'GdydevastatorZ'
-    modelName = 'GdyrocketZ'
+    # modelName = 'GdydevastatorZ'
+    # modelName = 'GdyrocketZ'
     # modelName = 'GsniperrifleZ'
     # modelName = 'Gm16Z'
     # modelName = 'GshotgunZ'
-    modelName = 'GpcgunZ'
+    # modelName = 'GpcgunZ'
     # modelName = 'GdruggunZ'
-    modelName = 'GmaianpistolZ'
+    # modelName = 'GmaianpistolZ'
     # modelName = 'GskminigunZ'
     # modelName = 'Gz2020Z'
     # modelName = 'Gcmp150Z'
