@@ -11,6 +11,34 @@ import pd_utils as pdu
 import pdmodel
 from pdmodel import unmask
 
+
+TEXFORMAT_RGBA32     = 0x00 # 32-bit RGBA (8/8/8/8)
+TEXFORMAT_RGBA16     = 0x01 # 16-bit RGBA (5/5/5/1)
+TEXFORMAT_RGB24      = 0x02 # 24-bit RGB (8/8/8)
+TEXFORMAT_RGB15      = 0x03 # 15-bit RGB (5/5/5)
+TEXFORMAT_IA16       = 0x04 # 16-bit grayscale+alpha
+TEXFORMAT_IA8        = 0x05 # 8-bit grayscale+alpha (4/4)
+TEXFORMAT_IA4        = 0x06 # 4-bit grayscale+alpha (3/1)
+TEXFORMAT_I8         = 0x07 # 8-bit grayscale
+TEXFORMAT_I4         = 0x08 # 4-bit grayscale
+TEXFORMAT_RGBA16_CI8 = 0x09 # 16-bit 5551 paletted colour with 8-bit palette indexes
+TEXFORMAT_RGBA16_CI4 = 0x0a # 16-bit 5551 paletted colour with 4-bit palette indexes
+TEXFORMAT_IA16_CI8   = 0x0b # 16-bit 88 paletted greyscale+alpha with 8-bit palette indexes
+TEXFORMAT_IA16_CI4   = 0x0c # 16-bit 88 paletted greyscale+alpha with 4-bit palette indexes
+
+G_IM_FMT_RGBA = 0
+G_IM_FMT_YUV  = 1
+G_IM_FMT_CI   = 2
+G_IM_FMT_IA   = 3
+G_IM_FMT_I    = 4
+
+G_IM_SIZ_4b  = 0
+G_IM_SIZ_8b  = 1
+G_IM_SIZ_16b = 2
+G_IM_SIZ_32b = 3
+G_IM_SIZ_DD  = 5
+
+
 logging.basicConfig(filename='D:/Mega/PD/pd_blend/pd_guns.log',
     level=logging.DEBUG,
     format="{asctime}[{levelname}] {message}",
@@ -33,20 +61,45 @@ def createCollectionIfNone(name):
 def material_remove(name):
     if name not in bpy.data.materials: return
     mat = bpy.data.materials[name]
+
+    tree = mat.node_tree
+    img = None
+    if 'Image Texture' in tree:
+        texnode = tree.nodes['Image Texture']
+        img = texnode.image
+
     bpy.data.materials.remove(mat)
 
+    if img.users == 0:
+        imgname = img.name
+        bpy.data.images.remove(imgname)
+
+def materials_clear():
+    for mat in bpy.data.materials:
+        if mat.users == 0: bpy.data.materials.remove(mat)
+
+def tex_has_alpha(fmt, depth):
+    if fmt == G_IM_FMT_IA and depth in [G_IM_SIZ_4b, G_IM_SIZ_8b, G_IM_SIZ_16b]: return True
+    if fmt == G_IM_FMT_CI and depth in [G_IM_SIZ_4b, G_IM_SIZ_8b]: return True
+    if fmt == G_IM_FMT_RGBA and depth in [G_IM_SIZ_4b, G_IM_SIZ_8b, G_IM_SIZ_16b, G_IM_SIZ_32b]: return True
+
+    return False
+
 def tex_smode(smode):
-    modemap = { 0: 'REPEAT', 1: 'CLIP', 2: 'MIRROR' }
+    modemap = { 0: 'REPEAT', 1: 'EXTEND', 2: 'MIRROR' }
     return modemap[smode]
 
-def material_create(texnum, smode, use_alpha):
+def material_create(texnum, smode, use_alpha, geom_mode):
+    logger.debug(f'new mat {texnum:04X} g {geom_mode:08X}')
     img_filename = f'{texnum:04X}'
-    name = f'Mat_{img_filename}'
+    # name = f'Mat_{img_filename}'
+    name = mat_name(texnum, smode, geom_mode)
     material_remove(name)
 
     material = bpy.data.materials.new(name)
     material.use_nodes = True
     material.surface_render_method = 'BLENDED'
+    material.use_transparency_overlap = False
 
     material_shader = material.node_tree.nodes["Principled BSDF"]
     material_shader.location.x = 0
@@ -54,29 +107,62 @@ def material_create(texnum, smode, use_alpha):
     texture = material.node_tree.nodes.new('ShaderNodeTexImage')
     texture.location.x = -300
     texture.location.y = material_shader.location.y
-
-    texture.image = bpy.data.images.load(f'//tex/{img_filename}.bmp')
     texture.extension = tex_smode(smode)
-    material.node_tree.links.new(material_shader.inputs['Base Color'], texture.outputs['Color'])
 
     if use_alpha:
         material.node_tree.links.new(material_shader.inputs['Alpha'], texture.outputs['Alpha'])
 
+    img_filename += '.bmp'
+    if img_filename in bpy.data.images:
+        texture.image = bpy.data.images[img_filename]
+    else:
+        texture.image = bpy.data.images.load(f'//tex/{img_filename}')
+
+    if geom_mode & (G_TEXTURE_GEN | G_LIGHTING):
+        texcoord = material.node_tree.nodes.new('ShaderNodeTexCoord')
+        texcoord.location.x = texture.location.x - 300
+        texcoord.location.y = texture.location.y
+        material.node_tree.links.new(texture.inputs['Vector'], texcoord.outputs['Reflection'])
+        material.node_tree.links.new(material_shader.inputs['Base Color'], texture.outputs['Color'])
+        print(f'{name} ENV MAP')
+    else:
+        attrnode = material.node_tree.nodes.new('ShaderNodeAttribute')
+        attrnode.attribute_name = 'vtxcolor'
+        mixnode = material.node_tree.nodes.new('ShaderNodeMix')
+        mixnode.data_type = 'RGBA'
+        mixnode.blend_type = 'MULTIPLY'
+        mixnode.inputs[0].default_value = 1.0
+
+        texture.location.x = -500
+        attrnode.location = texture.location
+        attrnode.location.y += 300
+
+        mixnode.location = attrnode.location
+        mixnode.location.x += 300
+
+        material.node_tree.links.new(mixnode.inputs['A'], attrnode.outputs['Color'])
+        material.node_tree.links.new(mixnode.inputs['B'], texture.outputs['Color'])
+        material.node_tree.links.new(material_shader.inputs['Base Color'], mixnode.outputs['Result'])
+
     return material
 
-def mat_name(tex): return f'Mat_{tex:04X}'
+def mat_name(tex, smode, geom_mode):
+    smode = f'_{smode:02X}' if smode else ''
+    geom_mode = f'_{geom_mode:08X}' if geom_mode else ''
+    return f'Mat_{tex:04X}{smode}{geom_mode}'
 
 # if there is already a material for this texture, don't create a new
-def material_new(texnum, smode, use_alpha):
-    name = mat_name(texnum)
+def material_new(texnum, smode, use_alpha, geom_mode):
+    name = mat_name(texnum, smode, geom_mode)
     if name in bpy.data.materials:
         return bpy.data.materials[name]
-    return material_create(texnum, smode, use_alpha)
+    return material_create(texnum, smode, use_alpha, geom_mode)
 
-def createMesh(verts, faces, idx, sub_idx, tri2tex, mtxindex, tex_configs):
+def createMesh(verts, faces, colors, idx, sub_idx, tri2tex, mtxindex, tex_configs):
     mesh_data = bpy.data.meshes.new('mesh_data')
 
-    verts_xyz = [(v[0], v[1], v[2]) for v in verts]
+    # verts_xyz = [(v[0], v[1], v[2]) for v in verts]
+    verts_xyz = [v.pos for v in verts]
     mesh_data.from_pydata(verts_xyz, [], faces)
 
     suffix = f'[{sub_idx}]-M{mtxindex:02X}' if sub_idx >= 0 else f'-M{mtxindex:02X}'
@@ -84,10 +170,44 @@ def createMesh(verts, faces, idx, sub_idx, tri2tex, mtxindex, tex_configs):
     obj = bpy.data.objects.new(name, mesh_data)
     bpy.data.collections['Meshes'].objects.link(obj)
 
+    layer_vtxcol = mesh_data.vertex_colors
+    logger.debug(f'MESH {name} vtxcol {layer_vtxcol} len {len(layer_vtxcol)}')
+
+    # setup vertex normals
+    hasnormals = len(verts) and verts[0].hasnormal # assuming is either all norm or all color
+    hascolors = not hasnormals
+    normals = []
+
+    colattr = None
+    if hascolors:
+        colattr = obj.data.color_attributes.new(
+            name='vtxcolor',
+            type='FLOAT_COLOR',
+            domain='POINT',
+        )
+
+    for idx, v in enumerate(verts):
+        normcolor = v.color # either a normal or color
+        if normcolor is None: continue
+
+        if hascolors:
+            r = normcolor[0]/255.0
+            g = normcolor[1]/255.0
+            b = normcolor[2]/255.0
+            a = normcolor[3]/255.0
+            logger.debug(f'  {r:.2f} {g:.2f} {b:.2f}')
+            colattr.data[idx].color = [r, g, b, a]
+        else:
+            s = 2.2
+            n = Vector((normcolor[0], normcolor[2], normcolor[1])).normalized()
+            n.x *= s; n.y *= s; n.z *= s
+            normals.append(n)
+
+    me = obj.data
+
     bpy.context.view_layer.objects.active = obj
 
     bpy.ops.object.mode_set(mode = 'EDIT')
-    me = obj.data
     bm = bmesh.from_edit_mesh(me)
     bm.faces.ensure_lookup_table()
     bm.verts.ensure_lookup_table()
@@ -95,15 +215,15 @@ def createMesh(verts, faces, idx, sub_idx, tri2tex, mtxindex, tex_configs):
     # setup UVs and materials
     uv_layer = bm.loops.layers.uv.verify()
     for idx, face in enumerate(bm.faces):
-        texnum, smode = tri2tex[face.index]
+        texnum, smode, geom_mode = tri2tex[face.index]
         tc = tex_configs[texnum]
 
-        matname = mat_name(texnum)
+        matname = mat_name(texnum, smode, geom_mode)
         mat_idx = obj.data.materials.find(matname)
         if mat_idx < 0:
             mat_idx = len(obj.data.materials)
-            use_alpha = (tc['format'] == 0 and tc['depth'] == 3) or smode == 1
-            mat = material_new(texnum, smode, use_alpha)
+            use_alpha = smode == 1 or tex_has_alpha(tc['format'], tc['depth'])
+            mat = material_new(texnum, smode, use_alpha, geom_mode)
             obj.data.materials.append(mat)
 
         face.material_index = mat_idx
@@ -112,7 +232,7 @@ def createMesh(verts, faces, idx, sub_idx, tri2tex, mtxindex, tex_configs):
         for loop in face.loops:
             vert = verts[loop.vert.index]
             uv_sc = (1 / (32 * tc['width']), 1 / (32 * tc['height']))
-            uv = (vert[3] * uv_sc[0], vert[4] * uv_sc[1])
+            uv = (vert.uv[0] * uv_sc[0], vert.uv[1] * uv_sc[1])
             loop[uv_layer].uv = uv
 
     bmesh.update_edit_mesh(me)
@@ -241,13 +361,16 @@ def createJoint(idx, x, y, z):
     # joint.scale = (20, 20, 20)
     bpy.data.collections['Joints'].objects.link(joint)
     
-G_MTX           = 0x01
-G_VTX           = 0x04
-G_TRI4          = 0xb1
-G_CLEARGEOMETRY = 0xb7
-G_END           = 0xb8
-G_PDTEX         = 0xc0
+G_MTX               = 0x01
+G_VTX               = 0x04
+G_COL               = 0x07
+G_TRI4              = 0xb1
+G_SETGEOMETRYMODE   = 0xb7
+G_CLEARGEOMETRYMODE = 0xb6
+G_PDTEX             = 0xc0
+G_END               = 0xb8
 
+G_LIGHTING    = 0x00020000
 G_TEXTURE_GEN = 0x00040000
 
 def _t(v): return f'({v[0]:.2f}, {v[1]:.2f}, {v[2]:.2f})'
@@ -271,15 +394,13 @@ class SubMesh:
 
         logger.debug(f'>>> MESH {self.mtxindex:02X} add vtx: {n}')
 
-        # self.vtx_buffer = vtx_buffer
         self.tri_index = len(self.verts)
         for i in range(0, n):
             v = vtx_buffer[i]
-            self.verts.append(v.pos + v.uv)
+            self.verts.append(v)
             self.vtx_buffer.append(v.pos)
 
-    def add_tri(self, tri, texnum, smode):
-        # if self.mtxindex == 0x2a: logger.debug(f'>>> TRIANGLE ON MESH 2A')
+    def add_tri(self, tri, texnum, smode, geom_mode):
         ofs = self.tri_index
         t = (
             tri[0] + ofs,
@@ -291,21 +412,20 @@ class SubMesh:
 
         if texnum:
             facenum = len(self.tris) - 1
-            self.tri2tex[facenum] = (texnum, smode)
-            # self.tri2tex[facenum] = texnum
-            # if self.dbg: logger.debug(f'    tex {texnum:04X} smode {smode}')
+            self.tri2tex[facenum] = (texnum, smode, geom_mode)
 
     def clear_vtx_buffer(self):
-        logger.debug(f'>>> MESH {self.mtxindex:02X} clearbuf')
         self.vtx_buffer.clear()
 
 class VtxBufferEntry:
-    def __init__(self, pos=(0,0,0), uv=(0,0), group_size=0, mtxidx=-1):
+    def __init__(self, pos=(0,0,0), uv=(0,0), color=None, group_size=0, mtxidx=-1, hasnormal=False):
         self.pos = pos
         self.uv = uv
+        self.color = color
         self.group_size = group_size
         self.mtxidx = mtxidx
         self.meshes_loaded = []
+        self.hasnormal = hasnormal
 
 def select_mesh(tri, vtx_buffer):
     v0 = vtx_buffer[tri[0]]
@@ -324,6 +444,9 @@ def collectSubMeshes(model, ro_gundl, idx):
     ptr_vtx = ro_gundl['vertices']&0xffffff
     vtxbytes = model.data(ptr_vtx)
     nvtx = ro_gundl['numvertices']
+    ptr_col = pdu.align(ptr_vtx + nvtx*12, 8)
+    col_start = ptr_col
+
     sc = 1
     verts = pdu.read_vtxs(vtxbytes, nvtx, sc)
 
@@ -342,19 +465,32 @@ def collectSubMeshes(model, ro_gundl, idx):
     smode = 0
     geom_mode = 0
 
+    gdlnum = 0
+
     if dbg:
         # n = min(nvtx, 300)
         for i in range(0, nvtx):
             v = verts[i]
             logger.debug(f' v_{i} {v}')
 
-    if dbg: logger.debug(f'[CREATEMESH {idx:02X}] ptr_vtx {ptr_vtx:04X} nvtx {len(verts)}')
+    if dbg: logger.debug(f'[CREATEMESH {idx:02X}] ptr_vtx {ptr_vtx:04X} ptr_col {ptr_col:04X} nvtx {len(verts)}')
 
     while True:
         cmd = gdl[addr:addr+8]
         op = cmd[0]
 
-        if op == G_END: break
+        if op == G_END:
+            ptr_xlugdl = ro_gundl['xlugdl']
+            if ptr_xlugdl and gdlnum == 0:
+                gdl = model.data(ptr_xlugdl)
+                addr = 0
+                current_tex = 0
+                smode = 0
+                geom_mode = 0
+                gdlnum += 1
+                continue
+            else:
+                break
 
         cmdint = int.from_bytes(cmd, bo)
         w0 = (cmdint & 0xffffffff00000000) >> 32
@@ -369,9 +505,8 @@ def collectSubMeshes(model, ro_gundl, idx):
                 v = select_mesh(tri, vtx_buffer)
                 if dbg: logger.debug(f'tri {tri} tex {current_tex:04X}')
                 mesh = matrixmesh_map[v.mtxidx]
-                
                 mesh.vtx_from_buffer(vtx_buffer, vtx_buf_size)
-                mesh.add_tri(tri, current_tex, smode)
+                mesh.add_tri(tri, current_tex, smode, geom_mode)
         elif op == G_VTX:
             nverts = ((cmd[1] & 0xf0) >> 4) + 1
             vtx_idx = cmd[1] & 0xf
@@ -379,16 +514,22 @@ def collectSubMeshes(model, ro_gundl, idx):
 
             vstart = (vtx_ofs - ptr_vtx) // 12
             vtx_buf_size = vtx_idx + nverts
-            pos = getPositionFromMtxIndex(model, mtxindex)
+            pos = getPositionFromMtxIndex(model, mtxindex) if mtxindex >= 0 else (0,0,0)
 
-            logger.debug(f'  vstart {vstart} n {nverts} vidx {vtx_idx:01X} vbufsize {vtx_buf_size}')
+            logger.debug(f'  vstart {vstart} n {nverts} vidx {vtx_idx:01X} vbufsize {vtx_buf_size} col_offset {(col_start-ptr_col)>>2}')
 
+            col_data = model.data(col_start)
             for i, v in enumerate(verts[vstart:vstart+nverts]):
                 vpos = (v[0] + pos[0], v[1] + pos[1], v[2] + pos[2])
                 uv = (v[3], v[4])
-                vtx_buffer[vtx_idx+i] = VtxBufferEntry(vpos, uv, nverts, mtxindex)
+                coloridx = v[5]
+                color = col_data[coloridx:coloridx+4]
+                if dbg: logger.debug(f'  {i} {coloridx}')
+                vtx_buffer[vtx_idx+i] = VtxBufferEntry(vpos, uv, color, nverts, mtxindex)
 
             matrixmesh_map[mtxindex].clear_vtx_buffer()
+        elif op == G_COL:
+            col_start = (cmdint & 0xffffff)
         elif op == G_MTX:
             mtxindex = (cmdint & 0xffffff) // 0x40
             logger.debug(f'  MTX {mtxindex:04X}')
@@ -400,8 +541,10 @@ def collectSubMeshes(model, ro_gundl, idx):
         elif op == G_PDTEX:
             current_tex = cmdint & 0xffff
             smode = (w0 >> 22) & 3
-        elif op == G_CLEARGEOMETRY:
+        elif op == G_SETGEOMETRYMODE:
             geom_mode = w1
+        elif op == G_CLEARGEOMETRYMODE:
+            geom_mode = 0
 
         addr += 8
 
@@ -416,7 +559,7 @@ def getPositionFromMtxIndex(model, mtxindex):
             if ro['mtxindexes'][0] == mtxindex:
                 name = posNodeName(idx)
                 obj = bpy.data.collections['Joints'].objects[name]
-                # logger.debug(f'  found MTX {mtxindex:02X} in {name}: {obj.matrix_world.translation}')
+                logger.debug(f'  found MTX {mtxindex:02X} in {name}: {obj.matrix_world.translation}')
                 return obj.matrix_world.translation
     return None
 
@@ -425,13 +568,14 @@ def createModelMesh(idx, model, ro_gundl, sc, tex_configs):
     # logger.debug(f'createModelMesh {idx:02X}')
 
     subMeshes = collectSubMeshes(model, ro_gundl, idx)
+    colors = ro_gundl['colors']['bytes']
     n_submeshes = len(subMeshes)
     logger.debug(f'idx {idx:02X} n {n_submeshes}')
     for sub_idx, mesh in enumerate(subMeshes):
         tris = mesh.tris
         sub_idx = sub_idx if n_submeshes > 1 else -1
         # pos = getPositionFromMtxIndex(model, mesh.mtxindex)
-        createMesh(mesh.verts, tris, idx, sub_idx, mesh.tri2tex, mesh.mtxindex, tex_configs)
+        createMesh(mesh.verts, tris, colors, idx, sub_idx, mesh.tri2tex, mesh.mtxindex, tex_configs)
         logger.debug(f'  n {len(tris)} nvtx {len(mesh.verts)}')
 
 def createModelMeshes(model, sc):
@@ -460,27 +604,27 @@ def clearLog():
 def clearScene():
     pdu.clearCollection('Meshes')
     pdu.clearCollection('Joints')
-    pdu.materials_clear()
+    materials_clear()
 
 def main():
     clearLog() # TMP
     clearScene()
     createCollectionIfNone('Meshes')
     createCollectionIfNone('Joints')
-    # modelName = 'Gk7avengerZ'
-    # modelName = 'GdysuperdragonZ'
+    modelName = 'Gk7avengerZ'
+    modelName = 'GdysuperdragonZ'
     # modelName = 'Gleegun1Z'
     # modelName = 'Gfalcon2Z'
     # modelName = 'GcrossbowZ'
-    modelName = 'Gdy357Z'
-    # modelName = 'GdydevastatorZ'
-    # modelName = 'GdyrocketZ'
+    # modelName = 'Gdy357Z'
+    modelName = 'GdydevastatorZ'
+    modelName = 'GdyrocketZ'
     # modelName = 'GsniperrifleZ'
     # modelName = 'Gm16Z'
     # modelName = 'GshotgunZ'
     modelName = 'GpcgunZ'
     # modelName = 'GdruggunZ'
-    # modelName = 'GmaianpistolZ'
+    modelName = 'GmaianpistolZ'
     # modelName = 'GskminigunZ'
     # modelName = 'Gz2020Z'
     # modelName = 'Gcmp150Z'

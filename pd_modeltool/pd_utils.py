@@ -464,15 +464,9 @@ def read_vtxs(vtxdata, numvtx, sc):
         s = ctypes.c_short(s & 0xFFFF).value
         t = ctypes.c_short(t & 0xFFFF).value
 
-        # s = struct.unpack('f', vtx[6:8])[0]
-        # t = struct.unpack('f', vtx[8:10])[0]
-        # s = struct.unpack('f', s.to_bytes(4, 'little'))[0]
-        # t = struct.unpack('f', t.to_bytes(4, 'little'))[0]
-
-
         # vtxs.append([x,y,z,s,t,flags])
         # vtxs.append((x*sc,y*sc,z*sc))
-        vtxs.append((x*sc, z*sc, y*sc, s, t))
+        vtxs.append((x*sc, z*sc, y*sc, s, t, color))
 
     return vtxs
 
@@ -521,7 +515,3 @@ def clearCollection(name):
 
     for mesh in meshes:
         bpy.data.meshes.remove(mesh)
-
-def materials_clear():
-    for mat in bpy.data.materials:
-        if mat.users == 0: bpy.data.materials.remove(mat)

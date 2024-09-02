@@ -278,6 +278,7 @@ class PDModel:
             # a = colors['_addr_']
             # save colors at the same address as the vertices
             colors = self.colors[start] = rd.read_block_raw(col_start, col_end)
+            rodata['colors'] = colors
             c = colors['bytes']
             log(f'.COLORS start {col_start:04X} len {len(c):04X} ({len(c)})')
             if enableLog: print_bin('^COLORS', c, 0, 12*12, 4, 3)
