@@ -55,18 +55,53 @@ class PDModel:
         self.read_tex_configs()
         self.read_gdls()
 
+        nmtx = self.modeldef['nummatrices']
+        # we only represent the translation part of the matrix here
+        self.matrices = [(0,0,0)] * nmtx
+        self.build_matrices()
+
+    def build_matrices(self):
+        def setup_mtx(model, node, idx, depth, **kwargs):
+            nodetype = node['type']
+            if nodetype not in [0x2, 0x15]: return
+
+            # rodata = node['rodata']
+            rodata = model.find_rodata(node['rodata'])
+
+            pos = rodata['pos']['f']
+            x = struct.unpack('f', pos[0].to_bytes(4, 'little'))[0]
+            y = struct.unpack('f', pos[1].to_bytes(4, 'little'))[0]
+            z = struct.unpack('f', pos[2].to_bytes(4, 'little'))[0]
+
+            parentaddr = unmask(node['parent'])
+            parentnode = model.nodes[parentaddr] if parentaddr else None
+            # if parentnode and nodetype == 0x2: # and parentnode['type'] == 0x2:
+            if parentnode:
+                parentrodata = model.find_rodata(parentnode['rodata'])
+                mtxindex = parentrodata['mtxindexes'][0] if parentnode['type'] == 0x2 else parentrodata['mtxindex']
+                parentmtx = model.matrices[mtxindex]
+                x += parentmtx[0]
+                y += parentmtx[1]
+                z += parentmtx[2]
+
+            mtxindex = rodata['mtxindexes'][0] if nodetype == 0x2 else rodata['mtxindex']
+            model.matrices[mtxindex] = (x, y, z)
+            # model.matrices[mtxindex] = (x, z, y)
+
+            sp = ' ' * depth * 2
+            print(f'{sp} NODE {idx:02X} t {nodetype:02X} mtx {mtxindex:02X} ({x:.3f}, {y:.3f}, {z:.3f})')
+        #-------------------------------------
+        self.traverse(setup_mtx)
+
     def traverse(self, callback, **kwargs):
         node = self.rootnode
         depth = 0
         idx = 0
         # parentnode = None
         while node:
-            # node['_idx_'] = idx
-            nodetype = node['type']
-
             callback(self, node, idx, depth, **kwargs)
 
-            sp = ' ' * depth * 2
+            # sp = ' ' * depth * 2
             # print(f'{sp} NODE {idx:02X} t {nodetype:02X}')
             idx += 1
 

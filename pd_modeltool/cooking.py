@@ -52,6 +52,7 @@ def createMesh(verts, faces, colors, idx, sub_idx, tri2tex, mtxindex, tex_config
     suffix = f'[{sub_idx}]-M{mtxindex:02X}' if sub_idx >= 0 else f'-M{mtxindex:02X}'
     name = f'{idx:02X}.Mesh{suffix}'
     obj = bpy.data.objects.new(name, mesh_data)
+    # obj.location = (pos[0], pos[2], pos[1])
     # bpy.data.collections['Meshes'].objects.link(obj)
     collection = pdu.active_collection()
     collection.objects.link(obj)
@@ -342,16 +343,13 @@ def collectSubMeshes(model, rodata, idx):
             vtx_segmented = (w1 & 0x05000000) == 0x05000000
             vstart = (vtx_ofs - ptr_vtx)//12 if vtx_segmented else vtx_ofs//12
             vtx_buf_size = vtx_idx + nverts
-            pos = getPositionFromMtxIndex(model, mtxindex) if mtxindex >= 0 else (0,0,0)
+            pos = model.matrices[mtxindex] if mtxindex >= 0 else (0,0,0)
 
             logger.debug(f'  vstart {vstart} n {nverts} vidx {vtx_idx:01X} vbufsize {vtx_buf_size} col_offset {(col_start-ptr_col)>>2} seg {vtx_segmented:08X} mtx {mtxindex}')
 
             col_data = model.data(col_start)
             for i, v in enumerate(verts[vstart:vstart+nverts]):
-                if pos:
-                    vpos = (v[0] + pos[0], v[1] + pos[1], v[2] + pos[2])
-                else:
-                    vpos = (v[0], v[1], v[2])
+                vpos = (v[0] + pos[0], v[1] + pos[2], v[2] + pos[1]) #invert yz
 
                 uv = (v[3], v[4])
                 coloridx = v[5]
@@ -382,22 +380,6 @@ def collectSubMeshes(model, rodata, idx):
 
     return list(filter(lambda e: len(e.tris), matrixmesh_map.values()))
 
-def getPositionFromMtxIndex(model, mtxindex):
-    collection = pdu.active_collection()
-
-    for addr, node in model.nodes.items():
-        if node['type'] == 2:
-            idx = node['_idx_']
-            ro = model.find_rodata(node['rodata'])
-            # print('idx', f'{idx:02X}', ro, 'q ', mtxindex)
-            if ro['mtxindexes'][0] == mtxindex:
-                name = posNodeName(idx)
-                # obj = bpy.data.collections['Joints'].objects[name]
-                obj = collection.objects[name]
-                logger.debug(f'  found MTX {mtxindex:02X} in {name}: {obj.matrix_world.translation}')
-                return obj.matrix_world.translation
-    return None
-
 def createModelMesh(idx, model, rodata, sc, tex_configs, parent_obj):
     # logger.debug(f'createModelMesh {idx:02X}')
 
@@ -408,7 +390,6 @@ def createModelMesh(idx, model, rodata, sc, tex_configs, parent_obj):
     for sub_idx, mesh in enumerate(subMeshes):
         tris = mesh.tris
         sub_idx = sub_idx if n_submeshes > 1 else -1
-        # pos = getPositionFromMtxIndex(model, mesh.mtxindex)
         mesh_obj = createMesh(mesh.verts, tris, colors, idx, sub_idx, mesh.tri2tex, mesh.mtxindex, tex_configs)
         mesh_obj.parent = parent_obj
         # logger.debug(f'  n {len(tris)} nvtx {len(mesh.verts)}')
@@ -460,18 +441,18 @@ def main():
     # createCollectionIfNone('Meshes')
     # createCollectionIfNone('Joints')
 
-    model_name = 'Gk7avengerZ'
-    model_name = 'GdysuperdragonZ'
-    model_name = 'GdydragonZ'
+    model_name = 'Gfalcon2Z'
+    # model_name = 'Gk7avengerZ'
+    # model_name = 'GdysuperdragonZ'
+    # model_name = 'GdydragonZ'
     # model_name = 'Gleegun1Z'
-    # model_name = 'Gfalcon2Z'
     # model_name = 'GcrossbowZ'
     # model_name = 'Gdy357Z'
     # model_name = 'GdydevastatorZ'
     # model_name = 'GdyrocketZ'
     # model_name = 'GsniperrifleZ'
     # model_name = 'Gm16Z'
-    model_name = 'GshotgunZ'
+    # model_name = 'GshotgunZ'
     model_name = 'GpcgunZ'
     # model_name = 'GdruggunZ'
     # model_name = 'GmaianpistolZ'
@@ -488,7 +469,7 @@ def main():
     sc = 0.01
     sc = 1
     # traverse(model, model_obj, create_joint)
-    model.traverse(create_joint, root_obj=model_obj)
+    # model.traverse(create_joint, root_obj=model_obj)
     bpy.context.view_layer.update()
     createModelMeshes(model, model_name, sc, meshes_obj)
 
