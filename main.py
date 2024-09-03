@@ -32,70 +32,6 @@ def selectFace(idx):
     bm.faces[idx].select = True
     bmesh.update_edit_mesh(mesh)
 
-def create_material(mat_name, diffuse_color=(1,1,1,1)):
-    mat = bpy.data.materials.new(name=mat_name)
-    mat.diffuse_color = diffuse_color
-    return mat
-
-def obj_assign_mat(obj, mat):
-    obj.data.materials.clear()
-    obj.data.materials.append(mat)
-
-    # assign materials to faces
-    bpy.context.view_layer.objects.active = obj
-    bpy.ops.object.mode_set(mode = 'EDIT')
-    mesh = obj.data
-    bm = bmesh.from_edit_mesh(mesh)
-    bm.faces.ensure_lookup_table()
-
-    faces = bm.faces
-
-    faces[0].material_index = 0
-    faces[1].material_index = 0
-    faces[2].material_index = 0
-    faces[3].material_index = 0
-    bmesh.update_edit_mesh(mesh)
-    bpy.ops.object.mode_set(mode = 'OBJECT')
-        
-def create_tex_material(name, image_filename):
-    material = bpy.data.materials.new(name)
-    material.use_nodes = True
-    
-    material_shader = material.node_tree.nodes["Principled BSDF"]
-    texture = material.node_tree.nodes.new('ShaderNodeTexImage')
-    texture.image = bpy.data.images.load(f'//tex/{image_filename}')
-    material.node_tree.links.new(material_shader.inputs['Base Color'], texture.outputs['Color'])
-
-    return material
-
-def material_remove(name):
-    if name not in bpy.data.materials: return
-    mat = bpy.data.materials[name]
-    bpy.data.materials.remove(mat)
-    
-def material_test(obj_name, mat_name, img_filename):
-#    for material in bpy.data.materials:
-#        material.user_clear()
-#        bpy.data.materials.remove(material)
-
-    obj = bpy.data.collections['Meshes'].objects[obj_name]
-    material_remove(mat_name)
-    mat = create_tex_material(mat_name, img_filename)
-    obj_assign_mat(obj, mat)
-#    bpy.data.materials.remove(material)
-#    bpy.context.object.data.materials.clear()
-
-    # Generate 2 demo materials
-#    mat_red = create_material("Red", (1,0,0,1))
-#    mat_green = create_material("Green", (0,1,0,1))
-
-
-#    obj_assign_mat(col['07.Mesh-M21'], mat_red, mat_green)
-#    obj_assign_mat(col['09.Mesh-M21'], mat_red, mat_green)
-
-#    mat = bpy.data.materials.new(name='Mat.07-0323')
-#    bpy.data.materials[name]
-    
 
 #obj = bpy.data.collections['Meshes'].objects['07.Mesh-M21']
 #bpy.ops.object.select_all(action='DESELECT')
@@ -107,14 +43,6 @@ def material_test(obj_name, mat_name, img_filename):
 cmd = [0xB1, 0x00, 0x32, 0x6B, 0x20, 0x10, 0xB5, 0x85]
 #print(pdu.read_tri4(cmd))
 print('\n'*4)
-
-
-def uv_from_vert_first(uv_layer, v):
-    for l in v.link_loops:
-        uv_data = l[uv_layer]
-        return uv_data.uv
-
-    return None
 
 
 def test_loops(obj):
@@ -133,21 +61,33 @@ def test_loops(obj):
         print('v {v} uv {uv_first}')
     '''
 
-    for idx,face in enumerate(bm.faces):
+    for idx, face in enumerate(bm.faces):
         print(f'face {idx}')
         for loop in face.loops:
-            print(f' {loop.index} {loop.vert}')
+            print(f' {loop.index} {loop.vert} {face.index}')
     #        print(loop.vert)
+    
+    print('loops ', len(obj.data.loops))
+    print('faces ', len(bm.faces))
 
     bm.free()
 
 def test_loops2(obj):
     for loop in obj.data.loops:
-        print(f' {loop.index} {loop.vert}')
+        v = obj.data.vertices[loop.vertex_index]
+        print(f' {loop.index} {v.co} {type(loop)}')
                 
-obj = bpy.data.collections['Meshes'].objects['07.Mesh-M21']
+#obj = bpy.data.collections['Meshes'].objects['07.Mesh-M21']
+#obj = bpy.data.collections['Meshes'].objects['02.Mesh[0]-M24']
+#uv = obj.data.uv_layers.new(name='NewUV')
 
-test_loops2(obj)
-    
-#material_test('07.Mesh-M21', 'Mat.07-0323', '0323.bmp')
-#cooking.main()
+#test_loops(obj)
+
+#dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "PD_Materials.blend")
+
+#print('mat11: ', 'mat11' in bpy.data.materials)
+#print('mat idx: ', obj.data.materials.find('mat11'))
+#print('mat len: ', len(bpy.data.materials))
+#print('mat idx: ', type(obj.data.materials))
+#material_test('0B.Mesh-M26', 'Mat.0B-0323', '0323.bmp')
+cooking.main()
