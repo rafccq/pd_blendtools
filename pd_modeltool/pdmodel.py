@@ -55,6 +55,36 @@ class PDModel:
         self.read_tex_configs()
         self.read_gdls()
 
+    def traverse(self, callback, **kwargs):
+        node = self.rootnode
+        depth = 0
+        idx = 0
+        # parentnode = None
+        while node:
+            # node['_idx_'] = idx
+            nodetype = node['type']
+
+            callback(self, node, idx, depth, **kwargs)
+
+            sp = ' ' * depth * 2
+            # print(f'{sp} NODE {idx:02X} t {nodetype:02X}')
+            idx += 1
+
+            child = unmask(node['child'])
+            if child:
+                node = self.nodes[child]
+                depth += 1
+            else:
+                while node:
+                    nextaddr = unmask(node['next'])
+                    if nextaddr:
+                        node = self.nodes[nextaddr]
+                        break
+
+                    parent = unmask(node['parent'])
+                    node = self.nodes[parent] if parent else None
+                    if node: depth -= 1
+
     def patch(self):
         rd = self.rd
         dataout = bytearray()

@@ -142,24 +142,6 @@ def readModel(modelName):
     
     return model
 
-nodeidx = -1
-def _traverse(model, node, depth):
-    global nodeidx
-
-    nodeidx += 1
-    if not node: return
-
-    sp = ' ' * depth*2
-    nodetype = node['type']
-    print(f'{sp} NODE {nodeidx:02X} t {nodetype:02X}' )
-    child = pdmodel.unmask(node['child'])
-    if child:
-        _traverse(model, model.nodes[child], depth + 1)
-
-    nextaddr = pdmodel.unmask(node['next'])
-    if nextaddr:
-        _traverse(model, model.nodes[nextaddr], depth)
-
 def posNodeName(idx): return f'{idx:02X}.Position'
 
 def createObj(idx, pos, parentidx, root_obj):
@@ -198,7 +180,8 @@ def createObj(idx, pos, parentidx, root_obj):
     collection.objects.link(obj)
     # bpy.context.view_layer.update()
 
-def create_joint(model, node, idx, root_obj):
+def create_joint(model, node, idx, depth, **kwargs):
+    root_obj = kwargs['root_obj']
     node['_idx_'] = idx
     nodetype = node['type']
 
@@ -215,36 +198,6 @@ def create_joint(model, node, idx, root_obj):
         parentnode = model.nodes[parentaddr] if parentaddr else None
         parentidx = parentnode['_idx_'] if parentnode and parentnode['type'] == 2 else -1
         createObj(idx, (x, z, y), parentidx, root_obj)
-
-def traverse(model, root_obj, callback):
-    node = model.rootnode
-    depth = 0
-    idx = 0
-    # parentnode = None
-    while node:
-        # node['_idx_'] = idx
-        nodetype = node['type']
-
-        callback(model, node, idx, root_obj)
-
-        sp = ' ' * depth * 2
-        print(f'{sp} NODE {idx:02X} t {nodetype:02X}')
-        idx += 1
-
-        child = pdmodel.unmask(node['child'])
-        if child:
-            node = model.nodes[child]
-            depth += 1
-        else:
-            while node:
-                nextaddr = pdmodel.unmask(node['next'])
-                if nextaddr:
-                    node = model.nodes[nextaddr]
-                    break
-
-                parent = pdmodel.unmask(node['parent'])
-                node = model.nodes[parent] if parent else None
-                if node: depth -= 1
 
 def _t(v): return f'({v[0]:.2f}, {v[1]:.2f}, {v[2]:.2f})'
 class SubMesh:
@@ -311,12 +264,12 @@ def select_mesh(tri, vtx_buffer):
     else:
         return v1 if v1.group_size >= v2.group_size else v2
 
-def collectSubMeshes(model, ro_gundl, idx):
-    ptr_opagdl = ro_gundl['opagdl']
+def collectSubMeshes(model, rodata, idx):
+    ptr_opagdl = rodata['opagdl']
 
-    ptr_vtx = ro_gundl['vertices']&0xffffff
+    ptr_vtx = rodata['vertices'] & 0xffffff
     vtxbytes = model.data(ptr_vtx)
-    nvtx = ro_gundl['numvertices']
+    nvtx = rodata['numvertices']
     ptr_col = pdu.align(ptr_vtx + nvtx*12, 8)
     col_start = ptr_col
 
@@ -327,6 +280,7 @@ def collectSubMeshes(model, ro_gundl, idx):
     addr = 0
     bo='big'
     dbg = idx == 0x3
+    # dbg = 1
 
     matrixmesh_map = {} # matrix idx -> mesh
     mtxindex = -1
@@ -353,7 +307,7 @@ def collectSubMeshes(model, ro_gundl, idx):
         op = cmd[0]
 
         if op == G_END:
-            ptr_xlugdl = ro_gundl['xlugdl']
+            ptr_xlugdl = rodata['xlugdl']
             if ptr_xlugdl and gdlnum == 0:
                 gdl = model.data(ptr_xlugdl)
                 addr = 0
@@ -385,11 +339,12 @@ def collectSubMeshes(model, ro_gundl, idx):
             vtx_idx = cmd[1] & 0xf
             vtx_ofs = int.from_bytes(cmd[5:8], bo)
 
-            vstart = (vtx_ofs - ptr_vtx) // 12
+            vtx_segmented = (w1 & 0x05000000) == 0x05000000
+            vstart = (vtx_ofs - ptr_vtx)//12 if vtx_segmented else vtx_ofs//12
             vtx_buf_size = vtx_idx + nverts
             pos = getPositionFromMtxIndex(model, mtxindex) if mtxindex >= 0 else (0,0,0)
 
-            logger.debug(f'  vstart {vstart} n {nverts} vidx {vtx_idx:01X} vbufsize {vtx_buf_size} col_offset {(col_start-ptr_col)>>2}')
+            logger.debug(f'  vstart {vstart} n {nverts} vidx {vtx_idx:01X} vbufsize {vtx_buf_size} col_offset {(col_start-ptr_col)>>2} seg {vtx_segmented:08X} mtx {mtxindex}')
 
             col_data = model.data(col_start)
             for i, v in enumerate(verts[vstart:vstart+nverts]):
@@ -401,7 +356,7 @@ def collectSubMeshes(model, ro_gundl, idx):
                 uv = (v[3], v[4])
                 coloridx = v[5]
                 color = col_data[coloridx:coloridx+4]
-                if dbg: logger.debug(f'  {i} {coloridx}')
+                if dbg: logger.debug(f'  {i} {coloridx} mtx {mtxindex}')
                 vtx_buffer[vtx_idx+i] = VtxBufferEntry(vpos, uv, color, nverts, mtxindex)
 
             matrixmesh_map[mtxindex].clear_vtx_buffer()
@@ -443,11 +398,11 @@ def getPositionFromMtxIndex(model, mtxindex):
                 return obj.matrix_world.translation
     return None
 
-def createModelMesh(idx, model, ro_gundl, sc, tex_configs, parent_obj):
+def createModelMesh(idx, model, rodata, sc, tex_configs, parent_obj):
     # logger.debug(f'createModelMesh {idx:02X}')
 
-    subMeshes = collectSubMeshes(model, ro_gundl, idx)
-    colors = ro_gundl['colors']['bytes']
+    subMeshes = collectSubMeshes(model, rodata, idx)
+    colors = rodata['colors']['bytes']
     n_submeshes = len(subMeshes)
     logger.debug(f'idx {idx:02X} n {n_submeshes}')
     for sub_idx, mesh in enumerate(subMeshes):
@@ -471,10 +426,25 @@ def createModelMeshes(model, name, sc, model_obj):
     logger.debug('createModelMeshes')
     idx = 0
     for ro in model.rodatas:
-        if ro['_node_type_'] == 4:
+        nodetype = ro['_node_type_']
+        typeDL1 = nodetype in [0x4, 0x18]
+        typeDL2 = nodetype == 0x16
+
+        rodata = {}
+        if typeDL1:
+            for e in ['opagdl', 'xlugdl', 'vertices', 'numvertices', 'colors']: rodata[e] = ro[e]
+        if typeDL2:
+            rodata['opagdl'] = ro['gdl']
+            rodata['xlugdl'] = None
+            rodata['numvertices'] = ro['unk00']*4
+            rodata['vertices'] = ro['vertices']
+            rodata['colors'] = ro['colors']
+
+        if typeDL1 or typeDL2:
         # if ro['_node_type_'] == 4 and idx == 3:
 #            print(ro)
-            createModelMesh(idx, model, ro, sc, tex_configs, model_obj)
+            print(f'createModelMesh t {nodetype:02X}')
+            createModelMesh(idx, model, rodata, sc, tex_configs, model_obj)
         idx += 1
 
 def clearLog():
@@ -501,14 +471,14 @@ def main():
     # model_name = 'GdyrocketZ'
     # model_name = 'GsniperrifleZ'
     # model_name = 'Gm16Z'
-    # model_name = 'GshotgunZ'
-    # model_name = 'GpcgunZ'
+    model_name = 'GshotgunZ'
+    model_name = 'GpcgunZ'
     # model_name = 'GdruggunZ'
     # model_name = 'GmaianpistolZ'
     # model_name = 'GskminigunZ'
-    model_name = 'Gz2020Z'
+    # model_name = 'Gz2020Z'
     # model_name = 'Gcmp150Z'
-    # model_name = 'PchrdragonZ'
+    model_name = 'PchrdragonZ'
     # model_name = 'Pchrdy357Z'
     model = readModel(model_name)
 
@@ -517,7 +487,8 @@ def main():
 
     sc = 0.01
     sc = 1
-    traverse(model, model_obj, create_joint)
+    # traverse(model, model_obj, create_joint)
+    model.traverse(create_joint, root_obj=model_obj)
     bpy.context.view_layer.update()
     createModelMeshes(model, model_name, sc, meshes_obj)
 
