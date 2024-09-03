@@ -362,6 +362,13 @@ class PDModel:
 
         # print_bin('texdata_0', self.texdatas[0]['bytes'], 0, -1, group_size=4)
 
+    def find_rodata(self, addr):
+        addr = unmask(addr)
+        for ro in self.rodatas:
+            if ro['_addr_'] == addr: return ro
+
+        return None
+
 def read(path, filename):
     modeldata = read_file(f'{path}/{filename}')
     modeldata = decompress(modeldata)

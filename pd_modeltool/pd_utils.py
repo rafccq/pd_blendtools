@@ -502,10 +502,7 @@ def createCube():
 
     # bpy.data.collections['Meshes'].objects.link(parent_object)
 
-def clearCollection(name):
-    if name not in bpy.data.collections: return
-
-    collection = bpy.data.collections[name]
+def clear_collection(collection):
     meshes = set()
     for obj in collection.objects:
         if obj.type == 'MESH':
@@ -515,3 +512,26 @@ def clearCollection(name):
 
     for mesh in meshes:
         bpy.data.meshes.remove(mesh)
+
+def clear_scene():
+    view_layer = bpy.context.view_layer
+    clear_collection(view_layer.active_layer_collection.collection)
+    # if name not in bpy.data.collections: return
+    # collection = bpy.data.collections[name]
+
+def new_empty_obj(name, parent=None, dsize = 0, dtype='PLAIN_AXES', link=True):
+    obj = bpy.data.objects.new(name, None)
+    obj.empty_display_size = dsize
+    obj.empty_display_type = dtype
+
+    if parent: obj.parent = parent
+
+    if link:
+        collection = active_collection()
+        collection.objects.link(obj)
+
+    return obj
+
+def active_collection():
+    view_layer = bpy.context.view_layer
+    return view_layer.active_layer_collection.collection

@@ -12,6 +12,17 @@ import pdmodel
 import pd_materials as pdm
 from pdmodel import unmask
 
+G_MTX               = 0x01
+G_VTX               = 0x04
+G_COL               = 0x07
+G_TRI4              = 0xb1
+G_SETGEOMETRYMODE   = 0xb7
+G_CLEARGEOMETRYMODE = 0xb6
+G_PDTEX             = 0xc0
+G_END               = 0xb8
+
+# G_LIGHTING    = 0x00020000
+# G_TEXTURE_GEN = 0x00040000
 
 logging.basicConfig(filename='D:/Mega/PD/pd_blend/pd_guns.log',
     level=logging.DEBUG,
@@ -35,14 +46,15 @@ def createCollectionIfNone(name):
 def createMesh(verts, faces, colors, idx, sub_idx, tri2tex, mtxindex, tex_configs):
     mesh_data = bpy.data.meshes.new('mesh_data')
 
-    # verts_xyz = [(v[0], v[1], v[2]) for v in verts]
     verts_xyz = [v.pos for v in verts]
     mesh_data.from_pydata(verts_xyz, [], faces)
 
     suffix = f'[{sub_idx}]-M{mtxindex:02X}' if sub_idx >= 0 else f'-M{mtxindex:02X}'
     name = f'{idx:02X}.Mesh{suffix}'
     obj = bpy.data.objects.new(name, mesh_data)
-    bpy.data.collections['Meshes'].objects.link(obj)
+    # bpy.data.collections['Meshes'].objects.link(obj)
+    collection = pdu.active_collection()
+    collection.objects.link(obj)
 
     layer_vtxcol = mesh_data.vertex_colors
     logger.debug(f'MESH {name} vtxcol {layer_vtxcol} len {len(layer_vtxcol)}')
@@ -114,6 +126,8 @@ def createMesh(verts, faces, colors, idx, sub_idx, tri2tex, mtxindex, tex_config
 
     bpy.ops.object.mode_set(mode = 'OBJECT')
 
+    return obj
+
 def readModel(modelName):
     print('-'*32)
     blend_dir = os.path.dirname(bpy.data.filepath)
@@ -148,12 +162,15 @@ def _traverse(model, node, depth):
 
 def posNodeName(idx): return f'{idx:02X}.Position'
 
-def createObj(idx, pos, parentidx):
+def createObj(idx, pos, parentidx, root_obj):
     pos = Vector(pos)
     name = posNodeName(idx)
-    obj = bpy.data.objects.new(name=name, object_data=None)
-    obj.empty_display_type = "PLAIN_AXES"
-    obj.empty_display_size = 50
+
+    obj = pdu.new_empty_obj(name, dsize=50, link=False)
+    obj['pdid'] = idx
+
+    view_layer = bpy.context.view_layer
+    collection = view_layer.active_layer_collection.collection
 
     if parentidx < 0:
         location = pos
@@ -166,46 +183,49 @@ def createObj(idx, pos, parentidx):
         # obj.matrix_world = M
         # obj.matrix_world = Matrix.Translation(pos)
         obj.location = pos
+        obj.parent = root_obj
     else:
         name = posNodeName(parentidx)
-        parent = bpy.data.collections['Joints'].objects[name]
+        # parent = bpy.data.collections['Joints'].objects[name]
+        parent = collection.objects[name]
         obj.parent = parent
         # obj.matrix_world = Matrix.Translation(pos)
         # obj.location = pos + parent.location
         obj.location = pos
 
     # bpy.context.collection.objects.link(obj)
-    bpy.data.collections['Joints'].objects.link(obj)
+    # bpy.data.collections['Joints'].objects.link(obj)
+    collection.objects.link(obj)
     # bpy.context.view_layer.update()
 
-def TMP_getrodata(model, addr):
-    for ro in model.rodatas:
-        if ro['_addr_'] == unmask(addr): return ro
+def create_joint(model, node, idx, root_obj):
+    node['_idx_'] = idx
+    nodetype = node['type']
 
-    return None
+    if nodetype == 2:
+        r = node['rodata']
+        print(f'idx {idx:02X} ro {r:08X}')
+        ro = model.find_rodata(node['rodata'])
+        pos = ro['pos']['f']
+        x = struct.unpack('f', pos[0].to_bytes(4, 'little'))[0]
+        y = struct.unpack('f', pos[1].to_bytes(4, 'little'))[0]
+        z = struct.unpack('f', pos[2].to_bytes(4, 'little'))[0]
 
-def traverse(model):
+        parentaddr = unmask(node['parent'])
+        parentnode = model.nodes[parentaddr] if parentaddr else None
+        parentidx = parentnode['_idx_'] if parentnode and parentnode['type'] == 2 else -1
+        createObj(idx, (x, z, y), parentidx, root_obj)
+
+def traverse(model, root_obj, callback):
     node = model.rootnode
     depth = 0
     idx = 0
     # parentnode = None
     while node:
-        node['_idx_'] = idx
+        # node['_idx_'] = idx
         nodetype = node['type']
 
-        if nodetype == 2:
-            r = node['rodata']
-            print(f'idx {idx:02X} ro {r:08X}')
-            ro = TMP_getrodata(model, node['rodata'])
-            pos = ro['pos']['f']
-            x = struct.unpack('f', pos[0].to_bytes(4, 'little'))[0]
-            y = struct.unpack('f', pos[1].to_bytes(4, 'little'))[0]
-            z = struct.unpack('f', pos[2].to_bytes(4, 'little'))[0]
-
-            parentaddr = unmask(node['parent'])
-            parentnode = model.nodes[parentaddr] if parentaddr else None
-            parentidx = parentnode['_idx_'] if parentnode and parentnode['type'] == 2 else -1
-            createObj(idx, (x, z, y), parentidx)
+        callback(model, node, idx, root_obj)
 
         sp = ' ' * depth * 2
         print(f'{sp} NODE {idx:02X} t {nodetype:02X}')
@@ -225,27 +245,6 @@ def traverse(model):
                 parent = pdmodel.unmask(node['parent'])
                 node = model.nodes[parent] if parent else None
                 if node: depth -= 1
-
-def createJoint(idx, x, y, z):
-    #    r = rnd.randint(1, 1000)
-    joint = bpy.data.objects.new(name=f'{idx:02X}.Joint', object_data=None)
-    joint.empty_display_type = "PLAIN_AXES"
-    joint.empty_display_size = 200
-    joint.location = (x, y, z)
-    # joint.scale = (20, 20, 20)
-    bpy.data.collections['Joints'].objects.link(joint)
-    
-G_MTX               = 0x01
-G_VTX               = 0x04
-G_COL               = 0x07
-G_TRI4              = 0xb1
-G_SETGEOMETRYMODE   = 0xb7
-G_CLEARGEOMETRYMODE = 0xb6
-G_PDTEX             = 0xc0
-G_END               = 0xb8
-
-# G_LIGHTING    = 0x00020000
-# G_TEXTURE_GEN = 0x00040000
 
 def _t(v): return f'({v[0]:.2f}, {v[1]:.2f}, {v[2]:.2f})'
 class SubMesh:
@@ -394,7 +393,11 @@ def collectSubMeshes(model, ro_gundl, idx):
 
             col_data = model.data(col_start)
             for i, v in enumerate(verts[vstart:vstart+nverts]):
-                vpos = (v[0] + pos[0], v[1] + pos[1], v[2] + pos[2])
+                if pos:
+                    vpos = (v[0] + pos[0], v[1] + pos[1], v[2] + pos[2])
+                else:
+                    vpos = (v[0], v[1], v[2])
+
                 uv = (v[3], v[4])
                 coloridx = v[5]
                 color = col_data[coloridx:coloridx+4]
@@ -425,20 +428,22 @@ def collectSubMeshes(model, ro_gundl, idx):
     return list(filter(lambda e: len(e.tris), matrixmesh_map.values()))
 
 def getPositionFromMtxIndex(model, mtxindex):
+    collection = pdu.active_collection()
+
     for addr, node in model.nodes.items():
         if node['type'] == 2:
             idx = node['_idx_']
-            ro = TMP_getrodata(model, node['rodata'])
+            ro = model.find_rodata(node['rodata'])
             # print('idx', f'{idx:02X}', ro, 'q ', mtxindex)
             if ro['mtxindexes'][0] == mtxindex:
                 name = posNodeName(idx)
-                obj = bpy.data.collections['Joints'].objects[name]
+                # obj = bpy.data.collections['Joints'].objects[name]
+                obj = collection.objects[name]
                 logger.debug(f'  found MTX {mtxindex:02X} in {name}: {obj.matrix_world.translation}')
                 return obj.matrix_world.translation
     return None
 
-
-def createModelMesh(idx, model, ro_gundl, sc, tex_configs):
+def createModelMesh(idx, model, ro_gundl, sc, tex_configs, parent_obj):
     # logger.debug(f'createModelMesh {idx:02X}')
 
     subMeshes = collectSubMeshes(model, ro_gundl, idx)
@@ -449,10 +454,11 @@ def createModelMesh(idx, model, ro_gundl, sc, tex_configs):
         tris = mesh.tris
         sub_idx = sub_idx if n_submeshes > 1 else -1
         # pos = getPositionFromMtxIndex(model, mesh.mtxindex)
-        createMesh(mesh.verts, tris, colors, idx, sub_idx, mesh.tri2tex, mesh.mtxindex, tex_configs)
-        logger.debug(f'  n {len(tris)} nvtx {len(mesh.verts)}')
+        mesh_obj = createMesh(mesh.verts, tris, colors, idx, sub_idx, mesh.tri2tex, mesh.mtxindex, tex_configs)
+        mesh_obj.parent = parent_obj
+        # logger.debug(f'  n {len(tris)} nvtx {len(mesh.verts)}')
 
-def createModelMeshes(model, sc):
+def createModelMeshes(model, name, sc, model_obj):
     tex_configs = {}
     for tc in model.texconfigs:
         texnum = tc['texturenum']
@@ -468,47 +474,50 @@ def createModelMeshes(model, sc):
         if ro['_node_type_'] == 4:
         # if ro['_node_type_'] == 4 and idx == 3:
 #            print(ro)
-            createModelMesh(idx, model, ro, sc, tex_configs)
+            createModelMesh(idx, model, ro, sc, tex_configs, model_obj)
         idx += 1
 
 def clearLog():
     f = open('D:/Mega/PD/pd_blend/pd_guns.log', 'r+')
     f.truncate(0)
 
-def clearScene():
-    pdu.clearCollection('Meshes')
-    pdu.clearCollection('Joints')
-    # materials_clear()
-
 def main():
     clearLog() # TMP
-    clearScene()
-    createCollectionIfNone('Meshes')
-    createCollectionIfNone('Joints')
-    modelName = 'Gk7avengerZ'
-    modelName = 'GdysuperdragonZ'
-    modelName = 'GdydragonZ'
-    # modelName = 'Gleegun1Z'
-    # modelName = 'Gfalcon2Z'
-    # modelName = 'GcrossbowZ'
-    # modelName = 'Gdy357Z'
-    # modelName = 'GdydevastatorZ'
-    # modelName = 'GdyrocketZ'
-    # modelName = 'GsniperrifleZ'
-    # modelName = 'Gm16Z'
-    # modelName = 'GshotgunZ'
-    # modelName = 'GpcgunZ'
-    # modelName = 'GdruggunZ'
-    # modelName = 'GmaianpistolZ'
-    # modelName = 'GskminigunZ'
-    # modelName = 'Gz2020Z'
-    # modelName = 'Gcmp150Z'
-    # modelName = 'PchrdragonZ'
-    model = readModel(modelName)
+    # clearScene()
+
+    pdu.clear_scene()
+
+    # createCollectionIfNone('Meshes')
+    # createCollectionIfNone('Joints')
+
+    model_name = 'Gk7avengerZ'
+    model_name = 'GdysuperdragonZ'
+    model_name = 'GdydragonZ'
+    # model_name = 'Gleegun1Z'
+    # model_name = 'Gfalcon2Z'
+    # model_name = 'GcrossbowZ'
+    # model_name = 'Gdy357Z'
+    # model_name = 'GdydevastatorZ'
+    # model_name = 'GdyrocketZ'
+    # model_name = 'GsniperrifleZ'
+    # model_name = 'Gm16Z'
+    # model_name = 'GshotgunZ'
+    # model_name = 'GpcgunZ'
+    # model_name = 'GdruggunZ'
+    # model_name = 'GmaianpistolZ'
+    # model_name = 'GskminigunZ'
+    model_name = 'Gz2020Z'
+    # model_name = 'Gcmp150Z'
+    # model_name = 'PchrdragonZ'
+    # model_name = 'Pchrdy357Z'
+    model = readModel(model_name)
+
+    model_obj = pdu.new_empty_obj(model_name)
+    meshes_obj = pdu.new_empty_obj('Meshes', model_obj)
 
     sc = 0.01
     sc = 1
-    traverse(model)
+    traverse(model, model_obj, create_joint)
     bpy.context.view_layer.update()
-    createModelMeshes(model, sc)
+    createModelMeshes(model, model_name, sc, meshes_obj)
 

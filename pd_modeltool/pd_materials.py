@@ -78,7 +78,7 @@ def material_new(texnum, smode, use_alpha, geom_mode):
         return bpy.data.materials[name]
 
     preset = 'ENV_MAPPING' if geom_mode & (G_TEXTURE_GEN | G_LIGHTING) else 'DIFFUSE'
-    mat = material_from_template(name, texnum, use_alpha, preset)
+    mat = material_from_template(name, preset)
 
     node_tex = mat.node_tree.nodes['teximage']
     node_bsdf = mat.node_tree.nodes['p_bsdf']
@@ -93,7 +93,7 @@ def material_new(texnum, smode, use_alpha, geom_mode):
 
     return mat
 
-def material_from_template(name, texnum, use_alpha, preset):
+def material_from_template(name, preset):
     if TEMPLATE_NAME not in bpy.data.materials:
         blend_dir = os.path.dirname(bpy.data.filepath)
         with bpy.data.libraries.load(f'{blend_dir}/{MAT_BLENDFILE}') as (data_from, data_to):
