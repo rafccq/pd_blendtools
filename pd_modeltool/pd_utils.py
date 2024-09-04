@@ -466,7 +466,7 @@ def read_vtxs(vtxdata, numvtx, sc):
 
         # vtxs.append([x,y,z,s,t,flags])
         # vtxs.append((x*sc,y*sc,z*sc))
-        vtxs.append((x*sc, z*sc, y*sc, s, t, color))
+        vtxs.append((x*sc, z*sc, y*sc, s, t, color)) #invert-yz
 
     return vtxs
 

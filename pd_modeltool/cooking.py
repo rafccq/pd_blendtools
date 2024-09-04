@@ -145,7 +145,7 @@ def readModel(modelName):
 
 def posNodeName(idx): return f'{idx:02X}.Position'
 
-def createObj(idx, pos, parentidx, root_obj):
+def createObj(idx, pos, root_obj):
     pos = Vector(pos)
     name = posNodeName(idx)
 
@@ -155,26 +155,8 @@ def createObj(idx, pos, parentidx, root_obj):
     view_layer = bpy.context.view_layer
     collection = view_layer.active_layer_collection.collection
 
-    if parentidx < 0:
-        location = pos
-        rotation = Euler((0, 0,0))
-        scale = Vector((1, 1, 1))
-        T = Matrix.Translation(location)
-        R = rotation.to_matrix().to_4x4()
-        S = Matrix.Diagonal(scale.to_4d())
-        M = T @ R @ S
-        # obj.matrix_world = M
-        # obj.matrix_world = Matrix.Translation(pos)
-        obj.location = pos
-        obj.parent = root_obj
-    else:
-        name = posNodeName(parentidx)
-        # parent = bpy.data.collections['Joints'].objects[name]
-        parent = collection.objects[name]
-        obj.parent = parent
-        # obj.matrix_world = Matrix.Translation(pos)
-        # obj.location = pos + parent.location
-        obj.location = pos
+    obj.location = pos
+    obj.parent = root_obj
 
     # bpy.context.collection.objects.link(obj)
     # bpy.data.collections['Joints'].objects.link(obj)
@@ -198,7 +180,13 @@ def create_joint(model, node, idx, depth, **kwargs):
         parentaddr = unmask(node['parent'])
         parentnode = model.nodes[parentaddr] if parentaddr else None
         parentidx = parentnode['_idx_'] if parentnode and parentnode['type'] == 2 else -1
-        createObj(idx, (x, z, y), parentidx, root_obj)
+        parentobj = root_obj
+
+        if parentidx >= 0:
+            parentname = posNodeName(parentidx)
+            parentobj = pdu.active_collection().objects[parentname]
+
+        createObj(idx, (x, z, y), parentobj)
 
 def _t(v): return f'({v[0]:.2f}, {v[1]:.2f}, {v[2]:.2f})'
 class SubMesh:
@@ -349,7 +337,7 @@ def collectSubMeshes(model, rodata, idx):
 
             col_data = model.data(col_start)
             for i, v in enumerate(verts[vstart:vstart+nverts]):
-                vpos = (v[0] + pos[0], v[1] + pos[2], v[2] + pos[1]) #invert yz
+                vpos = (v[0] + pos[0], v[1] + pos[2], v[2] + pos[1]) #invert-yz
 
                 uv = (v[3], v[4])
                 coloridx = v[5]
@@ -458,8 +446,8 @@ def main():
     # model_name = 'GmaianpistolZ'
     # model_name = 'GskminigunZ'
     # model_name = 'Gz2020Z'
-    # model_name = 'Gcmp150Z'
-    model_name = 'PchrdragonZ'
+    model_name = 'Gcmp150Z'
+    # model_name = 'PchrdragonZ'
     # model_name = 'Pchrdy357Z'
     model = readModel(model_name)
 
@@ -469,7 +457,7 @@ def main():
     sc = 0.01
     sc = 1
     # traverse(model, model_obj, create_joint)
-    # model.traverse(create_joint, root_obj=model_obj)
+    model.traverse(create_joint, root_obj=model_obj)
     bpy.context.view_layer.update()
     createModelMeshes(model, model_name, sc, meshes_obj)
 
