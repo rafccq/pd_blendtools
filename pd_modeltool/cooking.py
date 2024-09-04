@@ -43,7 +43,7 @@ def createCollectionIfNone(name):
         collection = bpy.data.collections.new(name)
         ctx.scene.collection.children.link(collection)
 
-def createMesh(verts, faces, colors, idx, sub_idx, tri2tex, mtxindex, tex_configs):
+def createMesh(verts, faces, idx, sub_idx, tri2tex, mtxindex, tex_configs):
     mesh_data = bpy.data.meshes.new('mesh_data')
 
     verts_xyz = [v.pos for v in verts]
@@ -58,7 +58,7 @@ def createMesh(verts, faces, colors, idx, sub_idx, tri2tex, mtxindex, tex_config
     collection.objects.link(obj)
 
     layer_vtxcol = mesh_data.vertex_colors
-    logger.debug(f'MESH {name} vtxcol {layer_vtxcol} len {len(layer_vtxcol)}')
+    logger.debug(f'[CREATEMESH {idx:02X}] {name} vtxcol {layer_vtxcol} len {len(layer_vtxcol)}')
 
     # setup vertex normals
     hasnormals = len(verts) and verts[0].hasnormal # assuming is either all norm or all color
@@ -82,7 +82,7 @@ def createMesh(verts, faces, colors, idx, sub_idx, tri2tex, mtxindex, tex_config
             g = normcolor[1]/255.0
             b = normcolor[2]/255.0
             a = normcolor[3]/255.0
-            logger.debug(f'  {r:.2f} {g:.2f} {b:.2f}')
+            # logger.debug(f'  {r:.2f} {g:.2f} {b:.2f}')
             colattr.data[idx].color = [r, g, b, a]
         else:
             s = 2.2
@@ -225,7 +225,7 @@ class SubMesh:
         if self.dbg: logger.debug(f'  f {len(self.tris)} {t} tidx {ofs} M{self.mtxindex:02X}')
         self.tris.append(t)
 
-        if texnum:
+        if texnum >= 0:
             facenum = len(self.tris) - 1
             self.tri2tex[facenum] = (texnum, smode, geom_mode)
 
@@ -289,7 +289,7 @@ def collectSubMeshes(model, rodata, idx):
             v = verts[i]
             logger.debug(f' v_{i} {v}')
 
-    if dbg: logger.debug(f'[CREATEMESH {idx:02X}] ptr_vtx {ptr_vtx:04X} ptr_col {ptr_col:04X} nvtx {len(verts)}')
+    if dbg: logger.debug(f'[COLLECTMESH {idx:02X}] ptr_vtx {ptr_vtx:04X} ptr_col {ptr_col:04X} nvtx {len(verts)}')
 
     while True:
         cmd = gdl[addr:addr+8]
@@ -372,13 +372,13 @@ def createModelMesh(idx, model, rodata, sc, tex_configs, parent_obj):
     # logger.debug(f'createModelMesh {idx:02X}')
 
     subMeshes = collectSubMeshes(model, rodata, idx)
-    colors = rodata['colors']['bytes']
+    # colors = rodata['colors']['bytes']
     n_submeshes = len(subMeshes)
     logger.debug(f'idx {idx:02X} n {n_submeshes}')
     for sub_idx, mesh in enumerate(subMeshes):
         tris = mesh.tris
         sub_idx = sub_idx if n_submeshes > 1 else -1
-        mesh_obj = createMesh(mesh.verts, tris, colors, idx, sub_idx, mesh.tri2tex, mesh.mtxindex, tex_configs)
+        mesh_obj = createMesh(mesh.verts, tris, idx, sub_idx, mesh.tri2tex, mesh.mtxindex, tex_configs)
         mesh_obj.parent = parent_obj
         # logger.debug(f'  n {len(tris)} nvtx {len(mesh.verts)}')
 
@@ -439,14 +439,14 @@ def main():
     # model_name = 'GdydevastatorZ'
     # model_name = 'GdyrocketZ'
     # model_name = 'GsniperrifleZ'
-    # model_name = 'Gm16Z'
+    model_name = 'Gm16Z'
     # model_name = 'GshotgunZ'
-    model_name = 'GpcgunZ'
+    # model_name = 'GpcgunZ'
     # model_name = 'GdruggunZ'
     # model_name = 'GmaianpistolZ'
     # model_name = 'GskminigunZ'
     # model_name = 'Gz2020Z'
-    model_name = 'Gcmp150Z'
+    # model_name = 'Gcmp150Z'
     # model_name = 'PchrdragonZ'
     # model_name = 'Pchrdy357Z'
     model = readModel(model_name)

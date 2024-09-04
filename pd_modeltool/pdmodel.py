@@ -76,7 +76,7 @@ class PDModel:
             parentaddr = unmask(node['parent'])
             parentnode = model.nodes[parentaddr] if parentaddr else None
             # if parentnode and nodetype == 0x2: # and parentnode['type'] == 0x2:
-            if parentnode:
+            if parentnode and parentnode['type'] in [0x2, 0x15]:
                 parentrodata = model.find_rodata(parentnode['rodata'])
                 mtxindex = parentrodata['mtxindexes'][0] if parentnode['type'] == 0x2 else parentrodata['mtxindex']
                 parentmtx = model.matrices[mtxindex]
@@ -86,7 +86,6 @@ class PDModel:
 
             mtxindex = rodata['mtxindexes'][0] if nodetype == 0x2 else rodata['mtxindex']
             model.matrices[mtxindex] = (x, y, z)
-            # model.matrices[mtxindex] = (x, z, y)
 
             sp = ' ' * depth * 2
             print(f'{sp} NODE {idx:02X} t {nodetype:02X} mtx {mtxindex:02X} ({x:.3f}, {y:.3f}, {z:.3f})')
