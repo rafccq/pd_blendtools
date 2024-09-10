@@ -6,21 +6,36 @@ from mathutils import *
 
 # add modules to path
 blend_dir = os.path.dirname(bpy.data.filepath)
-modules_dir = f'{blend_dir}\pd_modeltool'
 
-if modules_dir not in sys.path:
-    print('added to path: ', modules_dir)
-    sys.path.append(modules_dir)
+base_dir = f'{blend_dir}/pd_modeltool'
+modules_dirs = [base_dir, f'{base_dir}/nodes']
+
+for dir in modules_dirs:
+    if dir not in sys.path:
+        print('added to path: ', dir)
+        sys.path.append(dir)
 
 import importlib
 import pd_utils as pdu
 import pdmodel
+import pd_materials as pdm
+import nodes.pd_shadernodes as pdn
+import nodes.shadernode_base as base
+import nodes.shadernode_othermode_h as otherH
+import nodes.shadernode_othermode_l as otherL
+import nodes.shadernode_geomode as geo
+import nodes.shadernode_tex as tex
+import nodes.shadernode_setcombine as comb
+
+import pd_gbi as gbi
 import cooking
 import bytereader
 import struct
 
 
-modules = [pdu, pdmodel, bytereader, cooking]
+modules = [pdu, gbi, pdm, base, pdmodel, bytereader, cooking]
+modules += [base, otherH, otherL, geo, tex, comb, pdn]
+
 for m in modules:
     importlib.reload(m)
 

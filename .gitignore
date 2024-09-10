@@ -1,6 +1,9 @@
 ﻿files
 pd_modeltool/.idea
 pd_modeltool/__pycache__
-*.blend*
+tmp*.blend
+*.blend.0
+*.blend1
 *.log
 tex
+pd_modeltool/nodes/__pycache__

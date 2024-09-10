@@ -1,6 +1,8 @@
 import os
 import bpy
 
+from gbi import *
+
 TEMPLATE_NAME = 'PD_MaterialTemplate'
 MAT_BLENDFILE = 'pd_materials.blend'
 TEX_FOLDER    = '//tex'
@@ -31,9 +33,46 @@ G_IM_SIZ_16b = 2
 G_IM_SIZ_32b = 3
 G_IM_SIZ_DD  = 5
 
-# TEMP
-G_LIGHTING    = 0x00020000
-G_TEXTURE_GEN = 0x00040000
+class PDMaterialSetup:
+    def __init__(self, current_mat=None):
+        self.texnum = current_mat.texnum if current_mat else 0
+        self.loadtex = False
+        self.cmds = []
+        self.smode = current_mat.smode if current_mat else 0
+        self.geom_mode = current_mat.geom_mode if current_mat else 0
+        self.applied = False
+
+    def add_cmd(self, cmd):
+        op = cmd[0]
+        cmdint = int.from_bytes(cmd, 'big')
+        w0 = (cmdint & 0xffffffff00000000) >> 32
+        w1 = cmdint & 0xffffffff
+        if op == G_PDTEX:
+            self.texnum = cmdint & 0xffff
+            self.loadtex = True
+            self.smode = (w0 >> 22) & 3
+        elif op == G_SETGEOMETRYMODE:
+            self.geom_mode = w1
+        elif op == G_CLEARGEOMETRYMODE:
+            self.geom_mode = 0
+
+        self.cmds.append(cmd)
+
+    # returns a ID for this setup, based on the commands/texture id etc
+    def id(self):
+        mat_id = 'Mat'
+        if self.has_texture():
+            mat_id += f'-{self.texnum:04X}'
+
+        if len(self.cmds): mat_id += '-'
+
+        for cmd in self.cmds:
+            mat_id += f'{cmd[0]:02X}'
+
+        return mat_id
+
+    def has_texture(self):
+        return self.texnum >= 0
 
 def material_remove(name):
     if name not in bpy.data.materials: return
@@ -71,25 +110,66 @@ def mat_name(tex, smode, geom_mode):
     geom_mode = f'_{geom_mode:08X}' if geom_mode else ''
     return f'Mat_{tex:04X}{smode}{geom_mode}'
 
-def material_new(texnum, smode, use_alpha, geom_mode):
+def material_setup_cmds(nodetree, matsetup):
+    cmds = matsetup.cmds
+    if len(cmds) <= 1: return
+
+    node_prev = nodetree.nodes['pdmaterial']
+    for cmd in cmds:
+        op = cmd[0]
+        if op == G_SETGEOMETRYMODE:
+            new_node = nodetree.nodes.new('pd.nodes.setgeometrymode')
+        elif op == G_CLEARGEOMETRYMODE:
+            new_node = nodetree.nodes.new('pd.nodes.cleargeometrymode')
+        elif op == G_SetOtherMode_L:
+            new_node = nodetree.nodes.new('pd.nodes.setothermodeL')
+        elif op == G_SetOtherMode_H:
+            new_node = nodetree.nodes.new('pd.nodes.setothermodeH')
+        elif op == G_TEXTURE:
+            new_node = nodetree.nodes.new('pd.nodes.textureconfig')
+        elif op == G_PDTEX:
+            new_node = nodetree.nodes.new('pd.nodes.textureload')
+        elif op == G_SETCOMBINE:
+            new_node = nodetree.nodes.new('pd.nodes.setcombine')
+        else:
+            # TODO logger
+            print(f'WARNING unsupported material cmd: {op:02X}')
+            continue
+
+        cmdstr = ''.join(f'{b:02X}' for b in cmd)
+        new_node.set_cmd(cmdstr)
+
+        frame = nodetree.nodes['pdframe']
+        new_node.parent = frame
+
+        new_node.location = node_prev.location
+        new_node.location.x += 170
+        new_node.width = 150
+
+        nodetree.links.new(new_node.inputs['prev'], node_prev.outputs['next'])
+        node_prev = new_node
+
+def material_new(matsetup, use_alpha):
+    name = matsetup.id()
     # if there is already a material for this texture/mode, don't create a new one
-    name = mat_name(texnum, smode, geom_mode)
     if name in bpy.data.materials:
         return bpy.data.materials[name]
 
-    preset = 'ENV_MAPPING' if geom_mode & (G_TEXTURE_GEN | G_LIGHTING) else 'DIFFUSE'
+    preset = 'ENV_MAPPING' if matsetup.geom_mode & (G_TEXTURE_GEN | G_LIGHTING) else 'DIFFUSE'
     mat = material_from_template(name, preset)
 
     node_tex = mat.node_tree.nodes['teximage']
     node_bsdf = mat.node_tree.nodes['p_bsdf']
 
-    img = f'{texnum:04X}.bmp'
+    img = f'{matsetup.texnum:04X}.bmp'
     imglib = bpy.data.images
     node_tex.image = imglib[img] if img in imglib else imglib.load(f'{TEX_FOLDER}/{img}')
-    node_tex.extension = tex_smode(smode)
+    node_tex.extension = tex_smode(matsetup.smode)
 
     if use_alpha:
         mat.node_tree.links.new(node_bsdf.inputs['Alpha'], node_tex.outputs['Alpha'])
+
+    material_setup_cmds(mat.node_tree, matsetup)
 
     return mat
 

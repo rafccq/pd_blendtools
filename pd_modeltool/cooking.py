@@ -1,4 +1,3 @@
-import os
 import struct
 import logging
 
@@ -10,19 +9,11 @@ from mathutils import Euler, Vector, Matrix
 import pd_utils as pdu
 import pdmodel
 import pd_materials as pdm
+import nodes.pd_shadernodes as pdn
+from pd_materials import *
 from pdmodel import unmask
+from gbi import *
 
-G_MTX               = 0x01
-G_VTX               = 0x04
-G_COL               = 0x07
-G_TRI4              = 0xb1
-G_SETGEOMETRYMODE   = 0xb7
-G_CLEARGEOMETRYMODE = 0xb6
-G_PDTEX             = 0xc0
-G_END               = 0xb8
-
-# G_LIGHTING    = 0x00020000
-# G_TEXTURE_GEN = 0x00040000
 
 logging.basicConfig(filename='D:/Mega/PD/pd_blend/pd_guns.log',
     level=logging.DEBUG,
@@ -102,15 +93,15 @@ def createMesh(verts, faces, idx, sub_idx, tri2tex, mtxindex, tex_configs):
     # setup UVs and materials
     uv_layer = bm.loops.layers.uv.verify()
     for idx, face in enumerate(bm.faces):
-        texnum, smode, geom_mode = tri2tex[face.index]
-        tc = tex_configs[texnum]
+        matsetup = tri2tex[face.index]
+        tc = tex_configs[matsetup.texnum]
 
-        matname = pdm.mat_name(texnum, smode, geom_mode)
+        matname = matsetup.id()
         mat_idx = obj.data.materials.find(matname)
         if mat_idx < 0:
             mat_idx = len(obj.data.materials)
-            use_alpha = smode == 1 or pdm.tex_has_alpha(tc['format'], tc['depth'])
-            mat = pdm.material_new(texnum, smode, use_alpha, geom_mode)
+            use_alpha = matsetup.smode == 1 or pdm.tex_has_alpha(tc['format'], tc['depth'])
+            mat = pdm.material_new(matsetup, use_alpha)
             obj.data.materials.append(mat)
 
         face.material_index = mat_idx
@@ -215,19 +206,20 @@ class SubMesh:
             self.verts.append(v)
             self.vtx_buffer.append(v.pos)
 
-    def add_tri(self, tri, texnum, smode, geom_mode):
+    def add_tri(self, tri, mat_setup):
         ofs = self.tri_index
         t = (
             tri[0] + ofs,
             tri[1] + ofs,
             tri[2] + ofs
         )
+
         if self.dbg: logger.debug(f'  f {len(self.tris)} {t} tidx {ofs} M{self.mtxindex:02X}')
+
         self.tris.append(t)
 
-        if texnum >= 0:
-            facenum = len(self.tris) - 1
-            self.tri2tex[facenum] = (texnum, smode, geom_mode)
+        facenum = len(self.tris) - 1
+        self.tri2tex[facenum] = mat_setup
 
     def clear_vtx_buffer(self):
         self.vtx_buffer.clear()
@@ -277,10 +269,7 @@ def collectSubMeshes(model, rodata, idx):
     vtx_buffer = [VtxBufferEntry()]*128
     vtx_buf_size = 0
 
-    current_tex = 0
-    smode = 0
-    geom_mode = 0
-
+    mat_setup = PDMaterialSetup()
     gdlnum = 0
 
     if dbg:
@@ -291,6 +280,13 @@ def collectSubMeshes(model, rodata, idx):
 
     if dbg: logger.debug(f'[COLLECTMESH {idx:02X}] ptr_vtx {ptr_vtx:04X} ptr_col {ptr_col:04X} nvtx {len(verts)}')
 
+    # these commands change the material setup
+    MAT_CMDS = [
+        G_SetOtherMode_L, G_SetOtherMode_H, G_SETCOMBINE,
+        G_SETGEOMETRYMODE, G_CLEARGEOMETRYMODE,
+        G_TEXTURE, G_PDTEX
+    ]
+
     while True:
         cmd = gdl[addr:addr+8]
         op = cmd[0]
@@ -300,16 +296,13 @@ def collectSubMeshes(model, rodata, idx):
             if ptr_xlugdl and gdlnum == 0:
                 gdl = model.data(ptr_xlugdl)
                 addr = 0
-                current_tex = 0
-                smode = 0
-                geom_mode = 0
                 gdlnum += 1
                 continue
             else:
                 break
 
         cmdint = int.from_bytes(cmd, bo)
-        w0 = (cmdint & 0xffffffff00000000) >> 32
+        # w0 = (cmdint & 0xffffffff00000000) >> 32
         w1 = cmdint & 0xffffffff
 
         if dbg: logger.debug(f'{cmdint:016X} {pdu.GDLcodes[cmd[0]]}')
@@ -317,12 +310,15 @@ def collectSubMeshes(model, rodata, idx):
         if op == G_TRI4:
             tris = pdu.read_tri4(cmd, 0)
 
+            mat_setup.applied = True
+
             for tri in tris:
                 v = select_mesh(tri, vtx_buffer)
-                if dbg: logger.debug(f'tri {tri} tex {current_tex:04X}')
+                if dbg: logger.debug(f'tri {tri} tex {mat_setup.texnum:04X}')
+
                 mesh = matrixmesh_map[v.mtxidx]
                 mesh.vtx_from_buffer(vtx_buffer, vtx_buf_size)
-                mesh.add_tri(tri, current_tex, smode, geom_mode)
+                mesh.add_tri(tri, mat_setup)
         elif op == G_VTX:
             nverts = ((cmd[1] & 0xf0) >> 4) + 1
             vtx_idx = cmd[1] & 0xf
@@ -356,13 +352,12 @@ def collectSubMeshes(model, rodata, idx):
                 currentSubMesh = matrixmesh_map[mtxindex] = SubMesh()
                 currentSubMesh.mtxindex = mtxindex
                 currentSubMesh.dbg = dbg
-        elif op == G_PDTEX:
-            current_tex = cmdint & 0xffff
-            smode = (w0 >> 22) & 3
-        elif op == G_SETGEOMETRYMODE:
-            geom_mode = w1
-        elif op == G_CLEARGEOMETRYMODE:
-            geom_mode = 0
+        elif op == G_RDPPIPESYNC:
+            mat_setup = PDMaterialSetup()
+        elif op in MAT_CMDS:
+            if mat_setup.applied:
+                mat_setup = PDMaterialSetup(mat_setup)
+            mat_setup.add_cmd(cmd)
 
         addr += 8
 
@@ -420,7 +415,14 @@ def clearLog():
     f = open('D:/Mega/PD/pd_blend/pd_guns.log', 'r+')
     f.truncate(0)
 
+def _main():
+    # pdn.unregister()
+    pdn.register()
+
 def main():
+    # pdn.unregister()
+    pdn.register()
+
     clearLog() # TMP
     # clearScene()
 
@@ -440,7 +442,7 @@ def main():
     # model_name = 'GdyrocketZ'
     # model_name = 'GsniperrifleZ'
     model_name = 'Gm16Z'
-    # model_name = 'GshotgunZ'
+    model_name = 'GshotgunZ'
     # model_name = 'GpcgunZ'
     # model_name = 'GdruggunZ'
     # model_name = 'GmaianpistolZ'
@@ -457,7 +459,7 @@ def main():
     sc = 0.01
     sc = 1
     # traverse(model, model_obj, create_joint)
-    model.traverse(create_joint, root_obj=model_obj)
+    # model.traverse(create_joint, root_obj=model_obj)
     bpy.context.view_layer.update()
     createModelMeshes(model, model_name, sc, meshes_obj)
 
