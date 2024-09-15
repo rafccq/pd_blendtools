@@ -1,18 +1,23 @@
-from nodes.nodeutils import enum_name, make_prop
+from bpy.props import (
+    EnumProperty
+)
+
+from nodes.nodeutils import make_prop, make_id
 from .shadernode_base import PD_ShaderNodeBase
 
+
 UPPER_MODES = [
-    ('g_mdsft_alphadither', 'Alpha Dither',                 0x4),
-    ('g_mdsft_rgbdither', 'RGB Dither',                     0x6),
-    ('g_mdsft_chromakey', 'Chroma Key',                     0x8),
-    ('g_mdsft_texconv', 'Texture Convert',                  0x9),
-    ('g_mdsft_texfilter', 'Texture Filter',                 0x0c),
-    ('g_mdsft_texlut', 'Texture LUT',                       0x0e),
-    ('g_mdsft_texlod', 'Texture LOD',                       0x10),
-    ('g_mdsft_texdetail', 'Texture Detail',                 0x11),
-    ('g_mdsft_texperspcorr', 'Texture Persp. Correction',   0x13),
-    ('g_mdsft_cycletype', 'Cycle Type',                     0x14),
-    ('g_mdsft_pipelinemode', 'Pipeline Mode',               0x17),
+    ('g_mdsft_alphadither',  'Alpha Dither',              0x4),
+    ('g_mdsft_rgbdither',    'RGB Dither',                0x6),
+    ('g_mdsft_chromakey',    'Chroma Key',                0x8),
+    ('g_mdsft_texconv',      'Texture Convert',           0x9),
+    ('g_mdsft_texfilter',    'Texture Filter',            0x0c),
+    ('g_mdsft_texlut',       'Texture LUT',               0x0e),
+    ('g_mdsft_texlod',       'Texture LOD',               0x10),
+    ('g_mdsft_texdetail',    'Texture Detail',            0x11),
+    ('g_mdsft_texperspcorr', 'Texture Persp. Correction', 0x13),
+    ('g_mdsft_cycletype',    'Cycle Type',                0x14),
+    ('g_mdsft_pipelinemode', 'Pipeline Mode',             0x17),
 ]
 
 UPPER_ALPHADITHER = [
@@ -109,31 +114,49 @@ UPPER_MODE_WIDTHS = {
     'g_mdsft_pipelinemode': 1,
 }
 
-def on_update(self, context):
-    if not hasattr(context, 'enum'): return
-
-    propname = context.enum.name
-
-    propval = self[propname]
-
-    mode = self.mode.replace('mode_', '')
-    modeval = self['mode']
-
-    propname = mode if propname == 'mode' else propname
-    n = UPPER_MODE_WIDTHS[propname]
-    modes = UPPER_ITEMS['mode']
-    ofs = next(filter(lambda e: e[0] == propname, modes))[2]
-    mode_bits = propval << ofs
-
-    self.cmd = f'BA00{modeval:02X}{n:02X}{mode_bits:08X}'
-
 
 class PD_ShaderNodeSetOtherModeH(PD_ShaderNodeBase):
     bl_idname = 'pd.nodes.setothermodeH'
     bl_label = "SetOtherModeH"
     bl_icon = 'NODE_TEXTURE'
 
-    mode: make_prop('mode', UPPER_ITEMS, 'g_mdsft_alphadither', on_update)
+    min_width = 150
+
+    def propagate_cycle_change(self, value):
+        node = self
+        while node:
+            links = node.outputs[0].links
+            if len(links) == 0: break
+
+            node = links[0].to_node
+            if node.bl_idname == 'pd.nodes.setothermodeH': break # TMP TODO add const
+
+            node.set_num_cycles(value)
+
+    def on_update(self, context):
+        if not hasattr(context, 'enum'): return
+
+        propname = context.enum.name
+        propval = self.enum_value(propname)
+
+        if propname == 'g_mdsft_cycletype':
+            self.propagate_cycle_change(2 if propval == 1 else 1)
+
+        mode = self.mode
+        modeval = self.enum_value('mode')
+
+        propname = mode if propname == 'mode' else propname
+        n = UPPER_MODE_WIDTHS[propname]
+        modes = UPPER_ITEMS['mode']
+        ofs = next(filter(lambda e: e[0] == propname, modes))[2]
+        mode_bits = propval << ofs
+
+        self.cmd = f'BA00{modeval:02X}{n:02X}{mode_bits:08X}'
+
+    mode: EnumProperty(
+        name='mode', default='g_mdsft_alphadither',
+        items = [(make_id(id), name, name, '', val) for (id, name, val) in UPPER_MODES], update=on_update,
+    )
 
     g_mdsft_alphadither: make_prop('g_mdsft_alphadither', UPPER_ITEMS, 'pattern', on_update)
     g_mdsft_rgbdither: make_prop('g_mdsft_rgbdither', UPPER_ITEMS, 'magicsquare', on_update)
@@ -159,11 +182,11 @@ class PD_ShaderNodeSetOtherModeH(PD_ShaderNodeBase):
         modes = UPPER_ITEMS['mode']
         modename = next(filter(lambda e: e[2] == mode, modes))[0]
 
-        self.mode = f'mode_{modename}'
+        self.mode = make_id(modename)
 
         items = UPPER_ITEMS[modename]
         modeval = next(filter(lambda e: e[2] == mode_bits, items))[0]
-        setattr(self, modename, enum_name(modename, modeval))
+        setattr(self, modename, make_id(modeval))
 
     def draw_props(self, context, layout):
         super().draw_buttons(context, layout)
@@ -172,9 +195,9 @@ class PD_ShaderNodeSetOtherModeH(PD_ShaderNodeBase):
         col.label(text='Mode')
         col.context_pointer_set('enum', self.bl_rna.properties['mode'])
         col.prop(self, 'mode', text='')
-        col.label(text='Options')
+        col.separator(type='LINE')
 
-        mode = self.mode.replace('mode_', '')
+        mode = self.mode
         col.context_pointer_set('enum', self.bl_rna.properties[mode])
         col.prop(self, mode, text='')
 

@@ -26,15 +26,16 @@ import nodes.shadernode_othermode_l as otherL
 import nodes.shadernode_geomode as geo
 import nodes.shadernode_tex as tex
 import nodes.shadernode_setcombine as comb
+import nodes.nodeutils as ndu
 
-import pd_gbi as gbi
+import gbi
 import cooking
 import bytereader
 import struct
 
 
 modules = [pdu, gbi, pdm, base, pdmodel, bytereader, cooking]
-modules += [base, otherH, otherL, geo, tex, comb, pdn]
+modules += [ndu, base, otherH, otherL, geo, tex, comb, pdn]
 
 for m in modules:
     importlib.reload(m)

@@ -385,7 +385,7 @@ def createModelMeshes(model, name, sc, model_obj):
         height = tc['height']
 
         tex_configs[texnum] = tc
-        print(f'tex {texnum:04X} w {width:02X} h {height:02X}')
+        # print(f'tex {texnum:04X} w {width:02X} h {height:02X}')
 
     logger.debug('createModelMeshes')
     idx = 0

@@ -114,6 +114,7 @@ def material_setup_cmds(nodetree, matsetup):
     cmds = matsetup.cmds
     if len(cmds) <= 1: return
 
+    space = 20
     node_prev = nodetree.nodes['pdmaterial']
     for cmd in cmds:
         op = cmd[0]
@@ -142,11 +143,15 @@ def material_setup_cmds(nodetree, matsetup):
         frame = nodetree.nodes['pdframe']
         new_node.parent = frame
 
+        # w = node_prev.min_width if node_prev.min_width else 150
         new_node.location = node_prev.location
-        new_node.location.x += 170
-        new_node.width = 150
+        new_node.location.x += node_prev.width + space
+        # w = new_node.min_width if new_node.min_width else 150
+        new_node.width = new_node.min_width if new_node.min_width else 145
 
         nodetree.links.new(new_node.inputs['prev'], node_prev.outputs['next'])
+        new_node.post_init()
+
         node_prev = new_node
 
 def material_new(matsetup, use_alpha):

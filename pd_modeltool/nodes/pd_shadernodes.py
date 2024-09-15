@@ -19,7 +19,7 @@ class PD_ShaderNodeMaterialSetup(PD_ShaderNodeBase):
     bl_icon = 'NODE_MATERIAL'
 
     def init(self, context):
-        self.pd_init(False)
+        self.pd_init(False, (.353, .233, .233))
 
 classes = [
     PD_ShaderNodeBase,
@@ -59,7 +59,7 @@ def pd_materials_draw(self, context):
 
 def register():
     for cls in classes:
-        print('registed class ', cls)
+        print('register class ', cls)
         register_class(cls)
 
     bpy.types.NODE_MT_shader_node_add_all.append(pd_materials_draw)

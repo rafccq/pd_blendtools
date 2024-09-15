@@ -25,19 +25,19 @@ GEO_FLAGS = {
     'g_shading_smooth':     G_SHADING_SMOOTH,
 }
 
-def on_update(self, context):
-    mode_bits = 0
-    for flag, bits in GEO_FLAGS.items():
-        mode_bits |= bits if getattr(self, flag) else 0
-
-    self.cmd = f'{self.opcode:02X}000000{mode_bits:08X}'
-
 class PD_ShaderNodeSetGeoMode(PD_ShaderNodeBase):
     bl_idname = 'pd.nodes.setgeometrymode'
     bl_label = "Set Geo Mode"
     bl_icon = 'MESH_DATA'
 
     opcode = 0xB7
+
+    def on_update(self, context):
+        mode_bits = 0
+        for flag, bits in GEO_FLAGS.items():
+            mode_bits |= bits if getattr(self, flag) else 0
+
+        self.cmd = f'{self.opcode:02X}000000{mode_bits:08X}'
 
     hide: BoolProperty(name='Hide fields', default=False, description='Hide fields (still accessible in the panel)')
 
