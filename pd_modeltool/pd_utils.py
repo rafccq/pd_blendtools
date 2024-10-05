@@ -6,6 +6,7 @@ from pathlib import Path
 from glob import glob
 
 import bpy
+import bmesh
 
 GDLcodes = {
     0x00: 'G_SPNOOP',
@@ -436,7 +437,13 @@ def read_tri4(cmd, ofs=0):
         i2 = w0 & 0x0f; w0 >>= 4
 
         if i0 or i1 or i2:
-            tris.append((i0+ofs, i1+ofs, i2+ofs))
+            tri = (i0+ofs, i1+ofs, i2+ofs)
+
+            if tri in tris:
+                print(f'WARNING: duplicated tri, skipping: {tri}')
+                continue
+
+            tris.append(tri)
             # tris.append((i0+ofs, i2+ofs, i1+ofs))
 
     return tris
@@ -535,3 +542,30 @@ def new_empty_obj(name, parent=None, dsize = 0, dtype='PLAIN_AXES', link=True):
 def active_collection():
     view_layer = bpy.context.view_layer
     return view_layer.active_layer_collection.collection
+
+
+def activeMesh():
+    obj = bpy.context.view_layer.objects.active
+    if not obj: return None
+    return obj.data
+
+def select(item, idx):
+    mesh = activeMesh()
+    if not mesh:
+        print('no selection')
+
+    print(f'Select {item} {idx}, mesh: {mesh.name}')
+    bpy.ops.object.mode_set(mode='EDIT')
+
+    bm = bmesh.from_edit_mesh(mesh)
+
+    item = item.lower()
+
+    if item == 'vtx':
+        bm.verts.ensure_lookup_table()
+        bm.verts[idx].select = True
+    elif item == 'face':
+        bm.faces.ensure_lookup_table()
+        bm.faces[idx].select = True
+    else:
+        print('invalid item:', item)

@@ -14,8 +14,9 @@ def printdict(d, indent=4):
         print_dict(d, indent=indent)
 
 class PDModel:
-    def __init__(self, modeldata, srcBO = 'big', destBO = 'little'):
+    def __init__(self, modeldata, skipDLdata=False, srcBO = 'big', destBO = 'little'):
         self.modeldata = modeldata
+        self.skipDLdata = skipDLdata
         self.rd = ByteReader(modeldata, srcBO, destBO, 0x00ffffff)
         self.srcBO = srcBO
         # self.rd = ByteReader(modeldata, srcBO, destBO)
@@ -301,7 +302,7 @@ class PDModel:
                 0x16: ['gdl'],
                 0x18: ['opagdl', 'xlugdl']
             }
-            if type in rodatagdl_map:
+            if type in rodatagdl_map and not self.skipDLdata:
                 self.read_vertices(rodata, type)
                 for name in rodatagdl_map[type]:
                     if name not in rodata:
@@ -354,7 +355,7 @@ class PDModel:
             # print_bin('col', colors['bytes'], 0, 64, 4)
 
     def read_gdls(self):
-        # global SRC_BO
+        if self.skipDLdata: return
 
         rd = self.rd
         gdladdrs = self.gdladdrs
@@ -362,9 +363,6 @@ class PDModel:
         lastgdl = gdladdrs[-1][0]
 
         log('.GDLs')
-        # print(self.gdladdrs2)
-        # for gdl in self.gdladdrs2:
-        #     print(gdl)
 
         for idx, gdlinfo in enumerate(gdladdrs):
             addr = gdlinfo[0]
@@ -373,7 +371,6 @@ class PDModel:
             start = addr
             end = gdladdrs[idx+1][0] if addr != lastgdl else len(rd.data) # end of the file
             rd.set_cursor(unmask(addr))
-            # self.gdls[addr] = rd.read_block_raw(loc(start), loc(end))
             gdldata = rd.read_block_raw(unmask(start), unmask(end))
             log(f'.gdldata {unmask(start):04X}:{unmask(end):04X}')
 
@@ -382,7 +379,6 @@ class PDModel:
                 # else: printGDL_x86(gdldata['bytes'], 2, 'little')
                 else: printGDL_x86(gdldata['bytes'], 2, self.srcBO)
 
-            # self.gdls.append(gdldata)
             self.gdls.append((gdldata, node))
 
     def read_tex_configs(self):
@@ -433,7 +429,7 @@ class PDModel:
 
         return None
 
-def read(path, filename):
+def read(path, filename, skipDLdata=False):
     modeldata = read_file(f'{path}/{filename}')
     modeldata = decompress(modeldata)
-    return PDModel(modeldata)
+    return PDModel(modeldata, skipDLdata)

@@ -99,8 +99,6 @@ def createMesh(mesh, tex_configs, idx, sub_idx):
     mesh_data.update()
 
     me = mesh_data
-    obj['pdmodel_idx'] = idx
-    obj['pdmodel_mtx'] = mesh.mtxindex
 
     bm = bmesh.new()
     bm.from_mesh(me)
@@ -144,11 +142,8 @@ def createMesh(mesh, tex_configs, idx, sub_idx):
     for v in verts_unused:
         bm.verts.remove(v)
 
-    # bmesh.update_edit_mesh(me)
     bm.to_mesh(me)
     bm.free()
-
-    # bpy.ops.object.mode_set(mode = 'OBJECT')
 
     return obj
 
@@ -480,7 +475,10 @@ class OBJECT_PT_custom_panel(Panel):
         box = layout.box()
         box.prop(obj.pdmodel_props, 'name', icon='LOCKED', text='')
         box.label(text=f'Index: {obj.pdmodel_props.idx:02X}', icon='LOCKED')
-        box.label(text=f'Sub Index: {obj.pdmodel_props.sub_idx:02X}', icon='LOCKED')
+
+        if obj.pdmodel_props.sub_idx >= 0:
+            box.label(text=f'Sub Index: {obj.pdmodel_props.sub_idx:02X}', icon='LOCKED')
+
         box.label(text=f'Matrix: {obj.pdmodel_props.mtx:02X}', icon='LOCKED')
         box.enabled = False
 
@@ -536,3 +534,7 @@ def main():
     sc = 1
     # model.traverse(create_joint, root_obj=model_obj)
     createModelMeshes(model, model_name, sc, model_obj)
+
+def export(name):
+    exp.export_model(name)
+
