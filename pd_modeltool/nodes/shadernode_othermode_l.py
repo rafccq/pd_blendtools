@@ -266,7 +266,8 @@ class PD_ShaderNodeSetOtherModeL(PD_ShaderNodeBase):
         col: UILayout = layout.column(align=True)
         col.prop(self, 'hide')
         if not self.hide:
-            col.separator(type='LINE')
+            # col.separator(type='LINE')
+            col.separator()
             self.draw_props(context, col, col_layout=True)
 
     def draw_buttons_ext(self, context, layout):
@@ -278,7 +279,8 @@ class PD_ShaderNodeSetOtherModeL(PD_ShaderNodeBase):
         col.context_pointer_set('enum', self.bl_rna.properties['mode'])
         col.prop(self, 'mode', text='')
         # col.label(text='Options')
-        col.separator(type='LINE')
+        # col.separator(type='LINE') #BL4.2
+        col.separator()
 
         mode = self.mode
         if mode == MODE_ALPHACMP:
@@ -296,19 +298,22 @@ class PD_ShaderNodeSetOtherModeL(PD_ShaderNodeBase):
             col.context_pointer_set('enum', self.bl_rna.properties['cvg_dst'])
             col.prop(self, 'cvg_dst', text='')
 
-            col.separator(type='AUTO')
+            # col.separator(type='AUTO') #BL4.2
+            col.separator()
 
             col.label(text='Z Mode')
             col.context_pointer_set('enum', self.bl_rna.properties['zmode'])
             col.prop(self, 'zmode', text='')
 
-            col.separator(type='AUTO')
+            # col.separator(type='AUTO') #BL4.2
+            col.separator()
 
             header = 'Blender (Color = (P * A + M * B) / (A + B)' if blender_textfull else 'Cycle 1'
             self.draw_blender(1, header, col, col_layout)
 
             if self['num_cycles'] == 2:
-                col.separator(type='AUTO')
+                # col.separator(type='AUTO') #BL4.2
+                col.separator()
                 self.draw_blender(2, 'Cycle 2', col, col_layout)
 
     def draw_blender(self, cycle, header, layout, col_layout):

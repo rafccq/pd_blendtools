@@ -76,3 +76,5 @@ class PD_ShaderNodeBase(bpy.types.ShaderNodeCustomGroup):
                 break
 
     def post_init(self): pass
+
+    def get_cmd(self): return self.cmd

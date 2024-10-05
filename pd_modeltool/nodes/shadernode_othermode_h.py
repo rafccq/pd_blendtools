@@ -173,6 +173,9 @@ class PD_ShaderNodeSetOtherModeH(PD_ShaderNodeBase):
     def init(self, context):
         self.pd_init()
 
+    # def post_init(self):
+    #     self.width = 280
+
     # updates the UI elements based on the command
     def update_ui(self):
         cmd = int(f'0x{self.cmd}', 16)
@@ -195,7 +198,8 @@ class PD_ShaderNodeSetOtherModeH(PD_ShaderNodeBase):
         col.label(text='Mode')
         col.context_pointer_set('enum', self.bl_rna.properties['mode'])
         col.prop(self, 'mode', text='')
-        col.separator(type='LINE')
+        # col.separator(type='LINE')
+        col.separator()
 
         mode = self.mode
         col.context_pointer_set('enum', self.bl_rna.properties[mode])

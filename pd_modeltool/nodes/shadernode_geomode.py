@@ -70,7 +70,8 @@ class PD_ShaderNodeSetGeoMode(PD_ShaderNodeBase):
         col: UILayout = layout.column(align=True)
         col.prop(self, 'hide')
         if not self.hide:
-            col.separator(type='LINE')
+            # col.separator(type='LINE')
+            col.separator()
             self.draw_props(context, col)
 
     def draw_buttons_ext(self, context, layout):

@@ -13,12 +13,16 @@ class PD_ShaderNodeTexConfig(PD_ShaderNodeBase):
 
     autoscale: BoolProperty(name='Auto Scale', default=False)
 
-    def on_update(self, context):
+    def get_texscale(self):
         s=self.tex_scale[0]
         t=self.tex_scale[1]
 
         s = int(self.tex_scale[0] * 2**16) if s != 1.0 else 0xFFFF
         t = int(self.tex_scale[1] * 2**16) if t != 1.0 else 0xFFFF
+        return s, t
+
+    def on_update(self, context):
+        s, t = self.get_texscale()
 
         b = self.tile_index | (self.max_lods << 3)
         self.cmd = f'BB00{b:02X}01{s:04X}{t:04X}'
@@ -66,6 +70,11 @@ class PD_ShaderNodeTexConfig(PD_ShaderNodeBase):
 
         col.prop(self, 'tile_index')
         col.prop(self, 'max_lods')
+
+    def get_cmd(self):
+        s, t = self.get_texscale()
+        if self.autoscale: s = t = 0xFFFF
+        return f'{self.cmd[:8]}{s:04X}{t:04X}'
 
 TEX_WRAPMODES = [
     ('wrap', 'Wrap', 0),

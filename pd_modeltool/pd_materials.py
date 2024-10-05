@@ -58,6 +58,9 @@ class PDMaterialSetup:
 
         self.cmds.append(cmd)
 
+    def has_normal(self):
+        return self.geom_mode & (G_LIGHTING | G_TEXTURE_GEN)
+
     # returns a ID for this setup, based on the commands/texture id etc
     def id(self):
         mat_id = 'Mat'
@@ -112,7 +115,7 @@ def mat_name(tex, smode, geom_mode):
 
 def material_setup_cmds(nodetree, matsetup):
     cmds = matsetup.cmds
-    if len(cmds) <= 1: return
+    if not cmds: return
 
     space = 20
     node_prev = nodetree.nodes['pdmaterial']
@@ -147,7 +150,7 @@ def material_setup_cmds(nodetree, matsetup):
         new_node.location = node_prev.location
         new_node.location.x += node_prev.width + space
         # w = new_node.min_width if new_node.min_width else 150
-        new_node.width = new_node.min_width if new_node.min_width else 145
+        new_node.width = new_node.min_width if new_node.min_width else 150
 
         nodetree.links.new(new_node.inputs['prev'], node_prev.outputs['next'])
         new_node.post_init()
@@ -165,6 +168,8 @@ def material_new(matsetup, use_alpha):
 
     node_tex = mat.node_tree.nodes['teximage']
     node_bsdf = mat.node_tree.nodes['p_bsdf']
+    node_vtxcolor = mat.node_tree.nodes['vtxcolor']
+    node_vtxcolor.layer_name = 'vtxcolor'
 
     img = f'{matsetup.texnum:04X}.bmp'
     imglib = bpy.data.images
@@ -202,3 +207,48 @@ def material_from_template(name, preset):
 
     return mat
 
+def material_get_setup(mat):
+    node_setup = None
+    for node in mat.node_tree.nodes:
+        if node.bl_idname == 'pd.nodes.materialsetup':
+            node_setup = node
+            break
+    return node_setup
+
+def material_has_lighting(mat):
+    node = material_get_setup(mat)
+
+    has_lighting = False
+    while node:
+        if len(node.outputs[0].links) == 0: break
+
+        node = node.outputs[0].links[0].to_node
+        if node.bl_idname == 'pd.nodes.setgeometrymode':  # TMP TODO add const
+            has_lighting = node['g_lighting']
+
+    return bool(has_lighting)
+
+def material_has_geo(mat):
+    node = material_get_setup(mat)
+
+    # TMP TODO add const
+    geo_nodes = ['pd.nodes.setgeometrymode', 'pd.nodes.cleargeometrymode']
+    while node:
+        if len(node.outputs[0].links) == 0: break
+
+        node = node.outputs[0].links[0].to_node
+        if node.bl_idname in geo_nodes:
+            return True
+
+    return False
+
+def material_cmds(mat):
+    node = material_get_setup(mat)
+    cmds = []
+    while node:
+        if len(node.outputs[0].links) == 0: break
+
+        node = node.outputs[0].links[0].to_node
+        cmds.append(node.get_cmd())
+
+    return cmds
