@@ -172,15 +172,19 @@ def is_cmd_ptr(cmd):
     return cmd in [0x04, 0x06, 0x07, 0xFD]
 
 def decompress(buffer):
-    assert(buffer[0:2] == b'\x11\x73')
-    return zlib.decompress(buffer[5:], wbits=-15)
+    if buffer[0:2] == b'\x11\x73':
+        return zlib.decompress(buffer[5:], wbits=-15)
+    elif buffer[0:2] == b'\x11\x72':
+        return zlib.decompress(buffer[2:], wbits=-15)
+
+    raise Exception('decompress: invalid header (not 1172 or 1173)')
 
 def decompressandgetunused(buffer):
     header = int.from_bytes(buffer[0:2], 'big')
     assert(header == 0x1173)
     obj = zlib.decompressobj(wbits=-15)
-    bin = obj.decompress(buffer[5:])
-    return (bin, obj.unused_data)
+    bindata = obj.decompress(buffer[5:])
+    return bindata, obj.unused_data
 
 def compress(data):
     compressor = zlib.compressobj(wbits=-15)
