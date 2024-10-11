@@ -13,9 +13,11 @@ import pdmodel
 import pd_materials as pdm
 import nodes.pd_shadernodes as pdn
 from pd_materials import *
-from pdmodel import unmask
+from pdmodel import unmask, PDModel
 from gbi import *
 import export as exp
+import romdata as rom
+import texload as tex
 
 logger = logging.getLogger(__name__)
 logger.handlers.clear()
@@ -81,7 +83,6 @@ def createMesh(mesh, tex_configs, idx, sub_idx):
         else:
             vn = tuple([int.from_bytes(normcolor[i:i+1], 'big', signed=True) for i in range(0,3)])
             n = Vector((vn[0], vn[2], vn[1])) #invert-yz
-            # n = Vector((-1,0,0))
             normals.append(n.normalized())
             # normals.append(n)
             # for k in range(0,3): c[k] *= 255
@@ -146,20 +147,6 @@ def createMesh(mesh, tex_configs, idx, sub_idx):
     bm.free()
 
     return obj
-
-def readModel(modelName, skipDLdata=False):
-    print('-'*32)
-    blend_dir = os.path.dirname(bpy.data.filepath)
-    model = pdmodel.read(f'{blend_dir}/files', modelName, skipDLdata)
-    idx = 0
-    for addr, node in model.nodes.items():
-        nodetype = node['type']
-        # print(f'{idx:02x} node t {nodetype} [{addr:04X}]')
-        idx += 1
-
-    print('num gdls: ', len(model.gdls))
-    
-    return model
 
 def posNodeName(idx): return f'{idx:02X}.Position'
 
@@ -414,13 +401,10 @@ def createModelMesh(idx, model, rodata, sc, tex_configs, parent_obj):
         mesh_obj.parent = parent_obj
         logger.debug(f'  nt {len(meshdata.tris)} nv {len(meshdata.verts)}')
 
-def createModelMeshes(model, name, sc, model_obj):
+def createModelMeshes(model, sc, model_obj):
     tex_configs = {}
     for tc in model.texconfigs:
         texnum = tc['texturenum']
-        width = tc['width']
-        height = tc['height']
-
         tex_configs[texnum] = tc
         # print(f'tex {texnum:04X} w {width:02X} h {height:02X}')
 
@@ -494,6 +478,7 @@ def clearLog():
 
 def main():
     # pdn.unregister()
+    # pdn.register()
     # unreg()
 
     clearLog()
@@ -501,7 +486,7 @@ def main():
     bpy.utils.register_class(PDModelPropertyGroup)
     bpy.utils.register_class(OBJECT_PT_custom_panel)
     Object.pdmodel_props = PointerProperty(type=PDModelPropertyGroup)
-    pdn.register()
+    # pdn.register()
 
     logger.debug('clearScene()')
     pdu.clear_scene()
@@ -514,27 +499,54 @@ def main():
     # model_name = 'GcrossbowZ'
     # model_name = 'Gdy357Z'
     # model_name = 'GdydevastatorZ'
-    # model_name = 'GdyrocketZ'
     # model_name = 'GsniperrifleZ'
     # model_name = 'Gm16Z'
-    model_name = 'GshotgunZ'
-    # model_name = 'GpcgunZ'
+    # model_name = 'GshotgunZ'
+    model_name = 'GdyrocketZ'
+    model_name = 'GpcgunZ'
     # model_name = 'GdruggunZ'
     # model_name = 'GmaianpistolZ'
     # model_name = 'GskminigunZ'
     # model_name = 'Gz2020Z'
-    model_name = 'Gcmp150Z'
-    # model_name = 'PchrdragonZ'
-    # model_name = 'Pchrdy357Z'
-    model = readModel(model_name)
+    # model_name = 'Gcmp150Z'
+    model_name = 'PchrdragonZ'
+    model_name = 'Pchrdy357Z'
+    model_name = 'CdjbondZ'
+    model_name = 'CskedarZ'
+    model_name = 'PchrautogunZ'
+
+    romdata = loadrom()
+    model = loadmodel(romdata, model_name)
 
     model_obj = pdu.new_empty_obj(model_name)
 
     sc = 0.01
     sc = 1
     # model.traverse(create_joint, root_obj=model_obj)
-    createModelMeshes(model, model_name, sc, model_obj)
+    createModelMeshes(model, sc, model_obj)
 
 def export(name):
     exp.export_model(name)
 
+def loadrom():
+    filename = 'D:/Mega/PD/pd_blend/pd.ntsc-final.z64'
+    return rom.Romdata(filename)
+
+def loadimages(romdata, model):
+    imglib = bpy.data.images
+
+    for tc in model.texconfigs:
+        texnum = tc['texturenum']
+        img = f'{texnum:04X}.png'
+
+        if img not in imglib:
+            texdata = romdata.texturedata(texnum)
+            tex.tex_load(texdata, 'D:/Mega/PD/pd_blend/tex', img) # TODO TEX FOLDER
+            imglib.load(f'{TEX_FOLDER}/{img}')
+
+def loadmodel(romdata, modelname):
+    modeldata = romdata.modeldata(modelname)
+    # pdu.write_file('D:/Mega/PD/pd_blend/modelbin', f'{modelname}.bin', modeldata)
+    model = PDModel(modeldata)
+    loadimages(romdata, model)
+    return model

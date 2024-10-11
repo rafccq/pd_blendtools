@@ -90,7 +90,7 @@ class PD_ShaderNodeTexLoad(PD_ShaderNodeBase):
     def on_update(self, context):
         img = self.cmd[12:]
         if self.image:
-            img = self.image.name.replace('.bmp', '')
+            img = self.image.name.replace('.png', '')
 
         smode = self.enum_value('smode')
         tmode = self.enum_value('tmode')
@@ -130,7 +130,7 @@ class PD_ShaderNodeTexLoad(PD_ShaderNodeBase):
         img = self.cmd[12:]
 
         if img != '0000':
-            self.image = bpy.data.images[f'{img}.bmp']
+            self.image = bpy.data.images[f'{img}.png']
 
     def draw_buttons(self, context, layout):
         super().draw_buttons(context, layout)

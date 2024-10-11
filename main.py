@@ -32,6 +32,10 @@ import nodes.shadernode_tex as tex
 import nodes.shadernode_setcombine as comb
 import nodes.nodeutils as ndu
 import export as exp
+import bitreader as br
+import texload as tex
+import imageutils as imu
+import romdata as rom
 
 import gbi
 import cooking
@@ -41,7 +45,7 @@ import struct
 os.system('cls')
 
 modules = [pdu, gbi, pdm, base, pdmodel, bytereader, cooking]
-modules += [ndu, base, otherH, otherL, geo, tex, comb, pdn, exp]
+modules += [ndu, base, otherH, otherL, geo, tex, comb, pdn, exp, br, tex, imu, rom]
 
 for m in modules:
     importlib.reload(m)
@@ -53,32 +57,12 @@ ln = '\n' + '-'*32 + '\n'
 print(ln, t, ln)
 
 
-def test_loops(obj):
-    bpy.context.view_layer.objects.active = obj
-    bpy.ops.object.mode_set(mode = 'EDIT')
-    me = obj.data
-    bm = bmesh.from_edit_mesh(me)
-    bm.faces.ensure_lookup_table()
-
-    for idx, face in enumerate(bm.faces):
-        print(f'face {idx}')
-        for loop in face.loops:
-            print(f' {loop.index} {loop.vert} {face.index}')
-    
-    print('loops ', len(obj.data.loops))
-    print('faces ', len(bm.faces))
-
-    bm.free()
-
-def test_loops2(obj):
-    for loop in obj.data.loops:
-        v = obj.data.vertices[loop.vertex_index]
-        print(f' {loop.index} {v.co} {type(loop)}')
-                
-
 cooking.main()
 root = list(filter(lambda e: e.name[-1]=='Z', bpy.data.objects))[0]
-cooking.export(root.name)
+#cooking.export(root.name)
+
+#cooking.png()
+#cooking.loadrom()
 
 #pdu.select('vtx', 466)
 #pdu.select('face', 12)

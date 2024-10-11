@@ -171,9 +171,9 @@ def material_new(matsetup, use_alpha):
     node_vtxcolor = mat.node_tree.nodes['vtxcolor']
     node_vtxcolor.layer_name = 'vtxcolor'
 
-    img = f'{matsetup.texnum:04X}.bmp'
+    img = f'{matsetup.texnum:04X}.png'
     imglib = bpy.data.images
-    node_tex.image = imglib[img] if img in imglib else imglib.load(f'{TEX_FOLDER}/{img}')
+    node_tex.image = imglib[img]
     node_tex.extension = tex_smode(matsetup.smode)
 
     if use_alpha:
