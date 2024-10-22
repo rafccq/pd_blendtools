@@ -62,6 +62,7 @@ def createMesh(mesh, tex_configs, idx, sub_idx):
     obj.pdmodel_props.idx = idx
     obj.pdmodel_props.sub_idx = sub_idx
     obj.pdmodel_props.mtx = mesh.mtxindex
+    obj.pdmodel_props.layer = mesh.layer
 
     collection = pdu.active_collection()
     collection.objects.link(obj)
@@ -195,8 +196,8 @@ def create_joint(model, node, idx, depth, **kwargs):
 
 def _t(v): return f'({v[0]:.2f}, {v[1]:.2f}, {v[2]:.2f})'
 
-from enum import Enum
-class MeshLayer(Enum):
+from enum import IntEnum
+class MeshLayer(IntEnum):
     OPA = 0
     XLU = 1
 
@@ -270,11 +271,11 @@ def select_mesh(tri, vtx_buffer):
 def collectSubMeshes(model, rodata, idx):
     ptr_opagdl = rodata['opagdl']
 
+    nodetype = rodata['_node_type_']
     ptr_vtx = rodata['vertices'] & 0xffffff
     vtxbytes = model.data(ptr_vtx)
     nvtx = rodata['numvertices']
-    ptr_col = pdu.align(ptr_vtx + nvtx*12, 8)
-    col_start = ptr_col
+    col_start = 0 if nodetype in [0x04, 0x18] else pdu.align(ptr_vtx + nvtx*12, 8)
 
     sc = 1
     verts = pdu.read_vtxs(vtxbytes, nvtx, sc)
@@ -293,6 +294,7 @@ def collectSubMeshes(model, rodata, idx):
 
     mat_setup = PDMaterialSetup()
     gdlnum = 0
+    col_ofs = 0
 
     if dbg:
         # n = min(nvtx, 300)
@@ -300,7 +302,7 @@ def collectSubMeshes(model, rodata, idx):
             v = verts[i]
             logger.debug(f' v_{i} {v}')
 
-    if dbg: logger.debug(f'[COLLECTMESH {idx:02X}] ptr_vtx {ptr_vtx:04X} ptr_col {ptr_col:04X} nvtx {len(verts)}')
+    if dbg: logger.debug(f'[COLLECTMESH {idx:02X}] ptr_vtx {ptr_vtx:04X} ptr_col {col_start:04X} nvtx {len(verts)}')
 
     # these commands change the material setup
     MAT_CMDS = [
@@ -328,7 +330,6 @@ def collectSubMeshes(model, rodata, idx):
                 break
 
         cmdint = int.from_bytes(cmd, bo)
-        # w0 = (cmdint & 0xffffffff00000000) >> 32
         w1 = cmdint & 0xffffffff
 
         if dbg: logger.debug(f'{cmdint:016X} {pdu.GDLcodes[cmd[0]]}')
@@ -355,9 +356,9 @@ def collectSubMeshes(model, rodata, idx):
             vtx_buf_size = vtx_idx + nverts
             pos = model.matrices[mtxindex] if mtxindex >= 0 else (0,0,0)
 
-            logger.debug(f'  vstart {vstart} n {nverts} vidx {vtx_idx:01X} vbufsize {vtx_buf_size} col_offset {(col_start-ptr_col)>>2} seg {vtx_segmented:08X} mtx {mtxindex}')
+            logger.debug(f'  vstart {vstart} n {nverts} vidx {vtx_idx:01X} vbufsize {vtx_buf_size} col_offset {(col_ofs-col_start)>>2} seg {vtx_segmented:08X} mtx {mtxindex}')
 
-            col_data = model.data(col_start)
+            col_data = model.data(col_start + col_ofs)
             for i, v in enumerate(verts[vstart:vstart+nverts]):
                 vpos = (v[0] + pos[0], v[1] + pos[2], v[2] + pos[1]) #invert-yz
 
@@ -370,7 +371,7 @@ def collectSubMeshes(model, rodata, idx):
 
             matrixmesh_map[(mtxindex, layer)].clear_vtx_buffer()
         elif op == G_COL:
-            col_start = (cmdint & 0xffffff)
+            col_ofs = (cmdint & 0xffffff)
         elif op == G_MTX:
             mtxindex = (cmdint & 0xffffff) // 0x40
             logger.debug(f'  MTX {mtxindex:04X}')
@@ -388,9 +389,6 @@ def collectSubMeshes(model, rodata, idx):
     return list(filter(lambda e: len(e.tris), matrixmesh_map.values()))
 
 def createModelMesh(idx, model, rodata, sc, tex_configs, parent_obj):
-    # if idx in [0x36, 0x3a, 0x3c, 0x3e, 0x38, 0x40]: return
-    # logger.debug(f'createModelMesh {idx:02X}')
-
     subMeshes = collectSubMeshes(model, rodata, idx)
     n_submeshes = len(subMeshes)
     logger.debug(f'idx {idx:02X} n {n_submeshes}')
@@ -414,25 +412,23 @@ def createModelMeshes(model, sc, model_obj):
         typeDL1 = nodetype in [0x4, 0x18]
         typeDL2 = nodetype == 0x16
 
-        rodata = {}
-        if typeDL1:
-            for e in ['opagdl', 'xlugdl', 'vertices', 'numvertices', 'colors']: rodata[e] = ro[e]
-        if typeDL2:
-            rodata['opagdl'] = ro['gdl']
-            rodata['xlugdl'] = None
-            rodata['numvertices'] = ro['unk00']*4
-            rodata['vertices'] = ro['vertices']
-            rodata['colors'] = ro['colors']
-
         if typeDL1 or typeDL2:
-        # if ro['_node_type_'] == 4 and idx == 3:
-#            print(ro)
+            rodata = {k: ro[k] for k in ['vertices', 'colors', '_node_type_']}
+            if typeDL1:
+                for e in ['opagdl', 'xlugdl', 'numvertices']: rodata[e] = ro[e]
+            if typeDL2:
+                rodata['opagdl'] = ro['gdl']
+                rodata['xlugdl'] = None
+                rodata['numvertices'] = ro['unk00']*4
+
             print(f'createModelMesh {idx:02X} t {nodetype:02X}')
             createModelMesh(idx, model, rodata, sc, tex_configs, model_obj)
         idx += 1
 
-def _main():
-    # pdn.unregister()
+def register():
+    bpy.utils.register_class(PDModelPropertyGroup)
+    bpy.utils.register_class(OBJECT_PT_custom_panel)
+    Object.pdmodel_props = PointerProperty(type=PDModelPropertyGroup)
     pdn.register()
 
 class PDModelPropertyGroup(PropertyGroup):
@@ -440,6 +436,7 @@ class PDModelPropertyGroup(PropertyGroup):
     idx: IntProperty(name='idx', default=0, options={'LIBRARY_EDITABLE'})
     mtx: IntProperty(name='mtx', default=0, options={'LIBRARY_EDITABLE'})
     sub_idx: IntProperty(name='sub_idx', default=0, options={'LIBRARY_EDITABLE'})
+    layer: IntProperty(name='layer', default=0, options={'LIBRARY_EDITABLE'})
 
 class OBJECT_PT_custom_panel(Panel):
     bl_label = 'PD Model'
@@ -464,6 +461,8 @@ class OBJECT_PT_custom_panel(Panel):
             box.label(text=f'Sub Index: {obj.pdmodel_props.sub_idx:02X}', icon='LOCKED')
 
         box.label(text=f'Matrix: {obj.pdmodel_props.mtx:02X}', icon='LOCKED')
+        txtlayer = 'opa' if obj.pdmodel_props.layer == MeshLayer.OPA else 'xlu'
+        box.label(text=f'Layer: {txtlayer}', icon='LOCKED')
         box.enabled = False
 
 def unreg():
@@ -492,30 +491,30 @@ def main():
     pdu.clear_scene()
 
     model_name = 'Gfalcon2Z'
-    model_name = 'Gk7avengerZ'
-    model_name = 'GdysuperdragonZ'
+    # model_name = 'Gk7avengerZ'
+    # model_name = 'GdysuperdragonZ'
     # model_name = 'GdydragonZ'
-    model_name = 'Gleegun1Z'
+    # model_name = 'Gleegun1Z'
     # model_name = 'GcrossbowZ'
     # model_name = 'Gdy357Z'
     # model_name = 'GdydevastatorZ'
     # model_name = 'GsniperrifleZ'
     # model_name = 'Gm16Z'
-    # model_name = 'GshotgunZ'
-    model_name = 'GdyrocketZ'
-    model_name = 'GpcgunZ'
+    model_name = 'GshotgunZ'
+    # model_name = 'GdyrocketZ'
+    # model_name = 'GpcgunZ'
     # model_name = 'GdruggunZ'
     # model_name = 'GmaianpistolZ'
     # model_name = 'GskminigunZ'
     # model_name = 'Gz2020Z'
     # model_name = 'Gcmp150Z'
-    model_name = 'PchrdragonZ'
-    model_name = 'Pchrdy357Z'
-    model_name = 'CdjbondZ'
-    model_name = 'CskedarZ'
-    model_name = 'PchrautogunZ'
+    # model_name = 'PchrdragonZ'
+    # model_name = 'Pchrdy357Z'
+    # model_name = 'CdjbondZ'
+    # model_name = 'CskedarZ'
+    # model_name = 'PchrautogunZ'
 
-    romdata = loadrom()
+    romdata = pdu.loadrom()
     model = loadmodel(romdata, model_name)
 
     model_obj = pdu.new_empty_obj(model_name)
@@ -527,10 +526,6 @@ def main():
 
 def export(name):
     exp.export_model(name)
-
-def loadrom():
-    filename = 'D:/Mega/PD/pd_blend/pd.ntsc-final.z64'
-    return rom.Romdata(filename)
 
 def loadimages(romdata, model):
     imglib = bpy.data.images

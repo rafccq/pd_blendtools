@@ -8,6 +8,8 @@ from glob import glob
 import bpy
 import bmesh
 
+import romdata as rom
+
 GDLcodes = {
     0x00: 'G_SPNOOP',
     0x01: 'G_MTX',
@@ -573,3 +575,12 @@ def select(item, idx):
         bm.faces[idx].select = True
     else:
         print('invalid item:', item)
+
+# returns the index in the list of the first element that matches the condition
+def index_where(array, condition, default = -1):
+    return next((idx for idx, e in enumerate(array) if condition(e)), default)
+
+def loadrom():
+    filename = 'D:/Mega/PD/pd_blend/pd.ntsc-final.z64' #TMP
+    return rom.Romdata(filename)
+

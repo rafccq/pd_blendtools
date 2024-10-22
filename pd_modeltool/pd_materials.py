@@ -215,6 +215,12 @@ def material_get_setup(mat):
             break
     return node_setup
 
+def material_get_teximage(mat):
+    for node in mat.node_tree.nodes:
+        if node.bl_idname == 'ShaderNodeTexImage':
+            return node.image
+    return None
+
 def material_has_lighting(mat):
     node = material_get_setup(mat)
 

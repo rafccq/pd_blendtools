@@ -7,3 +7,4 @@ tmp*.blend
 *.log
 tex
 pd_modeltool/nodes/__pycache__
+*.png

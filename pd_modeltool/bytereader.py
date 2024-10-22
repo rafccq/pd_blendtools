@@ -16,16 +16,16 @@ sz = {
 
 SRC_BO = 'big'
 # SRC_BO = 'little'
-DEST_BO = 'little'
-# DEST_BO = 'big'
+# DEST_BO = 'little'
+DEST_BO = 'big'
 
 enableLog = False
 # enableLog = True
 
-OUT_PTR_SIZE = 8
+OUT_PTR_SIZE = 4
 
 class ByteReader:
-    def __init__(self, data, srcBO = 'big', destBO = 'little', mask=0xffffffff):
+    def __init__(self, data, srcBO = 'big', destBO = 'big', mask=0xffffffff):
         global SRC_BO, DEST_BO
         SRC_BO = srcBO
         DEST_BO = destBO
@@ -190,6 +190,12 @@ class ByteReader:
         return {
             '_addr_': start & 0x00ffffff,
             'bytes': self.data[start:end] if end is not None else self.data[start:]
+        }
+
+    def create_block(self, addr, data):
+        return {
+            '_addr_': addr,
+            'bytes': data
         }
 
     def read(self, decl, block, endmarker = None, addpointers=True):
@@ -447,29 +453,29 @@ class ByteReader:
     #     self.pointers_map[ptr] = 0
 
     def patch_pointers(self, data, mask):
-        ptrsz = 8
-        # print(f'{len(self.pointers)} pointers')
+        ptrsz = 4
 
         # mask = 0x05000000
         for addr in self.pointers:
             ptrvalue = int.from_bytes(data[addr:addr+ptrsz], byteorder=DEST_BO)
             if ptrvalue == 0: continue
 
-            # ptrnew = 0xcadebeef
             # print(f'[{addr:08X}] {ptrvalue:08X} -> {ptrnew:08X}')
             ptrmasked = ptrvalue & ~mask
-            ptrnew = self.pointers_map[ptrmasked] + (ptrvalue & mask) + 0*self.ofs_w if ptrmasked in self.pointers_map else None
+            ptrnew = self.pointers_map[ptrmasked] + (ptrvalue & mask) if ptrmasked in self.pointers_map else None
             # print(f'[{addr:08X}] {ptrvalue:08X}')
-            if not ptrnew:
+            if not ptrnew or (ptrnew & ~mask) == 0:
                 # print(f'warning: pointer {ptrvalue & ~mask:08X} at addr {addr:08X} not found, skipping...')
                 continue
 
             if ptrnew == 0xffffffff:
-                # if enableLog: print(f'warning: ptr {ptrvalue:08X} [{addr:04X}] marked to be patched but not updated]')
+                # if enableLog:
+                print(f'warning: ptr {ptrvalue:08X} [{addr:04X}] marked to be patched but not updated]')
                 continue
 
-            # if enableLog: print(f'[{addr:08X}] {ptrvalue:08X} -> {ptrnew:08X} diff {ptrnew - ptrvalue}')
-            # print(f'\t -> {ptrnew:08X}')
+            # if enableLog:
+            # print(f'[{addr:08X}] {ptrvalue:08X} -> {ptrnew:08X} diff {ptrnew - ptrvalue}')
+            # print(f'\t -> {ptrnew:08X} ({ptrnew&~mask:08X})')
             data[addr:addr+ptrsz] = ptrnew.to_bytes(ptrsz, byteorder=DEST_BO)
 
     def patch_gdl_pointers(self, dataout, start, end = None, base_ptr = None):

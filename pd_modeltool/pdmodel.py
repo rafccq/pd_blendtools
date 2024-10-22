@@ -9,17 +9,11 @@ def log(*args):
     if enableLog:
         print(''.join(args))
 
-def printdict(d, indent=4):
-    if enableLog:
-        print_dict(d, indent=indent)
-
 class PDModel:
-    def __init__(self, modeldata, skipDLdata=False, srcBO = 'big', destBO = 'little'):
+    def __init__(self, modeldata, skipDLdata=False):
         self.modeldata = modeldata
         self.skipDLdata = skipDLdata
-        self.rd = ByteReader(modeldata, srcBO, destBO, 0x00ffffff)
-        self.srcBO = srcBO
-        # self.rd = ByteReader(modeldata, srcBO, destBO)
+        self.rd = ByteReader(modeldata, mask=0x00ffffff)
 
         for name, decl in model_decls.items():
             self.rd.declare(name, decl)
@@ -31,15 +25,8 @@ class PDModel:
         self.texconfigs = []
         self.texdatas = []
 
-        self.gdladdrs = []
-        # self.gdladdrs2 = []
-        self.gdls = []
-        # self.gdls2 = []
         self.vertices = {}
         self.colors = {}
-
-        self.firstgdl = 0
-        self.lastgdl = 0
 
         self._read()
 
@@ -54,11 +41,9 @@ class PDModel:
         self.read_modelparts()
         self.read_rodata()
         self.read_tex_configs()
-        self.read_gdls()
 
-        nmtx = self.modeldef['nummatrices']
         # we only represent the translation part of the matrix here
-        self.matrices = [(0,0,0)] * nmtx
+        self.matrices = [(0,0,0)] * self.modeldef['nummatrices']
         self.build_matrices()
 
     def build_matrices(self):
@@ -124,85 +109,43 @@ class PDModel:
         rd = self.rd
         dataout = bytearray()
 
-        log(f'>patch modeldef [{len(dataout):04X}]')
         rd.write_block(dataout, 'modeldef', self.modeldef)
-
-        log(f'>patch parts [{len(dataout):04X}]')
         rd.write_block(dataout, 'parts', self.modelparts, pad=4)
 
-        __addr = self.modelparts['write_addr']
-        # print_bin('parts', dataout, __addr, -1, 4, 4)
-
         for texconf in self.texconfigs:
-            log(f'>patch texconfig [{len(dataout):04X}]')
             rd.write_block(dataout, 'texconfig', texconf, pad=4)
 
         for k, node in self.nodes.items():
-            log(f'>patch modelnode [{len(dataout):04X}]')
             rd.write_block(dataout, 'modelnode', node, pad=4)
 
         for texdata in self.texdatas:
-            addr = texdata['_addr_']
-            # log(f'texdata: {addr:08X}')
-            log(f'>patch texdata [{len(dataout):04X}]')
             rd.write_block_raw(dataout, texdata)
             log(f'.TEX {len(dataout):08X}')
 
-        # rd.add_padding(dataout, 8)
-
+        idx = 0
         for rodata in self.rodatas:
             type = rodata['_node_type_']
 
-            numvertices = 0
-            if type in [0x04, 0x18]:
-                numvertices = rodata['numvertices']
-            elif type == 0x16:
-                numvertices = rodata['unk00'] * 4
+            # if numvertices:
+            if type in [0x04, 0x16, 0x18]:
+                rodata['vertices'] = len(dataout) | 0x05000000
+                vertices = self.vertices[idx]
+                colors = self.colors[idx]
 
-            if numvertices:
-                addr = rodata['vertices']
-                # addr = rodata['vertices'] & 0xffffff
-                # log(f'>patch rodata VTX addr {addr:04X}')
-                vertices = self.vertices[addr]
-                colors = self.colors[addr]
-
-                v = vertices['bytes']
-                log(f'>patch rodata VTX len {len(v)}')
-                # print_bin('^VTX', v, 0, 64, 2, 6)
                 rd.write_block_raw(dataout, vertices, pad=8)
-                # log(f'COL {len(dataout):04X}')
-                v = colors['bytes']
-                log(f'>patch COL [{len(v)}]')
                 rd.write_block_raw(dataout, colors, pad=8)
 
-            log(f'>patch {rodata_decls[type]} [{len(dataout):04X}]')
+            # log(f'>patch {rodata_decls[type]} [{len(dataout):04X}]')
             rd.ref = len(dataout)
+            if idx == 0x29:
+                print(rodata)
+                # print_bin('rodata 29', rodata['bytes'], 0, -1, 4)
+                # rd.print_dict(rodata, rodata_decls[type], True)
+
             rd.write_block(dataout, rodata_decls[type], rodata, pad=8)
-
-        gdladdrs = []
-        for gdlinfo in self.gdls:
-            gdldata = gdlinfo[0]
-            node = gdlinfo[1]
-            gdladdrs.append((len(dataout), node))
-            log(f'>patch GDL [{len(dataout):04X}]')
-            rd.write_block_raw(dataout, gdldata, pad=4)
-
-        gdladdrs.append((len(dataout),0))
-        n = len(gdladdrs) - 1
-        baseptrs_map = {}
-        for i in range(0, n):
-            node = gdladdrs[i][1]
-            if node not in baseptrs_map: baseptrs_map[node] = {}
-            # rd.patch_gdl_pointers(dataout, gdladdrs[i][0], gdladdrs[i+1][0], baseptrs_map[node])
-            rd.patch_gdl_pointers(dataout, gdladdrs[i][0], gdladdrs[i+1][0], baseptrs_map[node])
-            # rd.patch_gdl_pointers(dataout, gdladdrs[i][0], gdladdrs[i+1][0], baseptrs_map)
-            # log('-'*32)
+            idx += 1
 
         texaddrs = { blk['_addr_']: blk['write_addr'] for blk in self.texdatas }
-
-        # for texdata in self.texdatas:
-        #     addr, addr_new = texdata['_addr_'], texdata['write_addr']
-        #     log(f'TEXDATA {addr:08X} -> {addr_new:08X}')
 
         # we have to manually patch the texconfig pointers, because nothing points to them (except the first)
         m = 0x05000000
@@ -217,23 +160,29 @@ class PDModel:
             # log(texconfig, f'addr: tex {texnum:08X} texnew {texnum_new:08X}')
 
         log(f'>patchpointers [{len(dataout):04X}]')
-        # rd.patch_pointers(dataout)
         rd.patch_pointers(dataout, 0x05000000)
 
-        # log('PTR MAP')
-        # for k, ptr in sorted(rd.pointers_map.items()): log(f'{k:08X} -> {ptr:08X}')
-        # log('PTR LOC')
-        # for p in rd.pointers:
-        #     map = rd.pointers_map
-        #     v = rd.pointers_map[p] if p in map or (p | 0x05000000) in map else -1
-        #     v = f'{v:08X}' if v >= 0 else '----'
-        #     log(f'{p:08X} ({v})')
-
         return dataout
-        # n = len(dataout)
-        # print_bin(f'modeldef: {n:04X} ({n}) bytes', dataout, 0, n, group_size=4)
 
-        # rd.patch_pointers(self.dataout)
+    def replace_gdl(self, dataout, gdlbytes, idx, layer):
+        if not gdlbytes: return
+
+        rodata = self.rodatas[idx]
+        nodetype = rodata['_node_type_']
+        if nodetype not in [0x04, 0x16, 0x18]:
+            raise Exception(f'Invalid rodata type to replace GDL: {nodetype}')
+
+        rd = self.rd
+        # print(f'REPLACE_GDL {idx:02X} len {len(gdlbytes)} {layer}')
+        prev_addr = rodata[layer] & 0xffffff
+        gdlblock = rd.create_block(prev_addr, gdlbytes)
+        rd.write_block_raw(dataout, gdlblock)
+
+        gdl_addr = gdlblock['write_addr']
+        offset = 4 if layer == 'xlugdl' else 0
+        ptr_addr = rodata['write_addr'] + offset
+        # print(f'  {idx:02X} GDL prev {prev_addr:08X} new {gdl_addr:08X} ptr {ptr_addr:08X}')
+        dataout[ptr_addr: ptr_addr + 4] = gdl_addr.to_bytes(4, 'big')
 
     def read_node(self, rootaddr):
         log(f'read_node: {rootaddr:08X}')
@@ -242,19 +191,13 @@ class PDModel:
         node = rd.read_block('modelnode')
         self.nodes[rootaddr] = node
         rd.print_dict(node, decl_modelnode, pad=16, numspaces=4)
-        # printdict(node)
+
         log('-'*32)
 
         # read 'child' nodes
         child = unmask(node['child'])
         if child != 0 and child not in self.nodes:
-            childnode = self.read_node(child)
-
-        # read 'prev' nodes
-        prev = unmask(node['prev'])
-        # while prev != 0 and prev not in self.nodes:
-        #     prevnode = self.read_node(prev)
-        #     prev = unmask(prevnode['prev'])
+            self.read_node(child)
 
         # read 'next' nodes
         next = unmask(node['next'])
@@ -265,30 +208,21 @@ class PDModel:
         return node
 
     def read_modelparts(self):
-        # global decl_parts
         rd = self.rd
-        # n = str(self.modeldef['numparts'])
         n = self.modeldef['numparts']
-        # decl_parts = list(map(lambda e: e.replace('N', n), decl_parts))
         rd.declare('parts', decl_parts, vars={'N': n})
         addr = unmask(self.modeldef['parts'])
         rd.set_cursor(addr)
         self.modelparts = rd.read_block('parts')
-        # printdict(self.modelparts)
-        # for part in block_parts['parts']:
-        #     log(f'{part:08X}')
-        # rd.print_dict(block_parts, decl_parts, pad=16, numspaces=2)
-        # log(self.modeldef)
 
     def read_rodata(self):
         rd = self.rd
+        idx = 0
         for k, node in self.nodes.items():
-            gdladdrs = []
             node_addr = node['_addr_']
             rodata_addr = node['rodata']
             type = node['type'] & 0xff
             rodata_name = rodata_decls[type]
-            # log(f'{node_addr:04X} t {type:02X} {rodata_name}')
             log(f'{node_addr:04X} t {type:02X} {rodata_name} {rodata_addr:08X}')
 
             rd.set_cursor(unmask(rodata_addr))
@@ -296,53 +230,39 @@ class PDModel:
             rodata['_node_type_'] = type
             self.rodatas.append(rodata)
             rd.print_dict(rodata, rd.decl_map[rodata_name], pad=16, numspaces=4, showdec=True)
-            # log(rodata)
             rodatagdl_map = {
                 0x04: ['opagdl', 'xlugdl'],
                 0x16: ['gdl'],
                 0x18: ['opagdl', 'xlugdl']
             }
-            if type in rodatagdl_map and not self.skipDLdata:
-                self.read_vertices(rodata, type)
-                for name in rodatagdl_map[type]:
-                    if name not in rodata:
-                        print(f'warning: gdl \'{name}\' not found in rodata {type:02X}')
-                        continue
-                    addr = rodata[name] & 0xfffffffffffffffe
-                    # if addr: self.gdladdrs.append(addr)
+            if type in rodatagdl_map:
+                self.read_vertices(rodata, type, idx)
 
-                    # we need to save 'k' here to later identify GDLs from the same node
-                    if addr: self.gdladdrs.append((addr, k))
-                    # if addr: self.gdladdrs.append((addr, node_addr))
+            idx += 1
 
-                # self.gdladdrs2.append(gdladdrs)
             # log(''*12)
 
-    def read_vertices(self, rodata, type):
+    def read_vertices(self, rodata, type, idx):
         rd = self.rd
         log(f'VERTICES [{rd.cursor:04X}]')
-        printdict(rodata)
+
         numvertices = rodata['numvertices'] if type in [0x04, 0x18] else rodata['unk00'] * 4
-        # numvertices = rodata['numvertices'] if 'numvertices' in rodata else None
+
         if numvertices:
             vtxsize = 12
             start = rodata['vertices']
-            # start = rodata['vertices'] & 0xffffff
             end = ALIGN8(unmask(start) + numvertices * vtxsize)
             endnoalign = (unmask(start) + numvertices * vtxsize)
-            self.vertices[start] = rd.read_block_raw(unmask(start), end)
-            v = self.vertices[start]['bytes']
+            self.vertices[idx] = rd.read_block_raw(unmask(start), end)
+            v = self.vertices[idx]['bytes']
             log(f'.VTX   start {unmask(start):04X} end {end:04X} endnoalign {endnoalign:04X} len {len(v)} num {numvertices}')
             if enableLog: print_bin('^VTX', v, 0, 12*12, 2, 6)
 
-            # col_start = loc(end)
-            # col_start = ALIGN8(loc(end))
             col_start = ALIGN8(unmask(end))
             col_end = rodata['_addr_']
 
-            # a = colors['_addr_']
             # save colors at the same address as the vertices
-            colors = self.colors[start] = rd.read_block_raw(col_start, col_end)
+            colors = self.colors[idx] = rd.read_block_raw(col_start, col_end)
             rodata['colors'] = colors
             c = colors['bytes']
             log(f'.COLORS start {col_start:04X} len {len(c):04X} ({len(c)})')
@@ -351,35 +271,6 @@ class PDModel:
             # there are no direct pointers to the colors block (its implicit since it follows vtxs)
             # so we need to add it manually here, to things can be patched later, pain in the ass
             rd.pointers_map[col_start] = 0
-            # log(f'  s {start:08X} e {end-1:08X} col_end {col_end:08X}')
-            # print_bin('col', colors['bytes'], 0, 64, 4)
-
-    def read_gdls(self):
-        if self.skipDLdata: return
-
-        rd = self.rd
-        gdladdrs = self.gdladdrs
-        gdladdrs.sort()
-        lastgdl = gdladdrs[-1][0]
-
-        log('.GDLs')
-
-        for idx, gdlinfo in enumerate(gdladdrs):
-            addr = gdlinfo[0]
-            node = gdlinfo[1]
-
-            start = addr
-            end = gdladdrs[idx+1][0] if addr != lastgdl else len(rd.data) # end of the file
-            rd.set_cursor(unmask(addr))
-            gdldata = rd.read_block_raw(unmask(start), unmask(end))
-            log(f'.gdldata {unmask(start):04X}:{unmask(end):04X}')
-
-            if enableLog:
-                if sz['pointer'] == 8: printGDL(gdldata['bytes'], 2, 'little')
-                # else: printGDL_x86(gdldata['bytes'], 2, 'little')
-                else: printGDL_x86(gdldata['bytes'], 2, self.srcBO)
-
-            self.gdls.append((gdldata, node))
 
     def read_tex_configs(self):
         rd = self.rd
@@ -387,7 +278,6 @@ class PDModel:
         rd.set_cursor(addr)
 
         embeddedtex = False
-        msg = ''
         for i in range(0, self.modeldef['numtexconfigs']):
             texconfig = rd.read_block('texconfig')
             self.texconfigs.append(texconfig)
@@ -395,7 +285,6 @@ class PDModel:
             texnum = texconfig['texturenum']
             tc_addr = texconfig['_addr_']
             if texnum & 0x05000000: embeddedtex = True
-            # print_dict2(texconfig, decl_texconfig, sz, pad=16, numspaces=2)
             log(f'{tc_addr:04X} texconfig {i}')
             rd.print_dict(texconfig, rd.decl_map['texconfig'], pad=16, numspaces=4, showdec=True)
 
@@ -428,6 +317,34 @@ class PDModel:
             if ro['_addr_'] == addr: return ro
 
         return None
+
+    def replace_vtxdata(self, idx, vtxdata):
+        rodata = self.rodatas[idx]
+        nodetype = rodata['_node_type_']
+
+        if nodetype not in [0x04, 0x16, 0x18]:
+            raise Exception(f'invalid node type: {nodetype} idx {idx}')
+
+        vtxblock = self.vertices[idx]
+        vtxblock['bytes'] = vtxdata
+
+        numvtx = len(vtxdata) // 12
+
+        # update rodata numvertices
+        if nodetype in [0x04, 0x18]:
+            rodata['numvertices'] = numvtx
+        elif nodetype in [0x16]:
+            rodata['unk00'] = numvtx >> 2
+
+    def replace_colordata(self, idx, colordata):
+        rodata = self.rodatas[idx]
+        nodetype = rodata['_node_type_']
+
+        if nodetype not in [0x04, 0x16, 0x18]:
+            raise Exception(f'invalid node type: {type}')
+
+        colorblock = self.colors[idx]
+        colorblock['bytes'] = colordata
 
 def read(path, filename, skipDLdata=False):
     modeldata = read_file(f'{path}/{filename}')
