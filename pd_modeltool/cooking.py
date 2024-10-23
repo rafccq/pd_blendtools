@@ -1,5 +1,6 @@
 import struct
 import logging
+import math
 
 import bpy
 import bmesh
@@ -9,14 +10,12 @@ from bpy.types import PropertyGroup, Object, Panel
 from mathutils import Euler, Vector, Matrix
 
 import pd_utils as pdu
-import pdmodel
 import pd_materials as pdm
 import nodes.pd_shadernodes as pdn
 from pd_materials import *
 from pdmodel import unmask, PDModel
 from gbi import *
 import export as exp
-import romdata as rom
 import texload as tex
 
 logger = logging.getLogger(__name__)
@@ -83,7 +82,7 @@ def createMesh(mesh, tex_configs, idx, sub_idx):
             normals.append((0,0,0))
         else:
             vn = tuple([int.from_bytes(normcolor[i:i+1], 'big', signed=True) for i in range(0,3)])
-            n = Vector((vn[0], vn[2], vn[1])) #invert-yz
+            n = Vector((vn[0], vn[1], vn[2]))
             normals.append(n.normalized())
             # normals.append(n)
             # for k in range(0,3): c[k] *= 255
@@ -360,7 +359,7 @@ def collectSubMeshes(model, rodata, idx):
 
             col_data = model.data(col_start + col_ofs)
             for i, v in enumerate(verts[vstart:vstart+nverts]):
-                vpos = (v[0] + pos[0], v[1] + pos[2], v[2] + pos[1]) #invert-yz
+                vpos = (v[0] + pos[0], v[1] + pos[1], v[2] + pos[2])
 
                 uv = (v[3], v[4])
                 coloridx = v[5]
@@ -523,6 +522,8 @@ def main():
     sc = 1
     # model.traverse(create_joint, root_obj=model_obj)
     createModelMeshes(model, sc, model_obj)
+    model_obj.rotation_euler[0] = math.radians(90)
+    model_obj.rotation_euler[2] = math.radians(90)
 
 def export(name):
     exp.export_model(name)

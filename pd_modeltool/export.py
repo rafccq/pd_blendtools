@@ -136,7 +136,7 @@ class TriBatch:
         for v, vdata in enumerate(self.vtxdata):
             # print(f'---- {v} nv {len(self.vtxdata)} nci {len(self.color_indices)} ----')
             pos = vdata[0]
-            pos = (pos[0] - mtx[0], pos[2] - mtx[1], pos[1] - mtx[2]) #invert-yz
+            pos = (pos[0] - mtx[0], pos[1] - mtx[1], pos[2] - mtx[2])
             uvcoord = vdata[2]
 
             # pos flag col_idx s t

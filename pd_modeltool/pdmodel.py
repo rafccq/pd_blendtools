@@ -135,13 +135,7 @@ class PDModel:
                 rd.write_block_raw(dataout, vertices, pad=8)
                 rd.write_block_raw(dataout, colors, pad=8)
 
-            # log(f'>patch {rodata_decls[type]} [{len(dataout):04X}]')
             rd.ref = len(dataout)
-            if idx == 0x29:
-                print(rodata)
-                # print_bin('rodata 29', rodata['bytes'], 0, -1, 4)
-                # rd.print_dict(rodata, rodata_decls[type], True)
-
             rd.write_block(dataout, rodata_decls[type], rodata, pad=8)
             idx += 1
 

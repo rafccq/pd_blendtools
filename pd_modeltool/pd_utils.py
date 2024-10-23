@@ -477,9 +477,7 @@ def read_vtxs(vtxdata, numvtx, sc):
         s = ctypes.c_short(s & 0xFFFF).value
         t = ctypes.c_short(t & 0xFFFF).value
 
-        # vtxs.append([x,y,z,s,t,flags])
-        # vtxs.append((x*sc,y*sc,z*sc))
-        vtxs.append((x*sc, z*sc, y*sc, s, t, color)) #invert-yz
+        vtxs.append((x*sc, y*sc, z*sc, s, t, color))
 
     return vtxs
 
