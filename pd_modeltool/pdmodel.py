@@ -172,8 +172,10 @@ class PDModel:
         gdlblock = rd.create_block(prev_addr, gdlbytes)
         rd.write_block_raw(dataout, gdlblock)
 
+        # patch the rodata gdl ptr
         gdl_addr = gdlblock['write_addr']
         offset = 4 if layer == 'xlugdl' else 0
+        if nodetype == 0x16: offset = 4*2
         ptr_addr = rodata['write_addr'] + offset
         # print(f'  {idx:02X} GDL prev {prev_addr:08X} new {gdl_addr:08X} ptr {ptr_addr:08X}')
         dataout[ptr_addr: ptr_addr + 4] = gdl_addr.to_bytes(4, 'big')
