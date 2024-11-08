@@ -72,7 +72,7 @@ class PD_ShaderNodeBase(bpy.types.ShaderNodeCustomGroup):
 
             node = node.inputs[0].links[0].from_node
             if node.bl_idname == 'pd.nodes.setothermodeH': # TMP TODO add const
-                self['num_cycles'] = 2 if node['g_mdsft_cycletype'] == 1 else 1
+                self['num_cycles'] = 2 if node.g_mdsft_cycletype == 1 else 1
                 break
 
     def post_init(self): pass

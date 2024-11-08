@@ -7,40 +7,29 @@ TEMPLATE_NAME = 'PD_MaterialTemplate'
 MAT_BLENDFILE = 'pd_materials.blend'
 TEX_FOLDER    = '//tex'
 
-TEXFORMAT_RGBA32     = 0x00 # 32-bit RGBA (8/8/8/8)
-TEXFORMAT_RGBA16     = 0x01 # 16-bit RGBA (5/5/5/1)
-TEXFORMAT_RGB24      = 0x02 # 24-bit RGB (8/8/8)
-TEXFORMAT_RGB15      = 0x03 # 15-bit RGB (5/5/5)
-TEXFORMAT_IA16       = 0x04 # 16-bit grayscale+alpha
-TEXFORMAT_IA8        = 0x05 # 8-bit grayscale+alpha (4/4)
-TEXFORMAT_IA4        = 0x06 # 4-bit grayscale+alpha (3/1)
-TEXFORMAT_I8         = 0x07 # 8-bit grayscale
-TEXFORMAT_I4         = 0x08 # 4-bit grayscale
-TEXFORMAT_RGBA16_CI8 = 0x09 # 16-bit 5551 paletted colour with 8-bit palette indexes
-TEXFORMAT_RGBA16_CI4 = 0x0a # 16-bit 5551 paletted colour with 4-bit palette indexes
-TEXFORMAT_IA16_CI8   = 0x0b # 16-bit 88 paletted greyscale+alpha with 8-bit palette indexes
-TEXFORMAT_IA16_CI4   = 0x0c # 16-bit 88 paletted greyscale+alpha with 4-bit palette indexes
-
-G_IM_FMT_RGBA = 0
-G_IM_FMT_YUV  = 1
-G_IM_FMT_CI   = 2
-G_IM_FMT_IA   = 3
-G_IM_FMT_I    = 4
-
-G_IM_SIZ_4b  = 0
-G_IM_SIZ_8b  = 1
-G_IM_SIZ_16b = 2
-G_IM_SIZ_32b = 3
-G_IM_SIZ_DD  = 5
-
 class PDMaterialSetup:
-    def __init__(self, current_mat=None):
-        self.texnum = current_mat.texnum if current_mat else 0
+    def __init__(self, mesh_idx, current_mat=None):
+        self.texnum = current_mat.texnum if current_mat else -1
         self.loadtex = False
         self.cmds = []
         self.smode = current_mat.smode if current_mat else 0
         self.geom_mode = current_mat.geom_mode if current_mat else 0
         self.applied = False
+        self.optimized = False
+        self.mesh_idx = mesh_idx
+
+        if current_mat:
+            self.cmds_from_mat(current_mat)
+
+    def cmds_from_mat(self, mat):
+        for cmd in mat.cmds:
+            self.add_cmd(cmd)
+
+    def find_cmd(self, op):
+        for idx, cmd in enumerate(self.cmds):
+            if cmd[0] == op:
+                return idx, cmd
+        return -1, None
 
     def add_cmd(self, cmd):
         op = cmd[0]
@@ -56,7 +45,72 @@ class PDMaterialSetup:
         elif op == G_CLEARGEOMETRYMODE:
             self.geom_mode = 0
 
-        self.cmds.append(cmd)
+        # if this material already has these cmds, just replace it
+        (idx, current) = self.find_cmd(op) if op in [G_PDTEX] else (-1, None)
+
+        if current:
+            self.cmds[idx] = cmd
+        else:
+            self.cmds.append(cmd)
+
+    def optimize_geo(self):
+        setbits = 0
+        clearbits = 0
+
+        # we'll remove all the setgeo and cleargeo cmds, and keep the others
+        new_cmds = []
+        # print(f'optimize {self.id()}')
+        for idx, cmd in enumerate(self.cmds):
+            bits = int.from_bytes(cmd[4:], 'big')
+            if cmd[0] == G_SETGEOMETRYMODE:
+                setbits |= bits
+                clearbits &= ~bits
+                # print(f'  S {setbits:04X} C {clearbits:04X}')
+            elif cmd[0] == G_CLEARGEOMETRYMODE:
+                setbits &= ~bits
+                clearbits |= bits
+                # print(f'  C {clearbits:04X} S {setbits:04X}')
+            else:
+                new_cmds.append(cmd)
+
+        # setgeo and cleargeo commands cancel each other, if they affect the same bits
+        if setbits != 0:
+            cmd = bytearray([G_SETGEOMETRYMODE] + [0x00]*3)
+            cmd += setbits.to_bytes(4, 'big')
+            new_cmds.append(cmd)
+
+        if clearbits != 0:
+            cmd = bytearray([G_CLEARGEOMETRYMODE] + [0x00]*3)
+            cmd += clearbits.to_bytes(4, 'big')
+            new_cmds.append(cmd)
+
+        self.cmds = new_cmds
+
+    def optimize_otherH(self):
+        otherHs = []
+        copycmds = self.cmds[:]
+        for cmd in reversed(copycmds):
+            if cmd in otherHs:
+                self.cmds.remove(cmd)
+            else:
+                otherHs.append(cmd)
+
+    def optimize_texconfig(self):
+        texfound = False
+        copycmds = self.cmds[:]
+        for cmd in reversed(copycmds):
+            if cmd[0] == G_TEXTURE:
+                if texfound:
+                    self.cmds.remove(cmd)
+                texfound = True
+
+    def optimize_cmds(self):
+        if self.optimized: return
+
+        self.optimize_geo()
+        self.optimize_otherH()
+        self.optimize_texconfig()
+        self.optimized = True
 
     def has_normal(self):
         return self.geom_mode & (G_LIGHTING | G_TEXTURE_GEN)
@@ -71,6 +125,8 @@ class PDMaterialSetup:
 
         for cmd in self.cmds:
             mat_id += f'{cmd[0]:02X}'
+
+        mat_id += f'.{self.mesh_idx:02X}'
 
         return mat_id
 
@@ -190,6 +246,7 @@ def material_from_template(name, preset):
             data_to.materials = data_from.materials
             # print(f'template added {data_from.materials}')
 
+    bpy.data.materials[TEMPLATE_NAME].use_fake_user = True
     mat = bpy.data.materials[TEMPLATE_NAME].copy()
     mat.name = name
 
@@ -248,13 +305,48 @@ def material_has_geo(mat):
 
     return False
 
-def material_cmds(mat):
+def material_lastnode(mat):
+    node = material_get_setup(mat)
+    while node:
+        if len(node.outputs[0].links) == 0: break
+        node = node.outputs[0].links[0].to_node
+
+    return node
+
+from nodes.shadernode_othermode_h import PD_ShaderNodeSetOtherModeH, UPPER_TEXLOD
+# TODO TEMP: pre-calculate all mode bits instead of this
+def material_texlod(mat):
+    node = material_get_setup(mat)
+
+    lod = None
+    while node:
+        if len(node.outputs[0].links) == 0: break
+
+        node = node.outputs[0].links[0].to_node
+        if node.bl_idname == PD_ShaderNodeSetOtherModeH.bl_idname:
+            if node.mode == 'g_mdsft_texlod':
+                # return node.g_mdsft_texlod == UPPER_TEXLOD[1][0].lower()
+                lod = node.g_mdsft_texlod == UPPER_TEXLOD[1][0].lower()
+
+    return lod
+
+def material_cmds(mat, geobits):
     node = material_get_setup(mat)
     cmds = []
     while node:
         if len(node.outputs[0].links) == 0: break
 
         node = node.outputs[0].links[0].to_node
+        # print(f'   {node.bl_label:<14} {node.get_cmd()}')
+
+        if node.bl_idname == 'pd.nodes.setgeometrymode':
+            cmd = int(node.get_cmd(), 16) & 0xffffffff
+            geobits |= cmd
+
+        if node.bl_idname == 'pd.nodes.cleargeometrymode':
+            cmd = int(node.get_cmd(), 16) & 0xffffffff
+            geobits &= ~cmd
+
         cmds.append(node.get_cmd())
 
-    return cmds
+    return cmds, geobits

@@ -49,7 +49,7 @@ def createMesh(mesh, tex_configs, idx, sub_idx):
 
     verts_xyz = [v.pos for v in verts]
     mesh_data.from_pydata(verts_xyz, [], faces)
-    mesh_data.validate(verbose=True)
+    # mesh_data.validate(verbose=True)
 
     # suffix = f'[{sub_idx}]-M{mtxindex:02X}' if sub_idx >= 0 else f'-M{mtxindex:02X}'
     suffix = f'[{sub_idx}]' if sub_idx >= 0 else ''
@@ -90,11 +90,11 @@ def createMesh(mesh, tex_configs, idx, sub_idx):
             # colors.append((c[0],c[1],c[2],1))
             colors.append((1,1,1,1))
 
-        c = normcolor
-        txtnorm = '' if hascolors else ' (N)'
-        txtnorm += '' if hascolors else ' (' + ''.join([f'{ni:<6.3f} ' for ni in normals[i]]) + ')'
+        # c = normcolor
+        # txtnorm = '' if hascolors else ' (N)'
+        # txtnorm += '' if hascolors else ' (' + ''.join([f'{ni:<6.3f} ' for ni in normals[i]]) + ')'
         txtidx = f' [{v.color_idx}]'
-        if idx == 0x27: print(f'vc {i:03d} ({c[0]:02X} {c[1]:02X} {c[2]:02X} {c[3]:02X}){txtnorm}{txtidx}')
+        # if idx == 0x27: print(f'vc {i:03d} ({c[0]:02X} {c[1]:02X} {c[2]:02X} {c[3]:02X}){txtnorm}{txtidx}')
 
     mesh_data.normals_split_custom_set_from_vertices(normals)
     mesh_data.update()
@@ -112,16 +112,21 @@ def createMesh(mesh, tex_configs, idx, sub_idx):
     color_layer = bm.loops.layers.color.new("vtxcolor")
     for idx, face in enumerate(bm.faces):
         matsetup = tri2tex[face.index]
+        matsetup.optimize_cmds()
+
         # logger.debug(f'face {idx} mat {matsetup.id()}')
         tc = tex_configs[matsetup.texnum]
 
         matname = matsetup.id()
         mat_idx = obj.data.materials.find(matname)
+        # material does not exist, create a new one
         if mat_idx < 0:
             mat_idx = len(obj.data.materials)
             use_alpha = matsetup.smode == 1 or pdm.tex_has_alpha(tc['format'], tc['depth'])
             mat = pdm.material_new(matsetup, use_alpha)
             obj.data.materials.append(mat)
+        else:
+            mat = bpy.data.materials[matname]
 
         face.material_index = mat_idx
 
@@ -291,7 +296,7 @@ def collectSubMeshes(model, rodata, idx):
     vtx_buffer = [VtxBufferEntry()]*128
     vtx_buf_size = 0
 
-    mat_setup = PDMaterialSetup()
+    mat_setup = PDMaterialSetup(idx)
     gdlnum = 0
     col_ofs = 0
 
@@ -313,7 +318,7 @@ def collectSubMeshes(model, rodata, idx):
     layer = MeshLayer.OPA
 
     while True:
-        cmd = gdl[addr:addr+8]
+        cmd = bytearray(gdl[addr:addr+8])
         op = cmd[0]
 
         if op == G_END:
@@ -380,10 +385,12 @@ def collectSubMeshes(model, rodata, idx):
                 cur_mesh.dbg = dbg
         elif op in MAT_CMDS:
             if mat_setup.applied:
-                mat_setup = PDMaterialSetup(mat_setup)
+                mat_setup = PDMaterialSetup(idx, mat_setup)
             mat_setup.add_cmd(cmd)
 
         addr += 8
+
+    print(f'mesh {idx:02X} {mat_setup.applied}')
 
     return list(filter(lambda e: len(e.tris), matrixmesh_map.values()))
 
@@ -490,23 +497,23 @@ def main():
     pdu.clear_scene()
 
     model_name = 'Gfalcon2Z'
-    # model_name = 'Gk7avengerZ'
-    # model_name = 'GdysuperdragonZ'
-    # model_name = 'GdydragonZ'
     # model_name = 'Gleegun1Z'
-    # model_name = 'GcrossbowZ'
     # model_name = 'Gdy357Z'
+    # model_name = 'Gcmp150Z'
+    # model_name = 'Gk7avengerZ'
+    # model_name = 'GdydragonZ'
+    # model_name = 'GpcgunZ'
+    # model_name = 'GdysuperdragonZ'
+    model_name = 'GcrossbowZ'
     # model_name = 'GdydevastatorZ'
+    model_name = 'GdyrocketZ'
     # model_name = 'GsniperrifleZ'
     # model_name = 'Gm16Z'
-    model_name = 'GshotgunZ'
-    # model_name = 'GdyrocketZ'
-    # model_name = 'GpcgunZ'
+    # model_name = 'GshotgunZ'
     # model_name = 'GdruggunZ'
     # model_name = 'GmaianpistolZ'
     # model_name = 'GskminigunZ'
     # model_name = 'Gz2020Z'
-    # model_name = 'Gcmp150Z'
     # model_name = 'PchrdragonZ'
     # model_name = 'Pchrdy357Z'
     # model_name = 'CdjbondZ'
@@ -533,12 +540,12 @@ def loadimages(romdata, model):
 
     for tc in model.texconfigs:
         texnum = tc['texturenum']
-        img = f'{texnum:04X}.png'
+        imgname = f'{texnum:04X}.png'
 
-        if img not in imglib:
+        if imgname not in imglib:
             texdata = romdata.texturedata(texnum)
-            tex.tex_load(texdata, 'D:/Mega/PD/pd_blend/tex', img) # TODO TEX FOLDER
-            imglib.load(f'{TEX_FOLDER}/{img}')
+            tex.tex_load(texdata, 'D:/Mega/PD/pd_blend/tex', imgname) # TODO TEX FOLDER
+            imglib.load(f'{TEX_FOLDER}/{imgname}')
 
 def loadmodel(romdata, modelname):
     modeldata = romdata.modeldata(modelname)

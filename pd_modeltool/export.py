@@ -5,7 +5,6 @@ import logging
 import pd_utils as pdu
 from pdmodel import PDModel
 
-
 logger = logging.getLogger(__name__)
 logger.handlers.clear()
 logger.setLevel(logging.DEBUG)
@@ -300,6 +299,11 @@ def cmd_G_RDPPIPESYNC():
 def cmd_G_END():
     return bytearray.fromhex('B800000000000000')
 
+def cmd_G_CLEARGEOMETRY(geobits):
+    cmd = bytearray([0xb6, 0x00, 0x00, 0x00])
+    cmd += bytearray(geobits.to_bytes(4, 'big'))
+    return cmd
+
 def meshes_to_gdl(meshes, vtx_start, nverts):
     if not meshes: return None
 
@@ -323,9 +327,13 @@ def create_gdl(mesh: ExportMeshData):
 
     gdlbytes += cmd_G_MTX(mesh.mtx)
 
+    geobits = 0
     for idx, batch in enumerate(mesh.batches):
         mat = materials[batch.mat]
-        mat_cmds = material_cmds(mat)
+        mat_cmds, geobits = material_cmds(mat, geobits)
+
+        # print(f'  {mat.name} {geobits:04X}')
+        geobits |= geobits
         for cmd in mat_cmds:
             gdlbytes += bytearray.fromhex(cmd)
 
@@ -334,6 +342,9 @@ def create_gdl(mesh: ExportMeshData):
 
         for tri in batch.tris:
             gdlbytes += cmd_G_TRI([v for v in tri])
+
+    if geobits != 0:
+        gdlbytes += cmd_G_CLEARGEOMETRY(geobits)
 
     return gdlbytes
 
@@ -371,6 +382,7 @@ def export_model(modelname):
                 mtx = model.matrices[mesh.mtx]
                 mat = materials[batch.mat]
                 image = material_get_teximage(mat)
+
                 texsize = (1,1)
                 if image: texsize = image.size
                 else:
