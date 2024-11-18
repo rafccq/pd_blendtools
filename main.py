@@ -28,7 +28,7 @@ import nodes.shadernode_base as base
 import nodes.shadernode_othermode_h as otherH
 import nodes.shadernode_othermode_l as otherL
 import nodes.shadernode_geomode as geo
-import nodes.shadernode_tex as tex
+import nodes.shadernode_tex as nodetex
 import nodes.shadernode_setcombine as comb
 import nodes.nodeutils as ndu
 import export as exp
@@ -37,15 +37,18 @@ import texload as tex
 import imageutils as imu
 import romdata as rom
 
+import color_panel as colp
+import mtxpalette as mtx
+
 import gbi
-import cooking
+import pd_import as pdi
 import bytereader
 import struct
 
 os.system('cls')
 
-modules = [pdu, gbi, pdm, base, pdmodel, bytereader, cooking]
-modules += [ndu, base, otherH, otherL, geo, tex, comb, pdn, exp, br, tex, imu, rom]
+modules = [pdu, gbi, pdm, base, pdmodel, bytereader, pdi, colp, mtx]
+modules += [ndu, base, otherH, otherL, geo, nodetex, comb, pdn, exp, br, tex, imu, rom]
 
 for m in modules:
     importlib.reload(m)
@@ -56,13 +59,28 @@ t = strftime("%Y-%m-%d %H:%M:%S", gmtime())
 ln = '\n' + '-'*32 + '\n'
 print(ln, t, ln)
 
+def clearLib():
+    imglib = bpy.data.images
+    for img in imglib:
+        imglib.remove(img)
+        
+    matlib = bpy.data.materials
+    for mat in matlib:
+        if mat.name.startswith('Mat-'):
+            matlib.remove(mat)
+            
+def load():
+    clearLib()
+    pdi.main()
+    
+def exp():
+    root = list(filter(lambda e: e.name[-1]=='Z', bpy.data.objects))[0]
+    pdi.export(root.name)
+    
+#pdi.register()
+load()
+#exp()
 
-cooking.main()
-root = list(filter(lambda e: e.name[-1]=='Z', bpy.data.objects))[0]
-#cooking.export(root.name)
 
-#cooking.png()
-#cooking.loadrom()
-
-#pdu.select('vtx', 466)
+#pdu.select('vtx', 99)
 #pdu.select('face', 12)
