@@ -8,3 +8,6 @@ tmp*.blend
 tex
 pd_modeltool/nodes/__pycache__
 *.png
+texbin
+texbmp
+modelbin
