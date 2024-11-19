@@ -39,6 +39,8 @@ import romdata as rom
 
 import color_panel as colp
 import mtxpalette as mtx
+import datablock as dat
+import typeinfo as typ
 
 import gbi
 import pd_import as pdi
@@ -47,7 +49,7 @@ import struct
 
 os.system('cls')
 
-modules = [pdu, gbi, pdm, base, pdmodel, bytereader, pdi, colp, mtx]
+modules = [pdu, typ, gbi, pdm, base, dat, bytereader, pdmodel, pdi, colp, mtx]
 modules += [ndu, base, otherH, otherL, geo, nodetex, comb, pdn, exp, br, tex, imu, rom]
 
 for m in modules:

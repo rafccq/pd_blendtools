@@ -217,125 +217,6 @@ def print_bin(title, data, start, nbytes, group_size=1, groups_per_row=4):
         g += 1
     print(s)
 
-def field_info(decl):
-    '''
-    supported types are primitives, structs, arrays and pointers:
-    - primitives (there's no actual processing of tokens, so "anything" can be a primitive),
-        however, when used by bytereader, primitives must be the ones declared in the "sz" map
-        Examples:
-            'f32 xmin'
-            'f32 xmax'
-            'u16 rwdataindex'
-
-    - structs: which are declarations that must be registered
-        Examples:
-            'struct coord pos'
-
-    - arrays of supported types, of any dimension
-        Examples:
-	        'struct fontchar chars[94]'
-            's16 mtxindexes[3]'
-            's16 rotmtx[3][3]'
-            'f32 3dsomething[3][3][3]'
-
-        - arrays of undetermined size are also supported:
-            's32 values[]'
-            in such cases, and "endmarker" must be supplied to bytereader
-
-    - pointers to supported types
-        Examples:
-            'void *baseaddr'
-            'struct textureconfig *texture'
-            'struct modelnode **parts'
-
-    - arrays of supported types
-        Examples:
-            'struct coord vertices[4]'
-            'u8* parts[3]'
-            'f32 unk0c[3]'
-    '''
-    # print('decl:', decl)
-    decl = decl.strip()
-    decl.replace('\t', ' ')
-
-    if ':' in decl: return parse_cmd(decl)
-
-    is_struct = decl.startswith('struct') and '*' not in decl
-    decl = decl.replace('struct', '').strip()
-
-    first_space = decl.find(' ')
-    typename, field = decl[:first_space].strip(), decl[first_space:].strip()
-
-    is_pointer = '*' in typename or field.startswith('*')
-    is_array = '[' in decl and ']' in decl
-    # print('field:', field)
-
-    i = 0
-    while field[i] == '*':
-        typename += '*'
-        i += 1
-
-    array_size = parse_array_size(field) if is_array else None
-    field = field.replace('*', '')
-
-    if is_array: field = field[:field.find('[')]
-
-    field = field.strip()
-
-    return {
-        'typename': typename,
-        'fieldname': field,
-        'is_pointer': is_pointer,
-        'is_array': is_array,
-        'is_struct': is_struct,
-        'array_size': array_size,
-        'is_cmd': False,
-    }
-
-def parse_cmd(decl):
-    parts = decl.split(':')
-    cmd = parts[0]
-    param = parts[1].strip()
-
-    return {
-        'is_cmd': True,
-        'cmd': cmd,
-        'cmd_param': param,
-    }
-
-# returns the expression inside an array declaration, ex: [15+96], returns 15+96
-def parse_array(decl):
-    open = decl.find('[')
-    close = decl.find(']')
-
-    if open + 1 == close:
-        return '0', decl[close+1:]
-    if open < 0 and close < 0:
-        # print('not found')
-        return None, decl
-    elif open >= 0 and close < 0:
-        print('parse error: unmatched open bracket')
-        return None, None
-    elif open < 0 and close >= 0:
-        print('parse error: unmatched close bracket')
-        return None, None
-    elif open > close:
-        print('parse error: bracket')
-        return None, None
-
-    return decl[open + 1:close], decl[close+1:]
-
-def parse_array_size(decl):
-    total = 1
-    while True:
-        expr, decl = parse_array(decl)
-        if expr:
-            total *= eval(expr)
-        else: break
-        if not decl: break
-
-    # print(s)
-    return total
 
 def print_dict(dict, indent=4):
     print(json.dumps(dict, indent=indent))
@@ -362,7 +243,7 @@ def print_dict2(dict, name, declmap, sz, showdec=False, pad=0, numspaces=0):
 
         if info['is_array']:
             arraysize = info['array_size']
-            arraysize = info[f'{fieldname}_len'] if arraysize == 0 else arraysize
+            arraysize = info[f'{fieldname}_len'] if arraysize == 0 else arraysize # TODO fieldname_len no longer exists
             # arraysize = info
             for i in range(0, arraysize):
                 if is_struct:
