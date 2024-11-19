@@ -137,8 +137,23 @@ class TypeInfo:
 
     @classmethod
     @cache
-    def offsetof(cls, struct, field):
-        return 0  # TODO
+    def offsetof(cls, decl_name, fieldname):
+        decl = cls.get_decl(decl_name)
+
+        ofs = 0
+        for field in decl:
+            info = field_info(field)
+
+            if info['fieldname'] == fieldname: break
+            if field == decl[-1]:
+                raise Exception(f'declaration {decl_name} does not contain the field {field}')
+
+            size = TypeInfo.sizeof(info['typename'])
+            if info['is_array']:
+                size *= info['array_size']
+            ofs += size
+
+        return ofs
 
 
 def field_info(decl):
