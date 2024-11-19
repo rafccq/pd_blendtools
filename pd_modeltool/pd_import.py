@@ -187,10 +187,11 @@ def create_joint(model, node, idx, depth, **kwargs):
         r = node['rodata']
         print(f'idx {idx:02X} ro {r:08X}')
         ro = model.find_rodata(node['rodata'])
-        pos = ro['pos']['f']
-        x = struct.unpack('f', pos[0].to_bytes(4, 'little'))[0]
-        y = struct.unpack('f', pos[1].to_bytes(4, 'little'))[0]
-        z = struct.unpack('f', pos[2].to_bytes(4, 'little'))[0]
+        pos = ro['pos']
+        # note: this is for external use so we use little-ending
+        x = struct.unpack('f', pos['x'].to_bytes(4, 'little'))[0]
+        y = struct.unpack('f', pos['y'].to_bytes(4, 'little'))[0]
+        z = struct.unpack('f', pos['z'].to_bytes(4, 'little'))[0]
 
         parentaddr = unmask(node['parent'])
         parentnode = model.nodes[parentaddr] if parentaddr else None
@@ -503,10 +504,11 @@ def main():
     # model_name = 'Gleegun1Z'
     # model_name = 'Gdy357Z'
     # model_name = 'GmaianpistolZ' # Phoenix
+    model_name = 'GmaiansmgZ' # Callisto
     # model_name = 'Gcmp150Z'
     # model_name = 'Gk7avengerZ'
     # model_name = 'GdydragonZ'
-    model_name = 'GpcgunZ'
+    # model_name = 'GpcgunZ'
     # model_name = 'GdysuperdragonZ'
     # model_name = 'GcrossbowZ'
     # model_name = 'GdydevastatorZ'
@@ -515,8 +517,8 @@ def main():
     # model_name = 'Gm16Z'
     # model_name = 'GshotgunZ'
     # model_name = 'GdruggunZ'
-    # model_name = 'GskminigunZ'
-    # model_name = 'Gz2020Z'
+    # model_name = 'GskminigunZ' # reaper
+    # model_name = 'Gz2020Z' # farsight
     # model_name = 'GgrenadeZ'
     # model_name = 'PchrdragonZ'
     # model_name = 'Pchrdy357Z'

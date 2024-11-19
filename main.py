@@ -21,6 +21,7 @@ for dir in modules_dirs:
 
 import importlib
 import pd_utils as pdu
+import decl_model as decl
 import pdmodel
 import pd_materials as pdm
 import nodes.pd_shadernodes as pdn
@@ -49,7 +50,7 @@ import struct
 
 os.system('cls')
 
-modules = [pdu, typ, gbi, pdm, base, dat, bytereader, pdmodel, pdi, colp, mtx]
+modules = [pdu, typ, gbi, pdm, base, dat, bytereader, decl, pdmodel, pdi, colp, mtx]
 modules += [ndu, base, otherH, otherL, geo, nodetex, comb, pdn, exp, br, tex, imu, rom]
 
 for m in modules:

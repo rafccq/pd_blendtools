@@ -54,10 +54,11 @@ class PDModel:
 
             rodata = model.find_rodata(node['rodata'])
 
-            pos = rodata['pos']['f']
-            x = struct.unpack('f', pos[0].to_bytes(4, 'little'))[0]
-            y = struct.unpack('f', pos[1].to_bytes(4, 'little'))[0]
-            z = struct.unpack('f', pos[2].to_bytes(4, 'little'))[0]
+            pos = rodata['pos']
+            # note: this is for external use so we use little-ending
+            x = struct.unpack('f', pos['x'].to_bytes(4, 'little'))[0]
+            y = struct.unpack('f', pos['y'].to_bytes(4, 'little'))[0]
+            z = struct.unpack('f', pos['z'].to_bytes(4, 'little'))[0]
 
             parentaddr = unmask(node['parent'])
             parentnode = model.nodes[parentaddr] if parentaddr else None
@@ -110,27 +111,24 @@ class PDModel:
         dataout = bytearray()
 
         rd.write_block(dataout, 'modeldef', self.modeldef)
-        rd.write_block(dataout, 'parts', self.modelparts, pad=4)
+        # print(f'PARTS {self.modelparts.fields}')
+        # print(f'PARTS {self.modelparts.field_infos}')
+        rd.write_block(dataout, 'parts', self.modelparts, pad=8)
 
         for texconf in self.texconfigs:
             rd.write_block(dataout, 'texconfig', texconf, pad=4)
 
-        for k, node in self.nodes.items():
+        for node in self.nodes.values():
             rd.write_block(dataout, 'modelnode', node, pad=4)
 
         for texdata in self.texdatas:
             rd.write_block_raw(dataout, texdata)
-            log(f'.TEX {len(dataout):08X}')
 
         idx = 0
         for rodata in self.rodatas:
-            type = rodata['_node_type_']
+            nodetype = rodata['_node_type_']
 
-            # if numvertices:
-            if type in [0x04, 0x16, 0x18]:
-                ofs = 1 if type == 0x16 else 3
-                # vaddr = rodata['_addr_'] + vaddr
-                # rd.pointers.remove()
+            if nodetype in [0x04, 0x16, 0x18]:
                 rodata['vertices'] = len(dataout) | 0x05000000
                 vertices = self.vertices[idx]
                 colors = self.colors[idx]
@@ -139,13 +137,12 @@ class PDModel:
                 rd.write_block_raw(dataout, colors, pad=8)
 
             rd.ref = len(dataout)
-            rd.write_block(dataout, rodata_decls[type], rodata, pad=8)
+            rd.write_block(dataout, rodata_decls[nodetype], rodata, pad=8)
             idx += 1
 
-        # texaddrs = { blk['_addr_']: blk['write_addr'] for blk in self.texdatas }
         texaddrs = { blk.addr: blk.write_addr for blk in self.texdatas }
 
-        # we have to manually patch the texconfig pointers, because nothing points to them (except the first)
+        # manually patch the texconfig pointers
         m = 0x05000000
         for texconfig in self.texconfigs:
             addr = texconfig.write_addr
@@ -153,16 +150,16 @@ class PDModel:
             if not texnum & m: continue
 
             texnum_new = texaddrs[texnum & ~m] + (texnum & m)
-            # log(texconfig, f'addr: tex {texnum:08X} texnew {texnum_new:08X}')
-            dataout[addr:addr+8] = texnum_new.to_bytes(8, DEST_BO)
+            dataout[addr:addr+4] = texnum_new.to_bytes(4, DEST_BO)
             # log(texconfig, f'addr: tex {texnum:08X} texnew {texnum_new:08X}')
 
-        # log(f'>patchpointers [{len(dataout):04X}]')
-        # rd.patch_pointers(dataout, 0x05000000)
+        nodes = list(self.nodes.values())
+        for node, rodata in zip(nodes, self.rodatas):
+            node.update(dataout, 'rodata', rodata.write_addr)
 
         return dataout
 
-    def replace_gdl(self, dataout, gdlbytes, idx, layer):
+    def replace_gdl(self, dataout, gdlbytes, idx, field):
         if not gdlbytes: return
 
         rodata = self.rodatas[idx]
@@ -171,19 +168,12 @@ class PDModel:
             raise Exception(f'Invalid rodata type to replace GDL: {nodetype}')
 
         rd = self.rd
-        # print(f'REPLACE_GDL {idx:02X} len {len(gdlbytes)} {layer}')
-        prev_addr = rodata[layer] & 0xffffff
-        gdlblock = rd.create_block(prev_addr, gdlbytes)
+        gdlblock = rd.create_block(gdlbytes)
         rd.write_block_raw(dataout, gdlblock)
-
-        gdl_addr = gdlblock['write_addr']
-        offset = 4 if layer == 'xlugdl' else 0
-        ptr_addr = rodata.write_addr + offset
-        # print(f'  {idx:02X} GDL prev {prev_addr:08X} new {gdl_addr:08X} ptr {ptr_addr:08X}')
-        dataout[ptr_addr: ptr_addr + 4] = gdl_addr.to_bytes(4, 'big')
+        rodata.update(dataout, field, gdlblock.write_addr | 0x05000000)
 
     def read_node(self, rootaddr):
-        log(f'read_node: {rootaddr:08X}')
+        # log(f'read_node: {rootaddr:08X}')
         rd = self.rd
         rd.set_cursor(rootaddr)
         node = rd.read_block('modelnode')
@@ -237,8 +227,6 @@ class PDModel:
                 self.read_vertices(rodata, type, idx)
 
             idx += 1
-
-            # log(''*12)
 
     def read_vertices(self, rodata, type, idx):
         rd = self.rd
@@ -306,7 +294,6 @@ class PDModel:
 
     def data(self, ptr):
         return self.modeldata[ptr&0xffffff:]
-
         # print_bin('texdata_0', self.texdatas[0]['bytes'], 0, -1, group_size=4)
 
     def find_rodata(self, addr):
@@ -317,10 +304,6 @@ class PDModel:
         return None
 
     def replace_vtxdata(self, idx, vtxdata):
-        if idx == 0x5:
-            # print(vtxdata)
-            pd_utils.print_bin('vtx', vtxdata, 0, -1, 2, 6)
-
         rodata = self.rodatas[idx]
         nodetype = rodata['_node_type_']
 

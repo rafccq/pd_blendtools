@@ -162,7 +162,9 @@ decl_rodata_type19 = [ # type 0x19
 ]
 
 decl_coord = [
-    'f32 f[3]'
+    'f32 x',
+    'f32 y',
+    'f32 z',
 ]
 
 decl_parts = [

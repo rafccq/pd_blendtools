@@ -3,8 +3,6 @@ from pd_utils import *
 from typeinfo import *
 
 SRC_BO = 'big'
-# SRC_BO = 'little'
-# DEST_BO = 'little'
 DEST_BO = 'big'
 
 enableLog = False
@@ -39,9 +37,7 @@ class ByteReader:
         block = DataBlock(decl_name, self.cursor)
         for typename in decl:
             val, info = self.read(typename, endmarker)
-            name = info['fieldname']
-            typename = info['typename']
-            block.add_field(typename, name, val)
+            block.add_field(info, val)
 
         return block
 
@@ -49,16 +45,12 @@ class ByteReader:
         data = self.data[start:end] if end is not None else self.data[start:]
         return DataBlock('', start, data)
 
-    def create_block(self, addr, data):
-        return { # TODO
-            '_addr_': addr,
-            'bytes': data
-        }
+    @staticmethod
+    def create_block(data):
+        return DataBlock('', 0, data)
 
     def read(self, decl, endmarker = None):
         info = field_info(decl)
-
-        # print(info)
 
         typename = info['typename']
         is_struct = info['is_struct']
@@ -68,15 +60,12 @@ class ByteReader:
 
         if is_array:
             dataout = []
-            self.read_array(dataout, info, endmarker) #TODO array size
-            # block[f'{fieldname}_len'] = len(dataout)
-            # info[f'{fieldname}_len'] = len(dataout)
+            self.read_array(dataout, info, endmarker)
             return dataout, info
         else:
             return read_func(typename), info
 
     def read_array(self, dataout, info, endmarker):
-        # fieldname = info['fieldname']
         typename = info['typename']
         array_size = info['array_size']
         is_struct = info['is_struct']
@@ -148,7 +137,6 @@ class ByteReader:
         decl = TypeInfo.get_decl(decl)
         for field in decl:
             info = field_info(field)
-            # print(info)
 
             typename = info['typename']
             fieldname = info['fieldname']
@@ -158,7 +146,7 @@ class ByteReader:
             array_size = info['array_size']
 
             if is_array:
-                array_size = array_size if reread_arraysize else block[f'{fieldname}_len'] # TODO array size
+                array_size = array_size if reread_arraysize else len(block[fieldname])
                 for i in range(0, array_size):
                     memdata = block[fieldname][i]
                     if is_struct:
@@ -167,11 +155,9 @@ class ByteReader:
                         self.fd = f'{fieldname}[{i}]'
                         self.write(dataout, memdata, typename)
             elif is_struct and not is_pointer:
-                # print(f'struct: {fieldname}')
                 self.write_block(dataout, typename, block[fieldname])
             else:
                 self.fd = fieldname
-                # print(fieldname, ':', decl)
                 self.write(dataout, block[fieldname], typename)
 
         name = decl if decl is str else ''
@@ -195,7 +181,8 @@ class ByteReader:
 
         add_padding(dataout, pad, decl)
 
-    def write_block_raw(self, dataout, block, pad=0):
+    @staticmethod
+    def write_block_raw(dataout, block, pad=0):
         block.write_addr = len(dataout)
         dataout += block.bytes
         add_padding(dataout, pad)

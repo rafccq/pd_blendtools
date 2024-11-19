@@ -463,7 +463,7 @@ def export_model(modelname):
         model.replace_vtxdata(idx, vtxdata)
         model.replace_colordata(idx, colordata)
 
-    # write all model data except GDLs, and patch pointers
+    # write all model data except GDLs
     patched = model.patch()
 
     # create GDLs from the meshes and replace them in the model
