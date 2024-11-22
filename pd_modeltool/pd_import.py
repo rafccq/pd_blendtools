@@ -216,7 +216,7 @@ class MeshLayer(IntEnum):
     XLU = 1
 
 class ImportMeshData:
-    def __init__(self, layer):
+    def __init__(self, layer, has_mtx=False):
         self.nverts = 0
         self.verts = []
         self.tris = []
@@ -227,7 +227,7 @@ class ImportMeshData:
         self.layer = layer
         # [0]: where the indexed vtxs starts, [1]: the gap size
         self.idx_correction = (0, 0)
-        self.has_mtx = False
+        self.has_mtx = has_mtx
 
     def add_vertices(self, verts, idx):
         # in some cases, indexed vertices have a gap, where the index is higher than the index
@@ -344,7 +344,7 @@ def collectSubMeshes(model, rodata, idx):
                 gdl = model.data(ptr_xlugdl)
                 addr = 0
                 gdlnum += 1
-                mesh = ImportMeshData(MeshLayer.XLU)
+                mesh = ImportMeshData(MeshLayer.XLU, has_mtx=mesh.has_mtx)
                 meshes.append(mesh)
                 trinum = 0
                 continue
@@ -495,16 +495,12 @@ def clearLog():
 def main():
     clearLog()
 
-    bpy.utils.register_class(PDModelPropertyGroup)
-    bpy.utils.register_class(OBJECT_PT_custom_panel)
-    Object.pdmodel_props = PointerProperty(type=PDModelPropertyGroup)
-
     logger.debug('clearScene()')
     pdu.clear_scene()
 
     model_name = 'Gfalcon2Z'
     # model_name = 'Gleegun1Z'
-    # model_name = 'Gdy357Z'
+    model_name = 'Gdy357Z'
     # model_name = 'GmaianpistolZ' # Phoenix
     # model_name = 'GmaiansmgZ' # Callisto
     # model_name = 'Gcmp150Z'
@@ -525,7 +521,7 @@ def main():
     # model_name = 'PchrdragonZ'
     # model_name = 'Pchrdy357Z'
     # model_name = 'CdjbondZ'
-    model_name = 'Cdark_combatZ'
+    # model_name = 'Cdark_combatZ'
     # model_name = 'CskedarZ'
     # model_name = 'PchrautogunZ'
 
