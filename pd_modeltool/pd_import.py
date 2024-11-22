@@ -77,8 +77,10 @@ def createMesh(mesh, tex_configs, meshidx, sub_idx):
         vgroups = obj.vertex_groups
         group = vgroups[mtx] if mtx in vgroups else vgroups.new(name=mtx)
         group.add([i], 0, 'REPLACE')
-        col_mtx = mtxp.mtx2color(v.mtxidx)
-        colors_mtx.append(col_mtx)
+
+        if mesh.has_mtx:
+            col_mtx = mtxp.mtx2color(v.mtxidx)
+            colors_mtx.append(col_mtx)
 
         normcolor = v.color # either a normal or color
         if normcolor is None: continue
@@ -115,7 +117,10 @@ def createMesh(mesh, tex_configs, meshidx, sub_idx):
     # setup UVs and materials
     uv_layer = bm.loops.layers.uv.verify()
     layer_color = bm.loops.layers.color.new("vtxcolor")
-    layer_mtx = bm.loops.layers.color.new("matrices")
+
+    if mesh.has_mtx:
+        layer_mtx = bm.loops.layers.color.new("matrices")
+
     for idx, face in enumerate(bm.faces):
         matsetup = tri2tex[face.index]
         matsetup.optimize_cmds()
@@ -141,7 +146,9 @@ def createMesh(mesh, tex_configs, meshidx, sub_idx):
             uv = (vert.uv[0] * uv_sc[0], vert.uv[1] * uv_sc[1])
             loop[uv_layer].uv = uv
             loop[layer_color] = colors[loop.vert.index]
-            loop[layer_mtx] = colors_mtx[loop.vert.index]
+
+            if mesh.has_mtx:
+                loop[layer_mtx] = colors_mtx[loop.vert.index]
 
     # remove unused vertices
     verts_unused = []
@@ -173,15 +180,12 @@ def createObj(idx, pos, root_obj):
     obj.location = pos
     obj.parent = root_obj
 
-    # bpy.context.collection.objects.link(obj)
-    # bpy.data.collections['Joints'].objects.link(obj)
     collection.objects.link(obj)
-    # bpy.context.view_layer.update()
 
 def create_joint(model, node, idx, depth, **kwargs):
     root_obj = kwargs['root_obj']
     node['_idx_'] = idx
-    nodetype = node['type']
+    nodetype = node['type'] & 0xff
 
     if nodetype == 2:
         r = node['rodata']
@@ -195,7 +199,7 @@ def create_joint(model, node, idx, depth, **kwargs):
 
         parentaddr = unmask(node['parent'])
         parentnode = model.nodes[parentaddr] if parentaddr else None
-        parentidx = parentnode['_idx_'] if parentnode and parentnode['type'] == 2 else -1
+        parentidx = parentnode['_idx_'] if parentnode and parentnode['type'] & 0xff == 2 else -1
         parentobj = root_obj
 
         if parentidx >= 0:
@@ -214,19 +218,16 @@ class MeshLayer(IntEnum):
 class ImportMeshData:
     def __init__(self, layer):
         self.nverts = 0
-        self.vtx_start = -1
-        self.vtx_end = -1
-        self.vtx_offset = -1
         self.verts = []
         self.tris = []
         self.tri_index = 0
-        self.current_mtx = (0,0,0)
         self.dbg = 0
         self.vtx_ofs = 0
         self.tri2tex = {} # tri -> texnum
         self.layer = layer
         # [0]: where the indexed vtxs starts, [1]: the gap size
         self.idx_correction = (0, 0)
+        self.has_mtx = False
 
     def add_vertices(self, verts, idx):
         # in some cases, indexed vertices have a gap, where the index is higher than the index
@@ -276,7 +277,6 @@ class VtxBufferEntry:
         self.mtxidx = mtxidx
         self.meshes_loaded = []
         self.hasnormal = hasnormal
-        self.mtxidx = mtxidx
 
 def select_mesh(tri, vtx_buffer):
     v0 = vtx_buffer[tri[0]]
@@ -293,10 +293,13 @@ def collectSubMeshes(model, rodata, idx):
     ptr_opagdl = rodata['opagdl']
 
     nodetype = rodata['_node_type_']
+
     ptr_vtx = rodata['vertices'] & 0xffffff
     vtxbytes = model.data(ptr_vtx)
     nvtx = rodata['numvertices']
-    col_start = 0 if nodetype in [0x04, 0x18] else pdu.align(ptr_vtx + nvtx*12, 8)
+
+    col_start = pdu.align(ptr_vtx + nvtx*12, 8)
+    col_ofs = 0
 
     sc = 1
     verts = pdu.read_vtxs(vtxbytes, nvtx, sc)
@@ -315,7 +318,6 @@ def collectSubMeshes(model, rodata, idx):
 
     mat_setup = PDMaterialSetup(idx)
     gdlnum = 0
-    col_ofs = 0
 
     if dbg:
         # n = min(nvtx, 300)
@@ -374,7 +376,8 @@ def collectSubMeshes(model, rodata, idx):
 
             logger.debug(f'  vstart {vstart} n {nverts} vidx {vtx_idx:01X} col_offset {(col_ofs-col_start)>>2} seg {vtx_segmented:08X} mtx {mtxindex}')
 
-            col_data = model.data(col_start + col_ofs)
+            col_addr = col_start + col_ofs if nodetype in [0x16, 0x18] else col_ofs
+            col_data = model.data(col_addr)
             vertlist = []
             for i, v in enumerate(verts[vstart:vstart+nverts]):
                 vpos = (v[0] + pos[0], v[1] + pos[1], v[2] + pos[2])
@@ -393,6 +396,7 @@ def collectSubMeshes(model, rodata, idx):
             col_ofs = (cmdint & 0xffffff)
         elif op == G_MTX:
             mtxindex = (cmdint & 0xffffff) // 0x40
+            mesh.has_mtx = True
             logger.debug(f'  MTX {mtxindex:04X}')
         elif op in MAT_CMDS:
             if mat_setup.applied:
@@ -449,7 +453,6 @@ def register():
 class PDModelPropertyGroup(PropertyGroup):
     name: StringProperty(name='name', default='', options={'LIBRARY_EDITABLE'})
     idx: IntProperty(name='idx', default=0, options={'LIBRARY_EDITABLE'})
-    mtx: IntProperty(name='mtx', default=0, options={'LIBRARY_EDITABLE'})
     sub_idx: IntProperty(name='sub_idx', default=0, options={'LIBRARY_EDITABLE'})
     layer: IntProperty(name='layer', default=0, options={'LIBRARY_EDITABLE'})
 
@@ -475,7 +478,6 @@ class OBJECT_PT_custom_panel(Panel):
         if obj.pdmodel_props.sub_idx >= 0:
             box.label(text=f'Sub Index: {obj.pdmodel_props.sub_idx:02X}', icon='LOCKED')
 
-        box.label(text=f'Matrix: {obj.pdmodel_props.mtx:02X}', icon='LOCKED')
         txtlayer = 'opa' if obj.pdmodel_props.layer == MeshLayer.OPA else 'xlu'
         box.label(text=f'Layer: {txtlayer}', icon='LOCKED')
         box.enabled = False
@@ -504,7 +506,7 @@ def main():
     # model_name = 'Gleegun1Z'
     # model_name = 'Gdy357Z'
     # model_name = 'GmaianpistolZ' # Phoenix
-    model_name = 'GmaiansmgZ' # Callisto
+    # model_name = 'GmaiansmgZ' # Callisto
     # model_name = 'Gcmp150Z'
     # model_name = 'Gk7avengerZ'
     # model_name = 'GdydragonZ'
@@ -523,6 +525,7 @@ def main():
     # model_name = 'PchrdragonZ'
     # model_name = 'Pchrdy357Z'
     # model_name = 'CdjbondZ'
+    model_name = 'Cdark_combatZ'
     # model_name = 'CskedarZ'
     # model_name = 'PchrautogunZ'
 
@@ -533,7 +536,8 @@ def main():
 
     sc = 0.01
     sc = 1
-    # model.traverse(create_joint, root_obj=model_obj)
+    joints_obj = pdu.new_empty_obj('Joints', model_obj)
+    model.traverse(create_joint, root_obj=joints_obj)
     createModelMeshes(model, sc, model_obj)
     model_obj.rotation_euler[0] = math.radians(90)
     model_obj.rotation_euler[2] = math.radians(90)

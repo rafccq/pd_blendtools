@@ -42,9 +42,12 @@ def uv_to_bytes(uv, texsize):
 # normals are mapped from -1.0:1.0 to -128:127 (s8)
 # colors are mapped from 0.0:1.0 to 0:255 (u8)
 def vtx_data(mesh, bm):
-    uv_layer = bm.loops.layers.uv.active
-    layer_col = bm.loops.layers.color["vtxcolor"]
-    layer_mtx = bm.loops.layers.color["matrices"]
+    layers = bm.loops.layers
+
+    uv_layer = layers.uv.active
+    layer_col = layers.color["vtxcolor"]
+    has_mtx = 'matrices' in layers.color
+    layer_mtx = layers.color["matrices"] if has_mtx else None
 
     normals = [(0,0,0)] * len(mesh.vertices)
 
@@ -80,8 +83,10 @@ def vtx_data(mesh, bm):
             ct = tuple([round(ci*255) for ci in c] + [0]) # '0' to indicate color
             colornorm = ct
 
-        mtxcol = loops[0][layer_mtx]
-        mtx = mtxp.color2mtx(mtxcol)
+        mtx = None
+        if has_mtx:
+            mtxcol = loops[0][layer_mtx]
+            mtx = mtxp.color2mtx(mtxcol)
 
         co = v.co
         data = ((co.x, co.y, co.z), colornorm, uvs, mtx)
@@ -123,11 +128,13 @@ class TriBatch:
 
             self.vtxmap[vtxuv] = vidx
             tri.append(vidx)
-            if vidx not in self.vtxmtxs:
-                self.vtxmtxs[vidx] = mtx
 
-            if mtx not in self.mtxs:
-                self.mtxs.append(mtx)
+            if mtx is not None:
+                if vidx not in self.vtxmtxs:
+                    self.vtxmtxs[vidx] = mtx
+
+                if mtx not in self.mtxs:
+                    self.mtxs.append(mtx)
 
             self.vtxdata.append((vdata[0], vdata[1], uv))
 
@@ -145,6 +152,8 @@ class TriBatch:
         self.colors, self.color_indices = color_indices(self.vtxdata, verts)
 
     def reorder_verts_by_mtx(self):
+        if not self.vtxmtxs: return
+
         # put each vtx in a bin according to its matrix
         vtxbins = {} # mtx -> [v0, v1...]
         for v in self.vtxmap.values():
@@ -188,7 +197,7 @@ class TriBatch:
 
         vtxdata = bytearray()
         for v, vdata in enumerate(self.vtxdata):
-            mtx = model.matrices[self.vtxmtxs[v]]
+            mtx = model.matrices[self.vtxmtxs[v]] if self.vtxmtxs else (0,0,0)
             vpos = vdata[0]
             vpos = (vpos[0] - mtx[0], vpos[1] - mtx[1], vpos[2] - mtx[2])
             uvcoord = vdata[2]
@@ -275,17 +284,15 @@ def create_tri_batches(mesh, bm, vtxdata):
     return tri_batches
 
 class ExportMeshData:
-    def __init__(self, name, idx, mtx, layer, meshdata):
+    def __init__(self, name, idx, layer, meshdata):
         self.name = name
         self.idx = idx
-        self.mtx = mtx
         self.layer = layer
         self.meshdata = meshdata
         self.batches = []
 
     def create_batches(self, model):
-        logger.debug(f'MESH {self.name} M{self.mtx:02X}')
-        print(f'MESH {self.name} M{self.mtx:02X}')
+        logger.debug(f'MESH {self.name}')
         mesh = self.meshdata
 
         bm = bmesh.new()
@@ -313,12 +320,11 @@ def build_meshmap(obj):
         if obj.type != 'MESH': continue
 
         idx = obj.pdmodel_props.idx
-        mtx = obj.pdmodel_props.mtx
         layer = obj.pdmodel_props.layer
 
         if idx not in meshmap: meshmap[idx] = []
 
-        meshinfo = ExportMeshData(obj.name, idx, mtx, layer, obj.data)
+        meshinfo = ExportMeshData(obj.name, idx, layer, obj.data)
         meshmap[idx].append(meshinfo)
 
     return meshmap
@@ -386,29 +392,31 @@ def create_gdl(mesh: ExportMeshData):
         mat = materials[batch.mat]
         mat_cmds, geobits = material_cmds(mat, geobits)
 
-        # print(f'  {mat.name} {geobits:04X}')
         geobits |= geobits
         for cmd in mat_cmds:
             gdlbytes += bytearray.fromhex(cmd)
 
         gdlbytes += cmd_G_COL(len(batch.colors), batch.color_start + batch.color_offset)
 
-        if mesh.idx == 3:
-            print(f'batch {idx} vtx {batch.vtx_start + batch.vtx_offset:08X}')
-            print(batch.vtxbin_sizes)
-
         vtx_ofs = batch.vtx_start + batch.vtx_offset
         vidx = 0
+
+        nverts = batch.nverts()
         for mtx in batch.mtxs:
             nverts = batch.vtxbin_sizes[mtx]
 
             gdlbytes += cmd_G_MTX(mtx)
             gdlbytes += cmd_G_VTX(nverts, vtx_ofs, vidx)
 
-            print(f'  mtx {mtx:02X} nv {nverts} ofs {vtx_ofs:08X} idx {vidx}')
+            # print(f'  mtx {mtx:02X} nv {nverts} ofs {vtx_ofs:08X} idx {vidx}')
 
             vtx_ofs += nverts * 12
             vidx += nverts
+
+        # meshes with no matrix
+        if not batch.mtxs:
+            gdlbytes += cmd_G_VTX(nverts, vtx_ofs, vidx)
+            vtx_ofs += nverts * 12
 
         for tri in batch.tris:
             gdlbytes += cmd_G_TRI([v for v in tri])
@@ -437,9 +445,8 @@ def export_model(modelname):
 
         for mesh in meshes:
             meshname = mesh.name
-            mtx = mesh.mtx
             ln = '-'*32
-            logger.debug(f'{ln} {meshname}-M{mtx:2X} {ln}')
+            logger.debug(f'{ln} {meshname} {ln}')
             mesh.create_batches(model)
 
             materials = mesh.meshdata.materials
@@ -464,7 +471,7 @@ def export_model(modelname):
         model.replace_colordata(idx, colordata)
 
     # write all model data except GDLs
-    patched = model.patch()
+    modeldata = model.write()
 
     # create GDLs from the meshes and replace them in the model
     for idx, meshes in objmap.items():
@@ -485,12 +492,10 @@ def export_model(modelname):
 
         opa = 'opagdl' if nodetype in [0x04, 0x18] else 'gdl'
         xlu = 'xlugdl'
-        model.replace_gdl(patched, gdlbytes_opa, idx, opa)
-        model.replace_gdl(patched, gdlbytes_xlu, idx, xlu)
+        model.replace_gdl(modeldata, gdlbytes_opa, idx, opa)
+        model.replace_gdl(modeldata, gdlbytes_xlu, idx, xlu)
 
-    patched = pdu.compress(patched)
-    pdu.write_file('D:/Mega/PD/pd_blend/modelbin', f'{modelname}', patched)
-    # pdu.write_file('C:/msys64/home/Rafa/repos/perfect_dark/build/ntsc-final-port/data/files', f'{modelname}', patched)
+    modeldata = pdu.compress(modeldata)
 
 def print_batches(mesh, tri_batches, model):
     f = 0
@@ -508,10 +513,11 @@ def print_batches(mesh, tri_batches, model):
                      f'ncols {len(batch.colors)} {newmat}{txtnorm}')
 
         for v, vdata in enumerate(batch.vtxdata):
-            mtx = model.matrices[batch.vtxmtxs[v]]
+            mtx = model.matrices[batch.vtxmtxs[v]] if batch.vtxmtxs else (0,0,0)
             p = vdata[0]
             x, y, z = p[0] - mtx[0], p[1] - mtx[1], p[2] - mtx[2]
-            logger.debug(f'v {v:<3} {x} {y} {z} (MTX {batch.vtxmtxs[v]:02X})')
+            txtmtx = f'(MTX {batch.vtxmtxs[v]:02X})' if batch.vtxmtxs else ''
+            logger.debug(f'v {v:<3} {x} {y} {z} {txtmtx}')
 
         for tri in batch.tris:
             vidxs = [k[0] for k in batch.vtxmap.keys()]
@@ -536,8 +542,9 @@ def print_batches(mesh, tri_batches, model):
             # txtcol += f' | [{cidxs[0]:<4} {cidxs[1]:<4} {cidxs[2]:<4}] '
 
             txtmtx = ''
-            for v in tri: txtmtx += f'{batch.vtxmtxs[v]:02X} '
-            txtmtx = f'({txtmtx.rstrip()})'
+            if batch.vtxmtxs:
+                for v in tri: txtmtx += f'{batch.vtxmtxs[v]:02X} '
+                txtmtx = f'({txtmtx.rstrip()})'
 
             logger.debug(f'  {f:<3} ({trel[0]:<3} {trel[1]:<3} {trel[2]:<3}) '
                          f'({tglob[0]:<3} {tglob[1]:<3} {tglob[2]:<3}){txtcol} MTX {txtmtx}')

@@ -49,7 +49,7 @@ class PDModel:
 
     def build_matrices(self):
         def setup_mtx(model, node, idx, depth, **kwargs):
-            nodetype = node['type']
+            nodetype = node['type'] & 0xff
             if nodetype not in [0x2, 0x15]: return
 
             rodata = model.find_rodata(node['rodata'])
@@ -62,20 +62,28 @@ class PDModel:
 
             parentaddr = unmask(node['parent'])
             parentnode = model.nodes[parentaddr] if parentaddr else None
-            # if parentnode and nodetype == 0x2: # and parentnode['type'] == 0x2:
-            if parentnode and parentnode['type'] in [0x2, 0x15]:
+
+            if parentnode and parentnode['type'] & 0xff in [0x2, 0x15]:
                 parentrodata = model.find_rodata(parentnode['rodata'])
-                mtxindex = parentrodata['mtxindexes'][0] if parentnode['type'] == 0x2 else parentrodata['mtxindex']
+                mtxindex = parentrodata['mtxindexes'][0] if parentnode['type'] & 0xff == 0x2 \
+                    else parentrodata['mtxindex']
                 parentmtx = model.matrices[mtxindex]
                 x += parentmtx[0]
                 y += parentmtx[1]
                 z += parentmtx[2]
 
-            mtxindex = rodata['mtxindexes'][0] if nodetype == 0x2 else rodata['mtxindex']
-            model.matrices[mtxindex] = (x, y, z)
+            if nodetype == 0x02:
+                # pos nodes have 3 mtx indices
+                for i in range(3):
+                    mtxindex = rodata['mtxindexes'][i]
+                    if mtxindex != 0xffff:
+                        model.matrices[mtxindex] = (x, y, z)
+            elif nodetype == 0x15:
+                mtxindex = rodata['mtxindex']
+                model.matrices[mtxindex] = (x, y, z)
 
-            sp = ' ' * depth * 2
-            print(f'{sp} NODE {idx:02X} t {nodetype:02X} mtx {mtxindex:02X} ({x:.3f}, {y:.3f}, {z:.3f})')
+            # sp = ' ' * depth * 2
+            # print(f'{sp} NODE {idx:02X} t {nodetype:02X} mtx {mtxindex:02X} ({x:.3f}, {y:.3f}, {z:.3f})')
         #-------------------------------------
         self.traverse(setup_mtx)
 
@@ -106,13 +114,11 @@ class PDModel:
                     node = self.nodes[parent] if parent else None
                     if node: depth -= 1
 
-    def patch(self):
+    def write(self):
         rd = self.rd
         dataout = bytearray()
 
         rd.write_block(dataout, 'modeldef', self.modeldef)
-        # print(f'PARTS {self.modelparts.fields}')
-        # print(f'PARTS {self.modelparts.field_infos}')
         rd.write_block(dataout, 'parts', self.modelparts, pad=8)
 
         for texconf in self.texconfigs:
@@ -155,7 +161,7 @@ class PDModel:
 
         nodes = list(self.nodes.values())
         for node, rodata in zip(nodes, self.rodatas):
-            node.update(dataout, 'rodata', rodata.write_addr)
+            node.update(dataout, 'rodata', rodata.write_addr | 0x05000000)
 
         return dataout
 
