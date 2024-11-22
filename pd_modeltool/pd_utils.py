@@ -1,7 +1,6 @@
 import zlib
 import json
 import os
-import struct
 from pathlib import Path
 from glob import glob
 
@@ -9,6 +8,7 @@ import bpy
 import bmesh
 
 import romdata as rom
+import mtxpalette as mtxp
 
 GDLcodes = {
     0x00: 'G_SPNOOP',
@@ -454,6 +454,22 @@ def select(item, idx):
         bm.faces[idx].select = True
     else:
         print('invalid item:', item)
+
+def assign_mtx_to_selected_verts(mtx):
+    obj = bpy.context.active_object
+    if obj.mode != 'EDIT':
+        print('ERROR: must be in Edit mode to assign matrix to vertices')
+        return
+
+    bm = bmesh.from_edit_mesh(obj.data)
+    layer_mtx = bm.loops.layers.color["matrices"]
+    verts = [v for v in bm.verts if v.select]
+    for v in verts:
+        print(v.index)
+
+        for loop in v.link_loops:
+            print('  ', loop.index)
+            loop[layer_mtx] = mtxp.mtx2color(mtx)
 
 # returns the index in the list of the first element that matches the condition
 def index_where(array, condition, default = -1):
