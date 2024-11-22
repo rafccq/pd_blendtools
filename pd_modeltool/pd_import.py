@@ -118,8 +118,7 @@ def createMesh(mesh, tex_configs, meshidx, sub_idx):
     uv_layer = bm.loops.layers.uv.verify()
     layer_color = bm.loops.layers.color.new("vtxcolor")
 
-    if mesh.has_mtx:
-        layer_mtx = bm.loops.layers.color.new("matrices")
+    layer_mtx = bm.loops.layers.color.new("matrices") if mesh.has_mtx else None
 
     for idx, face in enumerate(bm.faces):
         matsetup = tri2tex[face.index]

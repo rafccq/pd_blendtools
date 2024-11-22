@@ -10,17 +10,20 @@ mtxpalette = [
 ]
 
 # col is a tuple of floats with each element in the range [0,1]
+def hex2col(hexcol):
+    conv = lambda e: e/255.0
+    r, g, b = ((hexcol & 0xff0000) >> 16), ((hexcol & 0xff00) >> 8), (hexcol & 0xff),
+    col = (conv(r), conv(g), conv(b), 1)
+    return col
+
 def color2mtx(col):
     conv = lambda e: round(e*255)
     col = (conv(col[0]) << 16) | (conv(col[1]) << 8) |(conv(col[2]))
     return mtxpalette.index(col)
 
 def mtx2color(mtx):
-    conv = lambda e: e/255.0
     col = mtxpalette[mtx]
-    r, g, b = ((col & 0xff0000) >> 16), ((col & 0xff00) >> 8), (col & 0xff),
-    col = (conv(r), conv(g), conv(b), 1)
-    return col
+    return hex2col(col)
 
 def print_table():
     conv = lambda e: e/255.0
