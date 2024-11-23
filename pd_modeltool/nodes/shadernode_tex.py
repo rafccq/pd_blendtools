@@ -1,4 +1,5 @@
 import bpy
+from bpy.types import SpaceNodeEditor
 from nodes.nodeutils import make_prop, item_from_value
 
 from .shadernode_base import PD_ShaderNodeBase
@@ -102,6 +103,14 @@ class PD_ShaderNodeTexLoad(PD_ShaderNodeBase):
              (shifts << 14) | (shiftt << 10) | (self.lod_flag << 9) | self.subcmd
 
         self.cmd = f'{w0:08X}0000{img}'
+
+        if type(context.space_data) is not SpaceNodeEditor: return
+
+        # sync the material's teximage with this node's texture
+        tree = context.space_data.node_tree
+        node_tex = tree.nodes['teximage']
+        imglib = bpy.data.images
+        node_tex.image = imglib[self.image.name]
 
 
     image: PointerProperty(name='image', type=bpy.types.Image, update=on_update)

@@ -72,15 +72,15 @@ def createMesh(mesh, tex_configs, meshidx, sub_idx):
     colors_mtx = []
 
     for i, v in enumerate(verts):
-        # add to the vertex group 'mtx'
-        mtx = f'{v.mtxidx:02X}'
-        vgroups = obj.vertex_groups
-        group = vgroups[mtx] if mtx in vgroups else vgroups.new(name=mtx)
-        group.add([i], 0, 'REPLACE')
-
         if mesh.has_mtx:
             col_mtx = mtxp.mtx2color(v.mtxidx)
             colors_mtx.append(col_mtx)
+
+            # add to the vertex group 'mtx'
+            mtx = f'{v.mtxidx:02X}'
+            vgroups = obj.vertex_groups
+            group = vgroups[mtx] if mtx in vgroups else vgroups.new(name=mtx)
+            group.add([i], 0, 'REPLACE')
 
         normcolor = v.color # either a normal or color
         if normcolor is None: continue
