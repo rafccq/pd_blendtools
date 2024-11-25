@@ -11,3 +11,4 @@ pd_modeltool/nodes/__pycache__
 texbin
 texbmp
 modelbin
+*.z64

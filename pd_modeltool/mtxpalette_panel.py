@@ -1,0 +1,105 @@
+# Thanks to pyCod3R from blender.stackexchange for this solution
+
+import bpy
+import bpy.utils.previews
+
+import mtxpalette as mtxp
+
+
+class PDTOOLS_PT_MtxPalettePanel(bpy.types.Panel):
+    bl_label = 'Matrices'
+    bl_idname = "PDTOOLS_PT_MtxPalettePanel"
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_category = 'Tool'
+
+    def draw(self, context):
+        layout = self.layout
+        col = layout.column(align=True)
+        scn = context.scene
+
+        col.prop(scn, 'show_all_mtxs', text='Show All')
+        show_all = scn.show_all_mtxs
+
+        model_mtxs = [0x21, 0x22, 0x23, 0x2A] # TMP
+        box = col.box()
+        container = box.grid_flow(row_major=True, even_columns=True, align=True)
+
+        for idx in range(64):
+            if idx not in model_mtxs and not show_all: continue
+
+            item = scn.color_collection[idx]
+            col = container.column()
+            col.prop(item, "active", icon_value=item.icon, icon_only=True, text=item.name)
+
+    @classmethod
+    def poll(cls, ctx):
+        return ctx.mode == 'PAINT_VERTEX'
+
+
+def on_update_mtx(self, context):
+    if self.active:
+        for c in self.id_data.color_collection:
+            if c.name != self.name: c.active = False
+    bpy.data.brushes['Draw'].color = self.color[:3]
+
+class ColorCollection(bpy.types.PropertyGroup):
+    name: bpy.props.StringProperty
+    active: bpy.props.BoolProperty(default=False, update=on_update_mtx)
+    icon: bpy.props.IntProperty()
+    color: bpy.props.FloatVectorProperty(
+         name = "Color",
+         subtype = "COLOR",
+         default = (1.0,1.0,1.0,1.0),
+         size = 4)
+
+
+# We can store multiple preview collections here,
+# however in this example we only store "main"
+preview_collections = {}
+
+def register():
+    # register the classes
+    bpy.utils.register_class(PDTOOLS_PT_MtxPalettePanel)
+    bpy.utils.register_class(ColorCollection)
+    bpy.types.Scene.color_collection = bpy.props.CollectionProperty(type=ColorCollection)
+    bpy.types.Scene.show_all_mtxs = bpy.props.BoolProperty(default=False)
+
+    # clear the collection
+    if hasattr(bpy.context.scene, "color_collection"):
+        bpy.context.scene.color_collection.clear()
+        
+    # generate colors and icons
+    pcoll = bpy.utils.previews.new()
+    
+    size = 32, 32
+    # for i in range(32):
+    for i, hexcol in enumerate(mtxp.mtxpalette):
+        color_name = f'{i:02X}'
+        color = mtxp.hex2col(hexcol)
+        pixels = [*color] * size[0] * size[1]
+        icon = pcoll.new(color_name) # name has to be unique!
+        icon.icon_size = size
+        icon.is_icon_custom = True
+        icon.icon_pixels_float = pixels
+        
+        # add the item to the collection
+        color_item = bpy.context.scene.color_collection.add()
+        color_item.name = color_name
+        color_item.color = color
+        color_item.icon = pcoll[color_name].icon_id
+        
+    preview_collections["main"] = pcoll
+
+def unregister():
+    for pcoll in preview_collections.values():
+        bpy.utils.previews.remove(pcoll)
+    preview_collections.clear()
+
+    bpy.utils.unregister_class(ColorCollection)
+    bpy.utils.unregister_class(PDTOOLS_PT_MtxPalettePanel)
+    
+    del bpy.types.Scene.color_collection
+
+if __name__ == "__main__":
+    register()

@@ -38,10 +38,12 @@ import texload as tex
 import imageutils as imu
 import romdata as rom
 
-import color_panel as colp
-import mtxpalette as mtx
+import mtxpalette_panel as mtxpan
+import mtxpalette as mtxp
 import datablock as dat
 import typeinfo as typ
+import pd_ops as pdop
+import pd_panels as pdp
 
 import gbi
 import pd_import as pdi
@@ -50,13 +52,14 @@ import struct
 
 os.system('cls')
 
-modules = [pdu, typ, gbi, pdm, base, dat, bytereader, decl, pdmodel, pdi, colp, mtx]
+modules = [pdu, typ, gbi, pdm, base, dat, bytereader, decl, pdmodel, pdi, mtxpan, mtxp]
+#modules = [pdu, typ, gbi, pdm, base, dat, bytereader, decl, pdmodel, pdi, mtx]
 modules += [ndu, base, otherH, otherL, geo, nodetex, comb, pdn, exp, br, tex, imu, rom]
+modules += [pdop, pdp]
 
 for m in modules:
     importlib.reload(m)
     
-
 t = strftime("%Y-%m-%d %H:%M:%S", gmtime())
 
 ln = '\n' + '-'*32 + '\n'
@@ -80,10 +83,31 @@ def exp():
     root = list(filter(lambda e: e.name[-1]=='Z', bpy.data.objects))[0]
     pdi.export(root.name)
     
-#pdi.register()
-load()
+pdi.register()
+pdop.register()
+pdp.register()
+mtxpan.register()
+#load()
 #exp()
 
 
-#pdu.select('vtx', 99)
+#pdu.select('vtx', 517)
 #pdu.select('face', 12)
+
+mtx = 0x22
+#pdu.assign_mtx_to_selected_verts(mtx)
+
+scn = bpy.context.scene
+run = 0
+
+if run:
+    scn.pdmodel_list.clear()
+    
+    prefs = ['P', 'C', 'G']
+    for i in range(1500):
+        c = prefs[i % 3]
+        
+        item = scn.pdmodel_list.add()
+        item.filename = c + f'Model {i}'
+        if i % 2 == 0:
+            item.alias = f'Booz_{i}'
