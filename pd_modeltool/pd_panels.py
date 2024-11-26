@@ -23,10 +23,6 @@ class PDTOOLS_PT_PanelModel(bpy.types.Panel):
     bl_region_type = "UI"
     bl_category = "PD Tools"
 
-    @classmethod
-    def poll(cls, ctx):
-        return ctx.active_object.mode == 'OBJECT'
-
     def draw(self, context: bpy.types.Context) -> None:
         scn = context.scene
         self.layout.operator_context = "INVOKE_DEFAULT"

@@ -21,7 +21,17 @@ class PDTOOLS_PT_MtxPalettePanel(bpy.types.Panel):
         col.prop(scn, 'show_all_mtxs', text='Show All')
         show_all = scn.show_all_mtxs
 
-        model_mtxs = [0x21, 0x22, 0x23, 0x2A] # TMP TODO
+        obj = context.object
+        model_mtxs = []
+
+        # check if the object exists and has matrices
+        if not obj or 'matrices' not in obj.data:
+            show_all = True
+            col.enabled = False
+        else:
+            model_mtxs = obj.data['matrices']
+            col.enabled = True
+
         box = col.box()
         container = box.grid_flow(row_major=True, even_columns=True, align=True)
 
@@ -36,7 +46,7 @@ class PDTOOLS_PT_MtxPalettePanel(bpy.types.Panel):
             col = container.column()
             col.prop(item, "active", icon_value=item.icon, icon_only=True, text=item.name)
 
-        if context.mode == 'EDIT_MESH':
+        if obj and context.mode == 'EDIT_MESH':
             row = box.row()
             selection = selected is not None
             # enable this button only when the vertx selection mode is set

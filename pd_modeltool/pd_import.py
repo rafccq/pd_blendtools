@@ -312,6 +312,7 @@ def collectSubMeshes(model, rodata, idx):
     mesh = ImportMeshData(MeshLayer.OPA)
     meshes = [mesh] # stores all meshes, from both opa and xlu layers
     mtxindex = -1
+    model_mtxs = set()
 
     trinum = 0
 
@@ -395,6 +396,7 @@ def collectSubMeshes(model, rodata, idx):
             col_ofs = (cmdint & 0xffffff)
         elif op == G_MTX:
             mtxindex = (cmdint & 0xffffff) // 0x40
+            model_mtxs.add(mtxindex)
             mesh.has_mtx = True
             logger.debug(f'  MTX {mtxindex:04X}')
         elif op in MAT_CMDS:
@@ -404,10 +406,10 @@ def collectSubMeshes(model, rodata, idx):
 
         addr += 8
 
-    return meshes
+    return meshes, model_mtxs
 
 def createModelMesh(idx, model, rodata, sc, tex_configs, parent_obj):
-    subMeshes = collectSubMeshes(model, rodata, idx)
+    subMeshes, model_mtxs = collectSubMeshes(model, rodata, idx)
     n_submeshes = len(subMeshes)
     logger.debug(f'idx {idx:02X} n {n_submeshes}')
     for sub_idx, meshdata in enumerate(subMeshes):
@@ -415,7 +417,10 @@ def createModelMesh(idx, model, rodata, sc, tex_configs, parent_obj):
         sub_idx = sub_idx if n_submeshes > 1 else -1
         mesh_obj = createMesh(meshdata, tex_configs, idx, sub_idx)
         mesh_obj.parent = parent_obj
+        mesh_obj.data['matrices'] = list(model_mtxs)
         logger.debug(f'  nt {len(meshdata.tris)} nv {len(meshdata.verts)}')
+
+    return model_mtxs
 
 def createModelMeshes(model, sc, model_obj):
     tex_configs = {}
@@ -525,9 +530,9 @@ def main():
     # model_name = 'PchrautogunZ'
 
     romdata = pdu.loadrom()
-    create_model(romdata, model_name)
+    import_model(romdata, model_name)
 
-def create_model(romdata, model_name):
+def import_model(romdata, model_name):
     model = loadmodel(romdata, model_name)
 
     model_obj = pdu.new_empty_obj(model_name)
@@ -539,9 +544,6 @@ def create_model(romdata, model_name):
     createModelMeshes(model, sc, model_obj)
     model_obj.rotation_euler[0] = math.radians(90)
     model_obj.rotation_euler[2] = math.radians(90)
-
-def export(name):
-    exp.export_model(name)
 
 def loadimages(romdata, model):
     imglib = bpy.data.images

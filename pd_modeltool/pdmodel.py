@@ -44,8 +44,8 @@ class PDModel:
         self.read_rodata()
         self.read_tex_configs()
 
-        # we only represent the translation part of the matrix here
-        self.matrices = [(0,0,0)] * self.modeldef['nummatrices']
+        # we only store the translation part of the matrix here
+        self.matrices = {}
         self.build_matrices()
 
     def build_matrices(self):

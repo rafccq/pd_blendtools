@@ -67,7 +67,7 @@ class PDTOOLS_OT_AssignMtxToVerts(bpy.types.Operator):
 def load_model(context, name):
     scn = context.scene
     romdata = rom.Romdata(scn.rompath)
-    pdi.create_model(romdata, name)
+    pdi.import_model(romdata, name)
 
 
 class PDTOOLS_OT_ImportModelFromROM(bpy.types.Operator):
