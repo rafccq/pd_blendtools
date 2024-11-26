@@ -28,10 +28,11 @@ class PDTOOLS_PT_PanelModel(bpy.types.Panel):
         return ctx.active_object.mode == 'OBJECT'
 
     def draw(self, context: bpy.types.Context) -> None:
+        scn = context.scene
         self.layout.operator_context = "INVOKE_DEFAULT"
         row = self.layout.row()
-        row.enabled = False
-        icon = '' if context.scene.rompath else 'ERROR'
+        row.enabled = bool(scn.rompath)
+        icon = 'NONE' if scn.rompath else 'ERROR'
         row.operator("pdtools.import_model_rom", text = "Import From ROM", icon=icon)
         self.layout.operator("pdtools.import_model_file")
 
@@ -49,6 +50,7 @@ class PDTOOLS_UL_ModelList(bpy.types.UIList):
                ("Chars", "Chars", "Chars", 'Character Models', 3)],
         name="Model Type",
         description="Model Type",
+        default="Guns",
     )
 
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname):

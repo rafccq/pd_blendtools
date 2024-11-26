@@ -21,20 +21,32 @@ class PDTOOLS_PT_MtxPalettePanel(bpy.types.Panel):
         col.prop(scn, 'show_all_mtxs', text='Show All')
         show_all = scn.show_all_mtxs
 
-        model_mtxs = [0x21, 0x22, 0x23, 0x2A] # TMP
+        model_mtxs = [0x21, 0x22, 0x23, 0x2A] # TMP TODO
         box = col.box()
         container = box.grid_flow(row_major=True, even_columns=True, align=True)
 
+        selected = None
         for idx in range(64):
             if idx not in model_mtxs and not show_all: continue
 
             item = scn.color_collection[idx]
+
+            if item.active: selected = item
+
             col = container.column()
             col.prop(item, "active", icon_value=item.icon, icon_only=True, text=item.name)
 
+        if context.mode == 'EDIT_MESH':
+            row = box.row()
+            selection = selected is not None
+            # enable this button only when the vertx selection mode is set
+            row.enabled = selection and context.tool_settings.mesh_select_mode[0]
+            mtx = mtxp.color2mtx(selected.color) if selection else 0
+            row.operator("pdtools.assign_mtx_verts", text = "Assign To Selected").mtx = mtx
+
     @classmethod
-    def poll(cls, ctx):
-        return ctx.mode == 'PAINT_VERTEX'
+    def poll(cls, context):
+        return context.mode in ['PAINT_VERTEX', 'EDIT_MESH']
 
 
 def on_update_mtx(self, context):

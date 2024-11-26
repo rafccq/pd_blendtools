@@ -1,5 +1,10 @@
 import bpy
 from bpy_extras.io_utils import ImportHelper
+from bpy.props import IntProperty
+
+import romdata as rom
+import pd_import as pdi
+import pd_utils as pdu
 
 class PDTOOLS_OT_LoadRom(bpy.types.Operator, ImportHelper):
     bl_idname = "pdtools.load_rom"
@@ -8,7 +13,6 @@ class PDTOOLS_OT_LoadRom(bpy.types.Operator, ImportHelper):
 
     filter_glob: bpy.props.StringProperty(
         default="*.z64",
-        # options={'HIDDEN'},
     )
 
     def execute(self, context):
@@ -17,7 +21,19 @@ class PDTOOLS_OT_LoadRom(bpy.types.Operator, ImportHelper):
 
     @staticmethod
     def load_rom(context, filepath):
-        print("LOADROM", filepath)
+        scn = context.scene
+
+        romdata = rom.Romdata(filepath)
+
+        # fill the scene's list of models
+        scn.rompath = filepath
+        scn.pdmodel_list.clear()
+        for filename in romdata.fileoffsets.keys():
+            if filename[0] not in ['P', 'G', 'C']: continue
+
+            item = scn.pdmodel_list.add()
+            item.filename = filename
+            # if item.alias: # TODO
 
 
 class PDTOOLS_OT_ImportModelFromFile(bpy.types.Operator, ImportHelper):
@@ -32,8 +48,27 @@ class PDTOOLS_OT_ImportModelFromFile(bpy.types.Operator, ImportHelper):
 
     def execute(self, context):
         print('import model from file', self.filepath)
-        # PDTOOLS_OT_LoadRom.load_rom(context, self.filepath)
         return {'FINISHED'}
+
+class PDTOOLS_OT_AssignMtxToVerts(bpy.types.Operator):
+    bl_idname = "pdtools.assign_mtx_verts"
+    bl_label = "Assign To Selected"
+    bl_description = "Assign Matrix to Selected Vertices"
+
+    mtx: IntProperty()
+
+    def execute(self, context):
+        nverts = pdu.assign_mtx_to_selected_verts(self.mtx)
+        s = 's' if nverts > 1 else ''
+        self.report({"INFO"}, f'Matrix {self.mtx:02X} assigned to {nverts} vert{s}')
+        return {'FINISHED'}
+
+
+def load_model(context, name):
+    scn = context.scene
+    romdata = rom.Romdata(scn.rompath)
+    pdi.create_model(romdata, name)
+
 
 class PDTOOLS_OT_ImportModelFromROM(bpy.types.Operator):
     bl_idname = "pdtools.import_model_rom"
@@ -58,8 +93,9 @@ class PDTOOLS_OT_ImportModelFromROM(bpy.types.Operator):
     chars: bpy.props.BoolProperty(default=False)
 
     def execute(self, context):
-        # self.report({'INFO'}, 'OK')
-        # print(self.message)
+        scn = context.scene
+        item = scn.pdmodel_list[scn.pdmodel_listindex]
+        load_model(context, item.filename)
         return {'FINISHED'}
 
     def invoke(self, context, event):
@@ -76,6 +112,7 @@ classes = [
     PDTOOLS_OT_LoadRom,
     PDTOOLS_OT_ImportModelFromROM,
     PDTOOLS_OT_ImportModelFromFile,
+    PDTOOLS_OT_AssignMtxToVerts,
 ]
 
 def register():

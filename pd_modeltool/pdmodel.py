@@ -1,4 +1,5 @@
-import pd_utils
+import struct
+
 from bytereader import *
 from decl_model import *
 

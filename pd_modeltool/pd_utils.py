@@ -459,7 +459,7 @@ def assign_mtx_to_selected_verts(mtx):
     obj = bpy.context.active_object
     if obj.mode != 'EDIT':
         print('ERROR: must be in Edit mode to assign matrix to vertices')
-        return
+        return 0
 
     bm = bmesh.from_edit_mesh(obj.data)
     layer_mtx = bm.loops.layers.color["matrices"]
@@ -468,8 +468,9 @@ def assign_mtx_to_selected_verts(mtx):
         print(v.index)
 
         for loop in v.link_loops:
-            print('  ', loop.index)
             loop[layer_mtx] = mtxp.mtx2color(mtx)
+
+    return len(verts)
 
 # returns the index in the list of the first element that matches the condition
 def index_where(array, condition, default = -1):

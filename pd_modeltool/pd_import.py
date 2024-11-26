@@ -525,6 +525,9 @@ def main():
     # model_name = 'PchrautogunZ'
 
     romdata = pdu.loadrom()
+    create_model(romdata, model_name)
+
+def create_model(romdata, model_name):
     model = loadmodel(romdata, model_name)
 
     model_obj = pdu.new_empty_obj(model_name)

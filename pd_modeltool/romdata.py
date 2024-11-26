@@ -12,13 +12,13 @@ class Romdata:
         dataofs = self.section_ofs('data')
         self.data = pdu.decompress(self.rom[dataofs:])
 
-        self.modeloffsets = {}
+        self.fileoffsets = {}
         self.texoffsets = {}
 
-        self.read_models()
+        self.read_files()
         self.read_textures()
 
-    def read_models(self):
+    def read_files(self):
         offsets_list = self.get_file_offsets()
         names = self.get_file_names(offsets_list[-1])
 
@@ -31,10 +31,10 @@ class Romdata:
                 break
 
             name = names[index]
-            self.modeloffsets[name] = (offset, endoffset)
+            self.fileoffsets[name] = (offset, endoffset)
 
     def modeldata(self, modelname):
-        ofs = self.modeloffsets[modelname]
+        ofs = self.fileoffsets[modelname]
         data = self.rom[ofs[0]:ofs[1]]
         return pdu.decompress(data) if data[0:2] == b'\x11\x73' else data
 

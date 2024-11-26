@@ -96,18 +96,3 @@ mtxpan.register()
 
 mtx = 0x22
 #pdu.assign_mtx_to_selected_verts(mtx)
-
-scn = bpy.context.scene
-run = 0
-
-if run:
-    scn.pdmodel_list.clear()
-    
-    prefs = ['P', 'C', 'G']
-    for i in range(1500):
-        c = prefs[i % 3]
-        
-        item = scn.pdmodel_list.add()
-        item.filename = c + f'Model {i}'
-        if i % 2 == 0:
-            item.alias = f'Booz_{i}'
