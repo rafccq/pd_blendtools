@@ -38,7 +38,7 @@ def coord_to_bytes(coord):
 def uv_to_bytes(uv, texsize):
     return [round(32*uvi*ti).to_bytes(2,'big',signed=True) for (uvi, ti) in zip(uv, texsize)]
 
-# will return an array of (v.position, v.color/normal, v.uv_coords, v.mtx)
+# returns an array of (v.position, v.color/normal, v.uv_coords, v.mtx)
 # normals are mapped from -1.0:1.0 to -128:127 (s8)
 # colors are mapped from 0.0:1.0 to 0:255 (u8)
 def vtx_data(mesh, bm):
@@ -68,28 +68,33 @@ def vtx_data(mesh, bm):
 
         # face index -> uv coords
         uvs = {l.face.index: (l[uv_layer].uv[0], l[uv_layer].uv[1]) for l in loops}
+        colornorms = {} # face index -> color or normal coords
 
         mat_idx = loops[0].face.material_index
         mat = mesh.materials[mat_idx]
 
         has_lighting = material_has_lighting(mat)
-        if has_lighting:
-            vn = normals[idx]
-            maprange = lambda e: int(127.5 * (e+1) - 128) # maps -1.0:1.0 to -128:127
-            vni = tuple([maprange(vi) for vi in vn] + [0,1]) # extra '1' element to indicate normal
-            colornorm = vni
-        else:
-            c = loops[0][layer_col] # for now, we always use the color from the first loop
-            ct = tuple([round(ci*255) for ci in c] + [0]) # '0' to indicate color
-            colornorm = ct
+
+        maprange = lambda e: int(127.5 * (e + 1) - 128)  # maps -1.0:1.0 to -128:127
+        for loop in loops:
+            if has_lighting:
+                normal = mesh.loops[loop.index].normal.to_tuple()
+                normal = tuple([round(maprange(vi), 3) for vi in normal] + [0,1]) # extra '1' element to indicate normal
+                colornorms[loop.face.index] = normal
+            else:
+                c = loops[0][layer_col] # for now, we always use the color from the first loop
+                ct = tuple([round(ci*255) for ci in c] + [0]) # '0' to indicate color
+                colornorms[loop.face.index] = ct
 
         mtx = None
         if has_mtx:
             mtxcol = loops[0][layer_mtx]
+            c = mtxcol
+            print(f'v {idx} {c[0]:.3f} {c[1]:.3f} {c[2]:.3f} ')
             mtx = mtxp.color2mtx(mtxcol)
 
         co = v.co
-        data = ((co.x, co.y, co.z), colornorm, uvs, mtx)
+        data = ((co.x, co.y, co.z), colornorms, uvs, mtx)
         vtxdata.append(data)
 
     return vtxdata
@@ -116,17 +121,18 @@ class TriBatch:
         tri = []
         for v in verts:
             uv = vtxdata[v][2][face]
-            vtxuv = (v, uv)
+            colornorm = vtxdata[v][1][face]
+            vtx_key = (v, uv, colornorm)
 
-            if vtxuv in self.vtxmap:
-                tri.append(self.vtxmap[vtxuv])
+            if vtx_key in self.vtxmap:
+                tri.append(self.vtxmap[vtx_key])
                 continue
 
             vidx = len(self.vtxmap)
             vdata = vtxdata[v]
             mtx = vdata[3]
 
-            self.vtxmap[vtxuv] = vidx
+            self.vtxmap[vtx_key] = vidx
             tri.append(vidx)
 
             if mtx is not None:
@@ -136,7 +142,7 @@ class TriBatch:
                 if mtx not in self.mtxs:
                     self.mtxs.append(mtx)
 
-            self.vtxdata.append((vdata[0], vdata[1], uv))
+            self.vtxdata.append((vdata[0], colornorm, uv))
 
         self.tris.append(tuple([vi for vi in tri]))
         self.ntris += 1
@@ -194,7 +200,6 @@ class TriBatch:
 
     def vtx_bytes(self, model, texsize):
         if not self.colors: self.build_color_indices()
-
         vtxdata = bytearray()
         for v, vdata in enumerate(self.vtxdata):
             mtx = model.matrices[self.vtxmtxs[v]] if self.vtxmtxs else (0,0,0)
@@ -443,15 +448,18 @@ def export_model(modelname):
         vtxdata = bytearray()
         colordata = bytearray()
 
+        # create batches for each mesh and sort them by material
+        for mesh in meshes: mesh.create_batches(model)
+        for mesh in meshes: mesh.batches.sort(key = lambda b: b.mat)
+
+        # aggregate vtxdata from all batches
         for mesh in meshes:
             meshname = mesh.name
             ln = '-'*32
             logger.debug(f'{ln} {meshname} {ln}')
-            mesh.create_batches(model)
 
             materials = mesh.meshdata.materials
 
-            # aggregate vtxdata from all batches
             for batch in mesh.batches:
                 batch.vtx_offset = len(vtxdata)
                 batch.color_offset = len(colordata)
