@@ -50,7 +50,7 @@ def createMesh(mesh, tex_configs, meshidx, sub_idx):
 
     verts_xyz = [v.pos for v in verts]
     mesh_data.from_pydata(verts_xyz, [], faces)
-    # mesh_data.validate(verbose=True)
+    mesh_data.validate(verbose=True)
 
     suffix = f'[{sub_idx}]' if sub_idx >= 0 else ''
     suffix += '.XLU' if mesh.layer == MeshLayer.XLU else ''
@@ -59,7 +59,6 @@ def createMesh(mesh, tex_configs, meshidx, sub_idx):
     obj = bpy.data.objects.new(name, mesh_data)
     obj.pdmodel_props.name = name
     obj.pdmodel_props.idx = meshidx
-    obj.pdmodel_props.sub_idx = sub_idx
     obj.pdmodel_props.layer = mesh.layer
 
     collection = pdu.active_collection()
@@ -457,7 +456,6 @@ def register():
 class PDModelPropertyGroup(PropertyGroup):
     name: StringProperty(name='name', default='', options={'LIBRARY_EDITABLE'})
     idx: IntProperty(name='idx', default=0, options={'LIBRARY_EDITABLE'})
-    sub_idx: IntProperty(name='sub_idx', default=0, options={'LIBRARY_EDITABLE'})
     layer: IntProperty(name='layer', default=0, options={'LIBRARY_EDITABLE'})
 
 class OBJECT_PT_custom_panel(Panel):
@@ -469,21 +467,21 @@ class OBJECT_PT_custom_panel(Panel):
 
     @classmethod
     def poll(cls, context):
-        return context.object and context.object.type == 'MESH'
+        return context.object
 
     def draw(self, context):
         layout = self.layout
-        obj = context.object
+        props = context.object.pdmodel_props
 
         box = layout.box()
-        box.prop(obj.pdmodel_props, 'name', icon='LOCKED', text='')
-        box.label(text=f'Index: {obj.pdmodel_props.idx:02X}', icon='LOCKED')
+        box.prop(props, 'name', icon='LOCKED', text='')
 
-        if obj.pdmodel_props.sub_idx >= 0:
-            box.label(text=f'Sub Index: {obj.pdmodel_props.sub_idx:02X}', icon='LOCKED')
+        if props.idx >= 0:
+            box.label(text=f'Index: {props.idx:02X}', icon='LOCKED')
 
-        txtlayer = 'opa' if obj.pdmodel_props.layer == MeshLayer.OPA else 'xlu'
-        box.label(text=f'Layer: {txtlayer}', icon='LOCKED')
+        if props.layer >= 0:
+            txtlayer = 'opa' if props.layer == MeshLayer.OPA else 'xlu'
+            box.label(text=f'Layer: {txtlayer}', icon='LOCKED')
         box.enabled = False
 
 def unreg():
@@ -536,6 +534,10 @@ def import_model(romdata, model_name):
     model = loadmodel(romdata, model_name)
 
     model_obj = pdu.new_empty_obj(model_name)
+
+    model_obj.pdmodel_props.name = model_name
+    model_obj.pdmodel_props.idx = -1
+    model_obj.pdmodel_props.layer = -1
 
     sc = 0.01
     sc = 1
