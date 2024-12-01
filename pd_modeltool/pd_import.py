@@ -50,7 +50,7 @@ def createMesh(mesh, tex_configs, meshidx, sub_idx):
 
     verts_xyz = [v.pos for v in verts]
     mesh_data.from_pydata(verts_xyz, [], faces)
-    mesh_data.validate(verbose=True)
+    # mesh_data.validate(verbose=True)
 
     suffix = f'[{sub_idx}]' if sub_idx >= 0 else ''
     suffix += '.XLU' if mesh.layer == MeshLayer.XLU else ''
@@ -227,7 +227,7 @@ class ImportMeshData:
         self.idx_correction = (0, 0)
         self.has_mtx = has_mtx
 
-    def add_vertices(self, verts, idx):
+    def add_vertices(self, verts, idx = 0):
         # in some cases, indexed vertices have a gap, where the index is higher than the index
         # of the last vertex loaded, idx_correction is used to remove that gap
         self.idx_correction = (0, 0)
@@ -317,6 +317,7 @@ def collectSubMeshes(model, rodata, idx):
 
     mat_setup = PDMaterialSetup(idx)
     gdlnum = 0
+    nverts = 0
 
     if dbg:
         # n = min(nvtx, 300)
@@ -343,7 +344,11 @@ def collectSubMeshes(model, rodata, idx):
                 gdl = model.data(ptr_xlugdl)
                 addr = 0
                 gdlnum += 1
+                # meshes in the xlu layer may use vertices loaded for the opa layer
+                vtxs = mesh.verts[-nverts:]
                 mesh = ImportMeshData(MeshLayer.XLU, has_mtx=mesh.has_mtx)
+                # so we need to copy them over to new xlu mesh
+                mesh.add_vertices(vtxs)
                 meshes.append(mesh)
                 trinum = 0
                 continue
