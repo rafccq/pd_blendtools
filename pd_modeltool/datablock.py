@@ -1,4 +1,4 @@
-from bytereader import *
+from typeinfo import TypeInfo
 
 class DataBlock:
     def __init__(self, name, addr, data = None):

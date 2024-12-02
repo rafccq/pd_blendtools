@@ -1,9 +1,12 @@
+import os
+
 import bpy
-from bpy_extras.io_utils import ImportHelper
+from bpy_extras.io_utils import ImportHelper, ExportHelper
 from bpy.props import IntProperty
 
 import romdata as rom
 import pd_import as pdi
+import pd_export as pde
 import pd_utils as pdu
 
 class PDTOOLS_OT_LoadRom(bpy.types.Operator, ImportHelper):
@@ -35,6 +38,28 @@ class PDTOOLS_OT_LoadRom(bpy.types.Operator, ImportHelper):
             item.filename = filename
             # if item.alias: # TODO
 
+
+class PDTOOLS_OT_ExportModel(bpy.types.Operator, ExportHelper):
+    bl_idname = "pdtools.export_model"
+    bl_label = "Export Model"
+    bl_description = "Export the Model"
+
+    filename_ext = ''
+
+    def execute(self, context):
+        print(f'Export model: {self.filepath}')
+        model_obj = pdu.get_model_obj(context.object)
+        pde.export_model(model_obj, self.filepath)
+        return {'FINISHED'}
+
+    def invoke(self, context, _event):
+        obj = pdu.get_model_obj(context.object)
+        props = obj.pdmodel_props
+
+        blend_filepath = context.blend_data.filepath
+        self.filepath = os.path.join(blend_filepath, props.name)
+        context.window_manager.fileselect_add(self)
+        return {'RUNNING_MODAL'}
 
 class PDTOOLS_OT_ImportModelFromFile(bpy.types.Operator, ImportHelper):
     bl_idname = "pdtools.import_model_file"
@@ -72,7 +97,7 @@ def load_model(context, name):
 
 class PDTOOLS_OT_ImportModelFromROM(bpy.types.Operator):
     bl_idname = "pdtools.import_model_rom"
-    bl_label = ""
+    bl_label = "Import From ROM"
 
     @classmethod
     def description(cls, context, properties):
@@ -113,6 +138,7 @@ classes = [
     PDTOOLS_OT_ImportModelFromROM,
     PDTOOLS_OT_ImportModelFromFile,
     PDTOOLS_OT_AssignMtxToVerts,
+    PDTOOLS_OT_ExportModel,
 ]
 
 def register():

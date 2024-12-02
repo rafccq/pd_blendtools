@@ -5,6 +5,7 @@ import logging
 import pd_utils as pdu
 from pdmodel import PDModel
 import mtxpalette as mtxp
+from typeinfo import TypeInfo
 
 logger = logging.getLogger(__name__)
 logger.handlers.clear()
@@ -435,9 +436,9 @@ def loadmodel(romdata, modelname):
     modeldata = romdata.modeldata(modelname)
     return PDModel(modeldata)
 
-def export_model(modelname):
-    obj = bpy.data.objects[modelname]
-    objmap = build_meshmap(obj)
+def export_model(model_obj, filename):
+    objmap = build_meshmap(model_obj)
+    modelname = model_obj.pdmodel_props.name
     logger.debug(f'exportModel: {modelname}')
 
     romdata = pdu.loadrom()
@@ -504,6 +505,7 @@ def export_model(modelname):
         model.replace_gdl(modeldata, gdlbytes_xlu, idx, xlu)
 
     modeldata = pdu.compress(modeldata)
+    pdu.write_file(filename, modeldata)
 
 def print_batches(mesh, tri_batches, model):
     f = 0

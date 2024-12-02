@@ -2,6 +2,9 @@ import bpy
 from bpy.types import PropertyGroup
 from bpy.props import IntProperty, StringProperty, BoolProperty, CollectionProperty
 
+import pd_utils
+
+
 class PDTOOLS_PT_MainPanel(bpy.types.Panel):
     bl_idnaame = "PDTOOLS_PT_MainPanel"
     bl_label = "Setup"
@@ -29,8 +32,13 @@ class PDTOOLS_PT_PanelModel(bpy.types.Panel):
         row = self.layout.row()
         row.enabled = bool(scn.rompath)
         icon = 'NONE' if scn.rompath else 'ERROR'
-        row.operator("pdtools.import_model_rom", text = "Import From ROM", icon=icon)
-        self.layout.operator("pdtools.import_model_file")
+        row.operator("pdtools.import_model_rom", icon=icon)
+        # self.layout.operator("pdtools.import_model_file")
+
+        obj = context.object
+        row = self.layout.row()
+        row.enabled = pd_utils.get_model_obj(obj) is not None
+        row.operator("pdtools.export_model", text = "Export Model")
 
 
 class PDModelListItem(PropertyGroup):

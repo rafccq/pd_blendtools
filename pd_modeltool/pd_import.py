@@ -15,9 +15,10 @@ import nodes.pd_shadernodes as pdn
 from pd_materials import *
 from pdmodel import unmask, PDModel
 from gbi import *
-import export as exp
 import texload as tex
 import mtxpalette as mtxp
+from decl_model import *
+from typeinfo import TypeInfo
 
 logger = logging.getLogger(__name__)
 logger.handlers.clear()
@@ -452,11 +453,16 @@ def createModelMeshes(model, sc, model_obj):
             createModelMesh(idx, model, rodata, sc, tex_configs, model_obj)
         idx += 1
 
+def register_types():
+    for name, decl in model_decls.items():
+        TypeInfo.register(name, decl)
+
 def register():
     bpy.utils.register_class(PDModelPropertyGroup)
     bpy.utils.register_class(OBJECT_PT_custom_panel)
     Object.pdmodel_props = PointerProperty(type=PDModelPropertyGroup)
     pdn.register()
+    register_types()
 
 class PDModelPropertyGroup(PropertyGroup):
     name: StringProperty(name='name', default='', options={'LIBRARY_EDITABLE'})
@@ -546,8 +552,11 @@ def import_model(romdata, model_name):
 
     sc = 0.01
     sc = 1
-    joints_obj = pdu.new_empty_obj('Joints', model_obj)
-    model.traverse(create_joint, root_obj=joints_obj)
+
+    # create joints
+    # joints_obj = pdu.new_empty_obj('Joints', model_obj)
+    # model.traverse(create_joint, root_obj=joints_obj)
+
     createModelMeshes(model, sc, model_obj)
     model_obj.rotation_euler[0] = math.radians(90)
     model_obj.rotation_euler[2] = math.radians(90)

@@ -618,4 +618,4 @@ def tex_write_image(outdir, tex, filename):
         colbuffer = ConversionFuncs[fmt][0](image.pixels, w * h)
         pngdata = ConversionFuncs[fmt][1](colbuffer, w, h)
 
-    pdu.write_file(outdir, f'{filename}', pngdata, log=False)
+    pdu.write_file(f'{outdir}/{filename}', pngdata, log=False)

@@ -299,18 +299,12 @@ def read_file(filename):
 
     return data
 
-def write_file(dir, filename, data, log=True):
-    # dir = 'patched'
-
-    if not os.path.isdir(dir):
-        os.makedirs(dir, exist_ok=True)
-
-    fd = open(f'{dir}/{filename}', 'wb')
+def write_file(filename, data, log=True):
+    fd = open(f'{filename}', 'wb')
     fd.write(data)
     fd.close()
 
     if log: print(f'file written: {dir}/{filename}')
-
 
 def read_tri4(cmd, ofs=0):
     bo = 'big'
@@ -331,7 +325,6 @@ def read_tri4(cmd, ofs=0):
                 continue
 
             tris.append(tri)
-            # tris.append((i0+ofs, i2+ofs, i1+ofs))
 
     return tris
 
@@ -429,13 +422,13 @@ def active_collection():
     return view_layer.active_layer_collection.collection
 
 
-def activeMesh():
+def active_mesh():
     obj = bpy.context.view_layer.objects.active
     if not obj: return None
     return obj.data
 
 def select(item, idx):
-    mesh = activeMesh()
+    mesh = active_mesh()
     if not mesh:
         print('no selection')
 
@@ -479,4 +472,11 @@ def index_where(array, condition, default = -1):
 def loadrom():
     filename = 'D:/Mega/PD/pd_blend/pd.ntsc-final.z64' #TMP
     return rom.Romdata(filename)
+
+def get_model_obj(obj):
+    while obj:
+        if obj.name[0] in ['P', 'C', 'G']: return obj
+        obj = obj.parent
+
+    return None
 

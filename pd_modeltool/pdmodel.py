@@ -17,9 +17,6 @@ class PDModel:
         self.skipDLdata = skipDLdata
         self.rd = ByteReader(modeldata, mask=0x00ffffff)
 
-        for name, decl in model_decls.items():
-            TypeInfo.register(name, decl)
-
         self.modeldef = None
         self.modelparts = None
         self.nodes = {}

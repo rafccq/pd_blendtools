@@ -32,7 +32,7 @@ import nodes.shadernode_geomode as geo
 import nodes.shadernode_tex as nodetex
 import nodes.shadernode_setcombine as comb
 import nodes.nodeutils as ndu
-import export as exp
+import pd_export as pde
 import bitreader as br
 import texload as tex
 import imageutils as imu
@@ -54,7 +54,7 @@ os.system('cls')
 
 modules = [pdu, typ, gbi, pdm, base, dat, bytereader, decl, pdmodel, pdi, mtxpan, mtxp]
 #modules = [pdu, typ, gbi, pdm, base, dat, bytereader, decl, pdmodel, pdi, mtx]
-modules += [ndu, base, otherH, otherL, geo, nodetex, comb, pdn, exp, br, tex, imu, rom]
+modules += [ndu, base, otherH, otherL, geo, nodetex, comb, pdn, pde, br, tex, imu, rom]
 modules += [pdop, pdp]
 
 for m in modules:
@@ -68,7 +68,7 @@ print(ln, t, ln)
 def clearLib():
     imglib = bpy.data.images
     for img in imglib:
-        imglib.remove(img)
+       imglib.remove(img)
         
     matlib = bpy.data.materials
     for mat in matlib:
@@ -79,16 +79,22 @@ def load():
     clearLib()
     pdi.main()
     
-def exp():
+def export():
     root = list(filter(lambda e: e.name[-1]=='Z', bpy.data.objects))[0]
-    pdi.export(root.name)
+    exp.export_model(root.name)
     
-pdi.register()
-pdop.register()
-pdp.register()
-mtxpan.register()
+def register():
+    pdi.register()
+    pdop.register()
+    pdp.register()
+    mtxpan.register()
+    
+#clearLib()
+register()
 #load()
-#exp()
+#export()
+
+#pdu.show_normals()
 
 
 #pdu.select('vtx', 517)
@@ -96,3 +102,7 @@ mtxpan.register()
 
 mtx = 0x22
 #pdu.assign_mtx_to_selected_verts(mtx)
+#props = bpy.context.object.pdmodel_props
+#print(props)
+#print(hasattr(bpy.context.object, 'pdmodel_props'))
+#print(bpy.context.scene.rompath)l
