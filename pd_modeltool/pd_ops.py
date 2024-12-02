@@ -89,6 +89,19 @@ class PDTOOLS_OT_AssignMtxToVerts(bpy.types.Operator):
         return {'FINISHED'}
 
 
+class PDTOOLS_OT_SelectVertsUnassignedMtxs(bpy.types.Operator):
+    bl_idname = "pdtools.select_vtx_unassigned_mtxs"
+    bl_label = "Select Unassigned"
+    bl_description = "Select Vertices With No Assigned Matrix"
+
+    def execute(self, context):
+        nverts = pdu.select_vtx_unassigned_mtxs()
+        s = 's' if nverts > 1 else ''
+        self.report({"INFO"}, f'{nverts} vert{s} selected')
+        pdu.redraw_ui()
+        return {'FINISHED'}
+
+
 def load_model(context, name):
     scn = context.scene
     romdata = rom.Romdata(scn.rompath)
@@ -139,6 +152,7 @@ classes = [
     PDTOOLS_OT_ImportModelFromFile,
     PDTOOLS_OT_AssignMtxToVerts,
     PDTOOLS_OT_ExportModel,
+    PDTOOLS_OT_SelectVertsUnassignedMtxs,
 ]
 
 def register():

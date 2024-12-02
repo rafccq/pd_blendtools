@@ -16,9 +16,12 @@ def hex2col(hexcol):
     col = (conv(r), conv(g), conv(b), 1)
     return col
 
-def color2mtx(col):
+def col2hex(col):
     conv = lambda e: round(e*255)
-    col = (conv(col[0]) << 16) | (conv(col[1]) << 8) |(conv(col[2]))
+    return (conv(col[0]) << 16) | (conv(col[1]) << 8) |(conv(col[2]))
+
+def color2mtx(col):
+    col = col2hex(col)
     return mtxpalette.index(col)
 
 def mtx2color(mtx):

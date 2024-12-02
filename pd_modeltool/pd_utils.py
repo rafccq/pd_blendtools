@@ -513,3 +513,36 @@ def get_model_obj(obj):
 
     return None
 
+# Select vertices that don't have a matrix assigned, returns the numbert of vertices selected
+# It assumes a mesh is selected and edit mode is on
+def select_vtx_unassigned_mtxs():
+    mesh = active_mesh()
+
+    bm = bmesh.from_edit_mesh(mesh)
+    bm.verts.ensure_lookup_table()
+
+    layers = bm.loops.layers
+    has_mtx = 'matrices' in layers.color
+
+    if not has_mtx:
+        return 0
+
+    layer_mtx = layers.color["matrices"] if has_mtx else None
+
+    count = 0
+    for idx, vert in enumerate(bm.verts):
+        loops = vert.link_loops
+        mtxcol = loops[0][layer_mtx]
+        col = mtxp.col2hex(mtxcol)
+        if col not in mtxp.mtxpalette:
+            vert.select = True
+            count += 1
+
+    bm.free()
+    return count
+
+def redraw_ui() -> None:
+    """Forces blender to redraw the UI."""
+    for screen in bpy.data.screens:
+        for area in screen.areas:
+            area.tag_redraw()

@@ -53,6 +53,8 @@ class PDTOOLS_PT_MtxPalettePanel(bpy.types.Panel):
             row.enabled = selection and context.tool_settings.mesh_select_mode[0]
             mtx = mtxp.color2mtx(selected.color) if selection else 0
             row.operator("pdtools.assign_mtx_verts", text = "Assign To Selected").mtx = mtx
+            row = box.row()
+            row.operator("pdtools.select_vtx_unassigned_mtxs")
 
     @classmethod
     def poll(cls, context):
