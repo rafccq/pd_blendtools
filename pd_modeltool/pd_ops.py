@@ -1,4 +1,5 @@
 import os
+import traceback
 
 import bpy
 from bpy_extras.io_utils import ImportHelper, ExportHelper
@@ -49,7 +50,11 @@ class PDTOOLS_OT_ExportModel(bpy.types.Operator, ExportHelper):
     def execute(self, context):
         print(f'Export model: {self.filepath}')
         model_obj = pdu.get_model_obj(context.object)
-        pde.export_model(model_obj, self.filepath)
+        try:
+            pde.export_model(model_obj, self.filepath)
+        except RuntimeError as ex:
+            traceback.print_exc()
+            pass
         return {'FINISHED'}
 
     def invoke(self, context, _event):
@@ -60,6 +65,7 @@ class PDTOOLS_OT_ExportModel(bpy.types.Operator, ExportHelper):
         self.filepath = os.path.join(blend_filepath, props.name)
         context.window_manager.fileselect_add(self)
         return {'RUNNING_MODAL'}
+
 
 class PDTOOLS_OT_ImportModelFromFile(bpy.types.Operator, ImportHelper):
     bl_idname = "pdtools.import_model_file"
@@ -74,6 +80,7 @@ class PDTOOLS_OT_ImportModelFromFile(bpy.types.Operator, ImportHelper):
     def execute(self, context):
         print('import model from file', self.filepath)
         return {'FINISHED'}
+
 
 class PDTOOLS_OT_AssignMtxToVerts(bpy.types.Operator):
     bl_idname = "pdtools.assign_mtx_verts"

@@ -521,7 +521,15 @@ def select_vtx_unassigned_mtxs():
     bm = bmesh.from_edit_mesh(mesh)
     bm.verts.ensure_lookup_table()
 
-    layers = bm.loops.layers
+    verts = get_vtx_unassigned_mtxs(bm)
+    for v in verts:
+        v.select = True
+
+    bm.free()
+    return len(verts)
+
+def get_vtx_unassigned_mtxs(mesh):
+    layers = mesh.loops.layers
     has_mtx = 'matrices' in layers.color
 
     if not has_mtx:
@@ -529,20 +537,23 @@ def select_vtx_unassigned_mtxs():
 
     layer_mtx = layers.color["matrices"] if has_mtx else None
 
-    count = 0
-    for idx, vert in enumerate(bm.verts):
+    result = []
+    for idx, vert in enumerate(mesh.verts):
         loops = vert.link_loops
         mtxcol = loops[0][layer_mtx]
         col = mtxp.col2hex(mtxcol)
         if col not in mtxp.mtxpalette:
-            vert.select = True
-            count += 1
+            result.append(vert)
 
-    bm.free()
-    return count
+    return result
 
 def redraw_ui() -> None:
     """Forces blender to redraw the UI."""
     for screen in bpy.data.screens:
         for area in screen.areas:
             area.tag_redraw()
+
+def msg_box(title, message, icon = 'INFO'):
+    def draw(self, _context):
+        self.layout.label(text=message)
+    bpy.context.window_manager.popup_menu(draw, title = title, icon = icon)

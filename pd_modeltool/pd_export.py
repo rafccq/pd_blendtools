@@ -50,6 +50,13 @@ def vtx_data(mesh, bm):
     has_mtx = 'matrices' in layers.color
     layer_mtx = layers.color["matrices"] if has_mtx else None
 
+    if has_mtx:
+        unassigned = pdu.get_vtx_unassigned_mtxs(bm)
+        if len(unassigned) > 0:
+            title = 'Not all vertices are assigned a matrix'
+            pdu.msg_box(title, "Use 'Matrices > Select Unassigned' to check")
+            raise RuntimeError(title)
+
     normals = [(0,0,0)] * len(mesh.vertices)
 
     # retrieve the normals

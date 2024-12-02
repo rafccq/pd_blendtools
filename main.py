@@ -81,7 +81,7 @@ def load():
     
 def export():
     root = list(filter(lambda e: e.name[-1]=='Z', bpy.data.objects))[0]
-    exp.export_model(root.name)
+    pde.export_model(root, f'{blend_dir}\modelbin\{root.name}')
     
 def register():
     pdi.register()
@@ -99,10 +99,3 @@ register()
 
 #pdu.select('vtx', 517)
 #pdu.select('face', 12)
-
-mtx = 0x22
-#pdu.assign_mtx_to_selected_verts(mtx)
-#props = bpy.context.object.pdmodel_props
-#print(props)
-#print(hasattr(bpy.context.object, 'pdmodel_props'))
-#print(bpy.context.scene.rompath)l
