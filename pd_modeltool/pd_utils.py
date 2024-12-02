@@ -448,6 +448,39 @@ def select(item, idx):
     else:
         print('invalid item:', item)
 
+def show_normals():
+    mesh = active_mesh()
+    if not mesh:
+        print('no selection')
+
+    bpy.ops.object.mode_set(mode='EDIT')
+
+    bm = bmesh.from_edit_mesh(mesh)
+    bm.verts.ensure_lookup_table()
+
+    selected_verts = [v for v in bm.verts if v.select]
+
+    layers = bm.loops.layers
+    uv_layer = layers.uv.active
+
+    for idx, vert in enumerate(selected_verts):
+        print('-'*40)
+        print(f'v {vert.index}')
+        print('-'*40)
+        # norms = set()
+        for loop in vert.link_loops:
+            normal = mesh.loops[loop.index].normal
+            normal = normal.to_tuple()
+            normal = tuple(round(e, 3) for e in normal)
+            uv = loop[uv_layer].uv.to_tuple()
+            uv = tuple((round(e, 3) for e in uv))
+            print(f'  {loop.face.index} {normal} uv {uv}')
+
+        # for norm in norms:
+        #     print(f'  {norm}')
+
+    bm.free()
+
 def assign_mtx_to_selected_verts(mtx):
     obj = bpy.context.active_object
     if obj.mode != 'EDIT':
