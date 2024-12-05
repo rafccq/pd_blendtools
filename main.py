@@ -37,7 +37,7 @@ import bitreader as br
 import texload as tex
 import imageutils as imu
 import romdata as rom
-import log
+import log_util as log
 
 import mtxpalette_panel as mtxpan
 import mtxpalette as mtxp

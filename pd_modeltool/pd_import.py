@@ -17,7 +17,7 @@ import texload as tex
 import mtxpalette as mtxp
 from decl_model import *
 from typeinfo import TypeInfo
-import log_util
+import log_util as log
 
 logger = log.log_get(__name__)
 log.log_config(logger, log.LOG_FILE_IMPORT)

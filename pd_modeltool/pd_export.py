@@ -1,5 +1,3 @@
-import logging
-
 import bpy
 import bmesh
 
@@ -7,7 +5,7 @@ import pd_utils as pdu
 from pdmodel import PDModel
 import mtxpalette as mtxp
 from pd_materials import *
-import log_util
+import log_util as log
 
 
 logger = log.log_get(__name__)
