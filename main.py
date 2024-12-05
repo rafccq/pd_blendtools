@@ -37,6 +37,7 @@ import bitreader as br
 import texload as tex
 import imageutils as imu
 import romdata as rom
+import log
 
 import mtxpalette_panel as mtxpan
 import mtxpalette as mtxp
@@ -52,8 +53,7 @@ import struct
 
 os.system('cls')
 
-modules = [pdu, typ, gbi, pdm, base, dat, bytereader, decl, pdmodel, pdi, mtxpan, mtxp]
-#modules = [pdu, typ, gbi, pdm, base, dat, bytereader, decl, pdmodel, pdi, mtx]
+modules = [pdu, log, typ, gbi, pdm, base, dat, bytereader, decl, pdmodel, pdi, mtxpan, mtxp]
 modules += [ndu, base, otherH, otherL, geo, nodetex, comb, pdn, pde, br, tex, imu, rom]
 modules += [pdop, pdp]
 

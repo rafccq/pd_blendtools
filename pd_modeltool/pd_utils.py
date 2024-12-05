@@ -1,11 +1,11 @@
 import zlib
 import json
-import os
 from pathlib import Path
 from glob import glob
 
 import bpy
 import bmesh
+from mathutils import Vector
 
 import romdata as rom
 import mtxpalette as mtxp
@@ -557,3 +557,16 @@ def msg_box(title, message, icon = 'INFO'):
     def draw(self, _context):
         self.layout.label(text=message)
     bpy.context.window_manager.popup_menu(draw, title = title, icon = icon)
+
+def new_obj(name, pos, parent):
+    pos = Vector(pos)
+
+    obj = new_empty_obj(name, dsize=50, link=False)
+
+    view_layer = bpy.context.view_layer
+    collection = view_layer.active_layer_collection.collection
+
+    obj.location = pos
+    obj.parent = parent
+
+    collection.objects.link(obj)

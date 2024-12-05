@@ -1,10 +1,8 @@
 import struct
-import logging
 import math
 
 import bpy
 import bmesh
-from bpy import context as ctx
 from bpy.props import StringProperty, IntProperty, PointerProperty
 from bpy.types import PropertyGroup, Object, Panel
 from mathutils import Euler, Vector, Matrix
@@ -19,30 +17,12 @@ import texload as tex
 import mtxpalette as mtxp
 from decl_model import *
 from typeinfo import TypeInfo
+import log_util
 
-logger = logging.getLogger(__name__)
-logger.handlers.clear()
-logger.setLevel(logging.DEBUG)
+logger = log.log_get(__name__)
+log.log_config(logger, log.LOG_FILE_IMPORT)
 
-fh = logging.FileHandler('D:/Mega/PD/pd_blend/pd_guns.log')
-fh.setLevel(logging.DEBUG)
-ch = logging.StreamHandler()
-# ch.setLevel(logging.DEBUG)
-ch.setLevel(logging.ERROR)
-
-formatter = logging.Formatter('%(asctime)s [%(levelname)s] %(message)s', datefmt='%Y%m%d %H:%M:%S')
-fh.setFormatter(formatter)
-ch.setFormatter(formatter)
-
-logger.addHandler(fh)
-logger.addHandler(ch)
-
-def createCollectionIfNone(name):
-    if name not in bpy.data.collections:
-        collection = bpy.data.collections.new(name)
-        ctx.scene.collection.children.link(collection)
-
-def createMesh(mesh, tex_configs, meshidx, sub_idx):
+def create_mesh(mesh, tex_configs, meshidx, sub_idx):
     mesh_data = bpy.data.meshes.new('mesh_data')
 
     verts = mesh.verts
@@ -166,21 +146,6 @@ def createMesh(mesh, tex_configs, meshidx, sub_idx):
 
 def posNodeName(idx): return f'{idx:02X}.Position'
 
-def createObj(idx, pos, root_obj):
-    pos = Vector(pos)
-    name = posNodeName(idx)
-
-    obj = pdu.new_empty_obj(name, dsize=50, link=False)
-    obj['pdid'] = idx
-
-    view_layer = bpy.context.view_layer
-    collection = view_layer.active_layer_collection.collection
-
-    obj.location = pos
-    obj.parent = root_obj
-
-    collection.objects.link(obj)
-
 def create_joint(model, node, idx, depth, **kwargs):
     root_obj = kwargs['root_obj']
     node['_idx_'] = idx
@@ -188,7 +153,6 @@ def create_joint(model, node, idx, depth, **kwargs):
 
     if nodetype == 2:
         r = node['rodata']
-        print(f'idx {idx:02X} ro {r:08X}')
         ro = model.find_rodata(node['rodata'])
         pos = ro['pos']
         # note: this is for external use so we use little-ending
@@ -205,9 +169,7 @@ def create_joint(model, node, idx, depth, **kwargs):
             parentname = posNodeName(parentidx)
             parentobj = pdu.active_collection().objects[parentname]
 
-        createObj(idx, (x, z, y), parentobj)
-
-def _t(v): return f'({v[0]:.2f}, {v[1]:.2f}, {v[2]:.2f})'
+        pdu.new_obj(posNodeName(idx), (x, y, z), parentobj)
 
 from enum import IntEnum
 class MeshLayer(IntEnum):
@@ -277,18 +239,7 @@ class VtxBufferEntry:
         self.meshes_loaded = []
         self.hasnormal = hasnormal
 
-def select_mesh(tri, vtx_buffer):
-    v0 = vtx_buffer[tri[0]]
-    v1 = vtx_buffer[tri[1]]
-    v2 = vtx_buffer[tri[2]]
-
-    # picks the entry with most verts in the group
-    if v0.group_size > v1.group_size:
-        return v0 if v0.group_size >= v2.group_size else v2
-    else:
-        return v1 if v1.group_size >= v2.group_size else v2
-
-def collectSubMeshes(model, rodata, idx):
+def collect_sub_meshes(model, rodata, idx):
     ptr_opagdl = rodata['opagdl']
 
     nodetype = rodata['_node_type_']
@@ -306,8 +257,7 @@ def collectSubMeshes(model, rodata, idx):
     gdl = model.data(ptr_opagdl)
     addr = 0
     bo='big'
-    dbg = idx == 0x3
-    # dbg = 1
+    dbg = 1
 
     mesh = ImportMeshData(MeshLayer.OPA)
     meshes = [mesh] # stores all meshes, from both opa and xlu layers
@@ -321,12 +271,11 @@ def collectSubMeshes(model, rodata, idx):
     nverts = 0
 
     if dbg:
+        logger.debug(f'[COLLECTMESH {idx:02X}] ptr_vtx {ptr_vtx:04X} ptr_col {col_start:04X} nvtx {len(verts)}')
         # n = min(nvtx, 300)
         for i in range(0, nvtx):
             v = verts[i]
             logger.debug(f' v_{i} {v}')
-
-    if dbg: logger.debug(f'[COLLECTMESH {idx:02X}] ptr_vtx {ptr_vtx:04X} ptr_col {col_start:04X} nvtx {len(verts)}')
 
     # these commands change the material setup
     MAT_CMDS = [
@@ -403,7 +352,6 @@ def collectSubMeshes(model, rodata, idx):
             mtxindex = (cmdint & 0xffffff) // 0x40
             model_mtxs.add(mtxindex)
             mesh.has_mtx = True
-            logger.debug(f'  MTX {mtxindex:04X}')
         elif op in MAT_CMDS:
             if mat_setup.applied:
                 mat_setup = PDMaterialSetup(idx, mat_setup)
@@ -413,21 +361,19 @@ def collectSubMeshes(model, rodata, idx):
 
     return meshes, model_mtxs
 
-def createModelMesh(idx, model, rodata, sc, tex_configs, parent_obj):
-    subMeshes, model_mtxs = collectSubMeshes(model, rodata, idx)
+def create_model_mesh(idx, model, rodata, sc, tex_configs, parent_obj):
+    subMeshes, model_mtxs = collect_sub_meshes(model, rodata, idx)
     n_submeshes = len(subMeshes)
-    logger.debug(f'idx {idx:02X} n {n_submeshes}')
     for sub_idx, meshdata in enumerate(subMeshes):
-        logger.debug(f'  submesh {sub_idx:02X}')
         sub_idx = sub_idx if n_submeshes > 1 else -1
-        mesh_obj = createMesh(meshdata, tex_configs, idx, sub_idx)
+        mesh_obj = create_mesh(meshdata, tex_configs, idx, sub_idx)
         mesh_obj.parent = parent_obj
         mesh_obj.data['matrices'] = list(model_mtxs)
-        logger.debug(f'  nt {len(meshdata.tris)} nv {len(meshdata.verts)}')
+        logger.debug(f'ntri {len(meshdata.tris)} nverts {len(meshdata.verts)}')
 
     return model_mtxs
 
-def createModelMeshes(model, sc, model_obj):
+def create_model_meshes(model, sc, model_obj):
     tex_configs = {}
     for tc in model.texconfigs:
         texnum = tc['texturenum']
@@ -449,8 +395,8 @@ def createModelMeshes(model, sc, model_obj):
                 rodata['xlugdl'] = None
                 rodata['numvertices'] = ro['unk00']*4
 
-            print(f'createModelMesh {idx:02X} t {nodetype:02X}')
-            createModelMesh(idx, model, rodata, sc, tex_configs, model_obj)
+            # print(f'createModelMesh {idx:02X} t {nodetype:02X}')
+            create_model_mesh(idx, model, rodata, sc, tex_configs, model_obj)
         idx += 1
 
 def register_types():
@@ -500,48 +446,9 @@ def unreg():
     bpy.utils.unregister_class(OBJECT_PT_custom_panel)
     del Object.pdmodel_props
 
-def clearLog():
-    f = open('D:/Mega/PD/pd_blend/pd_guns.log', 'r+')
-    f.seek(0)
-    f.truncate(0)
-
-def main():
-    clearLog()
-
-    logger.debug('clearScene()')
-    pdu.clear_scene()
-
-    model_name = 'Gfalcon2Z'
-    # model_name = 'Gleegun1Z'
-    model_name = 'Gdy357Z'
-    # model_name = 'GmaianpistolZ' # Phoenix
-    # model_name = 'GmaiansmgZ' # Callisto
-    # model_name = 'Gcmp150Z'
-    # model_name = 'Gk7avengerZ'
-    # model_name = 'GdydragonZ'
-    # model_name = 'GpcgunZ'
-    # model_name = 'GdysuperdragonZ'
-    # model_name = 'GcrossbowZ'
-    # model_name = 'GdydevastatorZ'
-    # model_name = 'GdyrocketZ'
-    # model_name = 'GsniperrifleZ'
-    # model_name = 'Gm16Z'
-    # model_name = 'GshotgunZ'
-    # model_name = 'GdruggunZ'
-    # model_name = 'GskminigunZ' # reaper
-    # model_name = 'Gz2020Z' # farsight
-    # model_name = 'GgrenadeZ'
-    # model_name = 'PchrdragonZ'
-    # model_name = 'Pchrdy357Z'
-    # model_name = 'CdjbondZ'
-    # model_name = 'Cdark_combatZ'
-    # model_name = 'CskedarZ'
-    # model_name = 'PchrautogunZ'
-
-    romdata = pdu.loadrom()
-    import_model(romdata, model_name)
-
 def import_model(romdata, model_name):
+    log.log_clear(log.LOG_FILE_IMPORT)
+    logger.debug(f'import model {model_name}')
     model = loadmodel(romdata, model_name)
 
     model_obj = pdu.new_empty_obj(model_name)
@@ -557,7 +464,7 @@ def import_model(romdata, model_name):
     # joints_obj = pdu.new_empty_obj('Joints', model_obj)
     # model.traverse(create_joint, root_obj=joints_obj)
 
-    createModelMeshes(model, sc, model_obj)
+    create_model_meshes(model, sc, model_obj)
     model_obj.rotation_euler[0] = math.radians(90)
     model_obj.rotation_euler[2] = math.radians(90)
 

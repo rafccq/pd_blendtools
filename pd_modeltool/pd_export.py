@@ -1,32 +1,20 @@
+import logging
+
 import bpy
 import bmesh
-import logging
 
 import pd_utils as pdu
 from pdmodel import PDModel
 import mtxpalette as mtxp
-from typeinfo import TypeInfo
-
-logger = logging.getLogger(__name__)
-logger.handlers.clear()
-logger.setLevel(logging.DEBUG)
-
-fh = logging.FileHandler('D:/Mega/PD/pd_blend/pd_guns.log')
-fh.setLevel(logging.DEBUG)
-ch = logging.StreamHandler()
-ch.setLevel(logging.ERROR)
-
-formatter = logging.Formatter('%(asctime)s [%(levelname)s] %(message)s', datefmt='%Y%m%d %H:%M:%S')
-fh.setFormatter(formatter)
-ch.setFormatter(formatter)
-
-logger.addHandler(fh)
-logger.addHandler(ch)
-
-
 from pd_materials import *
+import log_util
 
-# col: tuple (r,g,b,a) in the range [0:1]
+
+logger = log.log_get(__name__)
+log.log_config(logger, log.LOG_FILE_EXPORT)
+
+
+# col is a tuple (r,g,b,a) with each element in the range [0:1]
 def color_to_bytes(col):
     return [ci.to_bytes(1, 'big') for ci in col]
 
@@ -97,8 +85,6 @@ def vtx_data(mesh, bm):
         mtx = None
         if has_mtx:
             mtxcol = loops[0][layer_mtx]
-            c = mtxcol
-            print(f'v {idx} {c[0]:.3f} {c[1]:.3f} {c[2]:.3f} ')
             mtx = mtxp.color2mtx(mtxcol)
 
         co = v.co
@@ -252,8 +238,7 @@ def color_indices(vtxdata, verts):
 
         if col_idx >= 256:
             msg = 'Color index exceeds 256'
-            print(msg)
-            raise Exception(msg)
+            raise RuntimeError(msg)
 
         col_indices.append(col_idx)
 
@@ -318,6 +303,7 @@ class ExportMeshData:
         batches = create_tri_batches(mesh, bm, vtxdata)
 
         for idx, batch in enumerate(batches):
+            logger.debug(f'batch {idx} building color indices')
             batch.build_color_indices()
             batch.reorder_verts_by_mtx()
 
@@ -444,9 +430,11 @@ def loadmodel(romdata, modelname):
     return PDModel(modeldata)
 
 def export_model(model_obj, filename):
+    log.log_clear(log.LOG_FILE_EXPORT)
+
     objmap = build_meshmap(model_obj)
     modelname = model_obj.pdmodel_props.name
-    logger.debug(f'exportModel: {modelname}')
+    logger.debug(f'export model: {modelname}')
 
     romdata = pdu.loadrom()
     model = loadmodel(romdata, modelname)
@@ -494,12 +482,11 @@ def export_model(model_obj, filename):
         rodata = model.rodatas[idx]
         nodetype = rodata['_node_type_']
 
-        # split the list into 2 for opa and xlu layers (here we assume the list consists of contiguous opa/xlu meshes
+        # split the list into 2 for opa and xlu layers
         idx_xlu = pdu.index_where(meshes, lambda e: e.layer == 1, len(meshes)) # TODO Meshlayer enum
         meshes_opa = meshes[:idx_xlu]
         meshes_xlu = meshes[idx_xlu:]
 
-        print(f'MESH {idx:02X} idx {idx_xlu} {len(meshes_opa)} {len(meshes_xlu)}')
         vtx_start = rodata['vertices']
 
         nverts = rodata['numvertices'] if nodetype in [0x04, 0x18] else rodata['unk00'] * 4
@@ -534,7 +521,7 @@ def print_batches(mesh, tri_batches, model):
             p = vdata[0]
             x, y, z = p[0] - mtx[0], p[1] - mtx[1], p[2] - mtx[2]
             txtmtx = f'(MTX {batch.vtxmtxs[v]:02X})' if batch.vtxmtxs else ''
-            logger.debug(f'v {v:<3} {x} {y} {z} {txtmtx}')
+            logger.debug(f'v {v:<3} {x:>8.3f} {y:>8.3f} {z:>8.3f} {txtmtx}')
 
         for tri in batch.tris:
             vidxs = [k[0] for k in batch.vtxmap.keys()]
