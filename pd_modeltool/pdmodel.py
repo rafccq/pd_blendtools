@@ -3,6 +3,16 @@ import struct
 from bytereader import *
 from decl_model import *
 
+NODETYPE_CHRINFO      = 0x01
+NODETYPE_POSITION     = 0x02
+NODETYPE_GUNDL        = 0x04
+NODETYPE_DISTANCE     = 0x08
+NODETYPE_BBOX         = 0x0a
+NODETYPE_CHRGUNFIRE   = 0x0c
+NODETYPE_POSITIONHELD = 0x15
+NODETYPE_STARGUNFIRE  = 0x16
+NODETYPE_HEADSPOT     = 0x17
+NODETYPE_DL           = 0x18
 
 def unmask(addr):
     return addr & 0x00ffffff if addr & 0x5000000 else addr
@@ -45,10 +55,32 @@ class PDModel:
         self.matrices = {}
         self.build_matrices()
 
+    def get_parent_mtx(self, parentaddr):
+        if not parentaddr: return None
+
+        addr = parentaddr
+        node = self.nodes[addr]
+
+        while addr in self.nodes:
+            node = self.nodes[addr]
+            nodetype = node['type'] & 0xff
+            rodata = self.find_rodata(node['rodata'])
+
+            if nodetype == NODETYPE_POSITION:
+                mtxindex = rodata['mtxindexes'][0]
+                return self.matrices[mtxindex]
+            elif nodetype in [NODETYPE_POSITION, NODETYPE_POSITIONHELD]:
+                mtxindex = rodata['mtxindex']
+                return self.matrices[mtxindex]
+
+            addr = unmask(node['parent'])
+
+        return None
+
     def build_matrices(self):
         def setup_mtx(model, node, idx, depth, **kwargs):
             nodetype = node['type'] & 0xff
-            if nodetype not in [0x2, 0x15]: return
+            if nodetype not in [NODETYPE_CHRINFO, NODETYPE_POSITION, NODETYPE_POSITIONHELD]: return
 
             rodata = model.find_rodata(node['rodata'])
 
@@ -59,24 +91,19 @@ class PDModel:
             z = struct.unpack('f', pos['z'].to_bytes(4, 'little'))[0]
 
             parentaddr = unmask(node['parent'])
-            parentnode = model.nodes[parentaddr] if parentaddr else None
-
-            if parentnode and parentnode['type'] & 0xff in [0x2, 0x15]:
-                parentrodata = model.find_rodata(parentnode['rodata'])
-                mtxindex = parentrodata['mtxindexes'][0] if parentnode['type'] & 0xff == 0x2 \
-                    else parentrodata['mtxindex']
-                parentmtx = model.matrices[mtxindex]
+            parentmtx = model.get_parent_mtx(parentaddr)
+            if parentmtx:
                 x += parentmtx[0]
                 y += parentmtx[1]
                 z += parentmtx[2]
 
-            if nodetype == 0x02:
+            if nodetype == NODETYPE_POSITION:
                 # pos nodes have 3 mtx indices
                 for i in range(3):
                     mtxindex = rodata['mtxindexes'][i]
                     if mtxindex != 0xffff:
                         model.matrices[mtxindex] = (x, y, z)
-            elif nodetype == 0x15:
+            else:
                 mtxindex = rodata['mtxindex']
                 model.matrices[mtxindex] = (x, y, z)
 
@@ -132,7 +159,7 @@ class PDModel:
         for rodata in self.rodatas:
             nodetype = rodata['_node_type_']
 
-            if nodetype in [0x04, 0x16, 0x18]:
+            if nodetype in [NODETYPE_GUNDL, NODETYPE_STARGUNFIRE, NODETYPE_DL]:
                 rodata['vertices'] = len(dataout) | 0x05000000
                 vertices = self.vertices[idx]
                 colors = self.colors[idx]
@@ -168,7 +195,7 @@ class PDModel:
 
         rodata = self.rodatas[idx]
         nodetype = rodata['_node_type_']
-        if nodetype not in [0x04, 0x16, 0x18]:
+        if nodetype not in [NODETYPE_GUNDL, NODETYPE_STARGUNFIRE, NODETYPE_DL]:
             raise Exception(f'Invalid rodata type to replace GDL: {nodetype}')
 
         rd = self.rd
@@ -213,30 +240,30 @@ class PDModel:
         for k, node in self.nodes.items():
             node_addr = node.addr
             rodata_addr = node['rodata']
-            type = node['type'] & 0xff
-            rodata_name = rodata_decls[type]
-            log(f'{node_addr:04X} t {type:02X} {rodata_name} {rodata_addr:08X}')
+            nodetype = node['nodetype'] & 0xff
+            rodata_name = rodata_decls[nodetype]
+            log(f'{node_addr:04X} t {nodetype:02X} {rodata_name} {rodata_addr:08X}')
 
             rd.set_cursor(unmask(rodata_addr))
             rodata = rd.read_block(rodata_name)
-            rodata['_node_type_'] = type
+            rodata['_node_type_'] = nodetype
             self.rodatas.append(rodata)
-            rd.print_dict(rodata, TypeInfo.get_decl(rodata_name), pad=16, numspaces=4, showdec=True)
+            # rd.print_dict(rodata, TypeInfo.get_decl(rodata_name), pad=16, numspaces=4, showdec=True)
             rodatagdl_map = {
-                0x04: ['opagdl', 'xlugdl'],
-                0x16: ['gdl'],
-                0x18: ['opagdl', 'xlugdl']
+                NODETYPE_GUNDL: ['opagdl', 'xlugdl'],
+                NODETYPE_STARGUNFIRE: ['gdl'],
+                NODETYPE_DL: ['opagdl', 'xlugdl']
             }
-            if type in rodatagdl_map:
-                self.read_vertices(rodata, type, idx)
+            if nodetype in rodatagdl_map:
+                self.read_vertices(rodata, nodetype, idx)
 
             idx += 1
 
-    def read_vertices(self, rodata, type, idx):
+    def read_vertices(self, rodata, nodetype, idx):
         rd = self.rd
         log(f'VERTICES [{rd.cursor:04X}]')
 
-        numvertices = rodata['numvertices'] if type in [0x04, 0x18] else rodata['unk00'] * 4
+        numvertices = rodata['numvertices'] if nodetype in [NODETYPE_GUNDL, NODETYPE_DL] else rodata['unk00'] * 4
 
         if numvertices:
             vtxsize = 12
@@ -297,7 +324,7 @@ class PDModel:
             print_bin(f'texdata_{i}', self.texdatas[0]['bytes'], 0, 16*10, 4, 4)
 
     def data(self, ptr):
-        return self.modeldata[ptr&0xffffff:]
+        return self.modeldata[ptr & 0xffffff:]
         # print_bin('texdata_0', self.texdatas[0]['bytes'], 0, -1, group_size=4)
 
     def find_rodata(self, addr):
@@ -311,7 +338,7 @@ class PDModel:
         rodata = self.rodatas[idx]
         nodetype = rodata['_node_type_']
 
-        if nodetype not in [0x04, 0x16, 0x18]:
+        if nodetype not in [NODETYPE_GUNDL, NODETYPE_STARGUNFIRE, NODETYPE_DL]:
             raise Exception(f'invalid node type: {nodetype} idx {idx}')
 
         vtxblock = self.vertices[idx]
@@ -320,17 +347,17 @@ class PDModel:
         numvtx = len(vtxdata) // 12
 
         # update rodata numvertices
-        if nodetype in [0x04, 0x18]:
+        if nodetype in [NODETYPE_GUNDL, NODETYPE_DL]:
             rodata['numvertices'] = numvtx
-        elif nodetype in [0x16]:
+        else:
             rodata['unk00'] = numvtx >> 2
 
     def replace_colordata(self, idx, colordata):
         rodata = self.rodatas[idx]
         nodetype = rodata['_node_type_']
 
-        if nodetype not in [0x04, 0x16, 0x18]:
-            raise Exception(f'invalid node type: {type}')
+        if nodetype not in [NODETYPE_GUNDL, NODETYPE_STARGUNFIRE, NODETYPE_DL]:
+            raise RuntimeError(f'invalid node type: {nodetype}')
 
         colorblock = self.colors[idx]
         colorblock.bytes = colordata
