@@ -240,7 +240,7 @@ class PDModel:
         for k, node in self.nodes.items():
             node_addr = node.addr
             rodata_addr = node['rodata']
-            nodetype = node['nodetype'] & 0xff
+            nodetype = node['type'] & 0xff
             rodata_name = rodata_decls[nodetype]
             log(f'{node_addr:04X} t {nodetype:02X} {rodata_name} {rodata_addr:08X}')
 
