@@ -10,7 +10,7 @@ import os
 # add modules to path
 blend_dir = os.path.dirname(bpy.data.filepath)
 
-base_dir = f'{blend_dir}/pd_modeltool'
+base_dir = f'{blend_dir}/pd_blendtools'
 modules_dirs = [base_dir, f'{base_dir}/nodes']
 
 for dir in modules_dirs:
