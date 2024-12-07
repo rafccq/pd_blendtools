@@ -59,7 +59,6 @@ def pd_materials_draw(self, context):
 
 def register():
     for cls in classes:
-        print('register class ', cls)
         register_class(cls)
 
     bpy.types.NODE_MT_shader_node_add_all.append(pd_materials_draw)
@@ -71,7 +70,6 @@ def register():
 
 def unregister():
     for cls in reversed(classes):
-        print('unregisted class ', cls)
         unregister_class(cls)
 
     # if bpy.app.version < (4, 0, 0):

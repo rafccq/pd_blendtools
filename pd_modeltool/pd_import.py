@@ -3,20 +3,14 @@ import math
 
 import bpy
 import bmesh
-from bpy.props import StringProperty, IntProperty, PointerProperty
-from bpy.types import PropertyGroup, Object, Panel
 from mathutils import Euler, Vector, Matrix
 
-import pd_utils as pdu
 import pd_materials as pdm
-import nodes.pd_shadernodes as pdn
 from pd_materials import *
 from pdmodel import unmask, PDModel
 from gbi import *
 import texload as tex
 import mtxpalette as mtxp
-from decl_model import *
-from typeinfo import TypeInfo
 import log_util as log
 
 logger = log.log_get(__name__)
@@ -399,55 +393,7 @@ def create_model_meshes(model, sc, model_obj):
             create_model_mesh(idx, model, rodata, sc, tex_configs, model_obj)
         idx += 1
 
-def register_types():
-    for name, decl in model_decls.items():
-        TypeInfo.register(name, decl)
-
-def register():
-    bpy.utils.register_class(PDModelPropertyGroup)
-    bpy.utils.register_class(OBJECT_PT_custom_panel)
-    Object.pdmodel_props = PointerProperty(type=PDModelPropertyGroup)
-    pdn.register()
-    register_types()
-
-class PDModelPropertyGroup(PropertyGroup):
-    name: StringProperty(name='name', default='', options={'LIBRARY_EDITABLE'})
-    idx: IntProperty(name='idx', default=0, options={'LIBRARY_EDITABLE'})
-    layer: IntProperty(name='layer', default=0, options={'LIBRARY_EDITABLE'})
-
-class OBJECT_PT_custom_panel(Panel):
-    bl_label = 'PD Model'
-    bl_idname = 'OBJECT_PT_custom_panel'
-    bl_space_type = 'PROPERTIES'
-    bl_region_type = 'WINDOW'
-    bl_context = "object"
-
-    @classmethod
-    def poll(cls, context):
-        return context.object
-
-    def draw(self, context):
-        layout = self.layout
-        props = context.object.pdmodel_props
-
-        box = layout.box()
-        box.prop(props, 'name', icon='LOCKED', text='')
-
-        if props.idx >= 0:
-            box.label(text=f'Index: {props.idx:02X}', icon='LOCKED')
-
-        if props.layer >= 0:
-            txtlayer = 'opa' if props.layer == MeshLayer.OPA else 'xlu'
-            box.label(text=f'Layer: {txtlayer}', icon='LOCKED')
-        box.enabled = False
-
-def unreg():
-    bpy.utils.unregister_class(PDModelPropertyGroup)
-    bpy.utils.unregister_class(OBJECT_PT_custom_panel)
-    del Object.pdmodel_props
-
 def import_model(romdata, model_name):
-    log.log_clear(log.LOG_FILE_IMPORT)
     logger.debug(f'import model {model_name}')
     model = loadmodel(romdata, model_name)
 
@@ -471,14 +417,17 @@ def import_model(romdata, model_name):
 def loadimages(romdata, model):
     imglib = bpy.data.images
 
+    addon_path = pdu.addon_path()
+    tex_path = f'{addon_path}/tex'
+
     for tc in model.texconfigs:
         texnum = tc['texturenum']
         imgname = f'{texnum:04X}.png'
 
         if imgname not in imglib:
             texdata = romdata.texturedata(texnum)
-            tex.tex_load(texdata, 'D:/Mega/PD/pd_blend/tex', imgname) # TODO TEX FOLDER
-            imglib.load(f'{TEX_FOLDER}/{imgname}')
+            tex.tex_load(texdata, tex_path, imgname)
+            imglib.load(f'{tex_path}/{imgname}')
 
 def loadmodel(romdata, modelname):
     modeldata = romdata.modeldata(modelname)
@@ -486,3 +435,4 @@ def loadmodel(romdata, modelname):
     model = PDModel(modeldata)
     loadimages(romdata, model)
     return model
+

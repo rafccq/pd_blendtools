@@ -1,4 +1,5 @@
 import zlib
+import os
 import json
 from pathlib import Path
 from glob import glob
@@ -503,12 +504,13 @@ def index_where(array, condition, default = -1):
     return next((idx for idx, e in enumerate(array) if condition(e)), default)
 
 def loadrom():
-    filename = 'D:/Mega/PD/pd_blend/pd.ntsc-final.z64' #TMP
+    filename = addon_prefs().rompath
     return rom.Romdata(filename)
 
 def get_model_obj(obj):
     while obj:
-        if obj.name[0] in ['P', 'C', 'G']: return obj
+        name = obj.pdmodel_props.name
+        if name and name[0] in ['P', 'C', 'G']: return obj
         obj = obj.parent
 
     return None
@@ -570,3 +572,12 @@ def new_obj(name, pos, parent):
     obj.parent = parent
 
     collection.objects.link(obj)
+
+def addon_path():
+    return os.path.dirname(os.path.realpath(__file__))
+
+def addon_name():
+    return os.path.basename(addon_path())
+
+def addon_prefs():
+    return bpy.context.preferences.addons[addon_name()].preferences

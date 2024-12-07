@@ -2,6 +2,7 @@
 
 import bpy
 import bpy.utils.previews
+from bpy.app.handlers import persistent
 
 import mtxpalette as mtxp
 
@@ -82,22 +83,15 @@ class ColorCollection(bpy.types.PropertyGroup):
 # however in this example we only store "main"
 preview_collections = {}
 
-def register():
-    # register the classes
-    bpy.utils.register_class(PDTOOLS_PT_MtxPalettePanel)
-    bpy.utils.register_class(ColorCollection)
-    bpy.types.Scene.color_collection = bpy.props.CollectionProperty(type=ColorCollection)
-    bpy.types.Scene.show_all_mtxs = bpy.props.BoolProperty(default=False)
-
+def gen_icons():
     # clear the collection
     if hasattr(bpy.context.scene, "color_collection"):
         bpy.context.scene.color_collection.clear()
-        
+
     # generate colors and icons
     pcoll = bpy.utils.previews.new()
-    
+
     size = 32, 32
-    # for i in range(32):
     for i, hexcol in enumerate(mtxp.mtxpalette):
         color_name = f'{i:02X}'
         color = mtxp.hex2col(hexcol)
@@ -106,14 +100,20 @@ def register():
         icon.icon_size = size
         icon.is_icon_custom = True
         icon.icon_pixels_float = pixels
-        
+
         # add the item to the collection
         color_item = bpy.context.scene.color_collection.add()
         color_item.name = color_name
         color_item.color = color
         color_item.icon = pcoll[color_name].icon_id
-        
+
     preview_collections["main"] = pcoll
+
+def register():
+    bpy.utils.register_class(PDTOOLS_PT_MtxPalettePanel)
+    bpy.utils.register_class(ColorCollection)
+    bpy.types.Scene.color_collection = bpy.props.CollectionProperty(type=ColorCollection)
+    bpy.types.Scene.show_all_mtxs = bpy.props.BoolProperty(default=False)
 
 def unregister():
     for pcoll in preview_collections.values():
@@ -127,3 +127,9 @@ def unregister():
 
 if __name__ == "__main__":
     register()
+
+@persistent
+def load_handler(_):
+    gen_icons()
+
+bpy.app.handlers.load_post.append(load_handler)

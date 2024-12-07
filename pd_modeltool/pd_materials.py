@@ -2,10 +2,10 @@ import os
 import bpy
 
 from gbi import *
+import pd_utils as pdu
 
 TEMPLATE_NAME = 'PD_MaterialTemplate'
 MAT_BLENDFILE = 'pd_materials.blend'
-TEX_FOLDER    = '//tex'
 
 class PDMaterialSetup:
     def __init__(self, mesh_idx, current_mat=None):
@@ -241,8 +241,8 @@ def material_new(matsetup, use_alpha):
 
 def material_from_template(name, preset):
     if TEMPLATE_NAME not in bpy.data.materials:
-        blend_dir = os.path.dirname(bpy.data.filepath)
-        with bpy.data.libraries.load(f'{blend_dir}/{MAT_BLENDFILE}') as (data_from, data_to):
+        addon_path = pdu.addon_path()
+        with bpy.data.libraries.load(f'{addon_path}/{MAT_BLENDFILE}') as (data_from, data_to):
             data_to.materials = data_from.materials
             # print(f'template added {data_from.materials}')
 
