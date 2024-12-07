@@ -1,4 +1,3 @@
-import bpy
 import bmesh
 
 import pd_utils as pdu
@@ -6,6 +5,7 @@ from pdmodel import PDModel
 import mtxpalette as mtxp
 from pd_materials import *
 import log_util as log
+from gbi import *
 
 
 logger = log.log_get(__name__)
@@ -246,7 +246,7 @@ def create_tri_batches(mesh, bm, vtxdata):
     prevmat = -1
     tri_batches = [TriBatch()]
 
-    MAX_VERTS = 64
+    MAX_VERTS = 16
     for face, tri in enumerate(bm.faces):
         cur_batch = tri_batches[-1]
 
@@ -256,8 +256,9 @@ def create_tri_batches(mesh, bm, vtxdata):
 
         verts = [v.index for v in tri.verts]
         nverts = cur_batch.nverts()
+        colnorms = tuple([vtxdata[v][1][face] for v in verts])
         uvs = tuple([vtxdata[v][2][face] for v in verts])
-        nverts += sum([1 if not cur_batch.has_vert((v, uv)) else 0 for v, uv in zip(verts, uvs)])
+        nverts += sum([1 if not cur_batch.has_vert((v, uv, cn)) else 0 for v, uv, cn in zip(verts, uvs, colnorms)])
 
         # creates a new batch
         txtnewbatch = ''
@@ -270,10 +271,6 @@ def create_tri_batches(mesh, bm, vtxdata):
         logger.debug(f'f {face:<3} nv {nverts} {txtnewbatch} {mesh.materials[mat].name} MAX {MAX_VERTS} newmat {mat_changed}')
 
         cur_batch.add_tri(face, verts, vtxdata)
-
-        if mat_changed or prevmat < 0:
-            m = mesh.materials[mat]
-            MAX_VERTS = 64 if material_has_lighting(m) else 128
 
         prevmat = mat
 
@@ -326,43 +323,6 @@ def build_meshmap(obj):
 
     return meshmap
 
-def cmd_G_COL(count, offset):
-    offset |= 0x05000000
-    cmd = bytearray([0x07, 0x00])
-    cmd += count.to_bytes(2, 'big')
-    cmd += offset.to_bytes(4, 'big')
-    return cmd
-
-def cmd_G_VTX(nverts, offset, idx=0):
-    offset |= 0x05000000
-    cmd = bytearray([0x45, 0, idx, nverts])
-    cmd += offset.to_bytes(4, 'big')
-    return cmd
-
-def cmd_G_MTX(mtx):
-    offset = 0x03000000 | (mtx * 64)
-    cmd = bytearray([0x01, 0x02, 0x000, 0x40])
-    cmd += offset.to_bytes(4, 'big')
-    return cmd
-
-def cmd_G_TRI(tri):
-    cmd = bytearray([0xbf, 0x00, 0x00, 0x00, 0x00])
-    if len(tri) != 3:
-        print(f'WARNING: invalid tri: {tri}')
-    cmd += bytearray([v for v in tri])
-    return cmd
-
-def cmd_G_RDPPIPESYNC():
-    return bytearray.fromhex('E700000000000000')
-
-def cmd_G_END():
-    return bytearray.fromhex('B800000000000000')
-
-def cmd_G_CLEARGEOMETRY(geobits):
-    cmd = bytearray([0xb6, 0x00, 0x00, 0x00])
-    cmd += bytearray(geobits.to_bytes(4, 'big'))
-    return cmd
-
 def meshes_to_gdl(meshes, vtx_start, nverts):
     if not meshes: return None
 
@@ -405,18 +365,25 @@ def create_gdl(mesh: ExportMeshData):
             gdlbytes += cmd_G_MTX(mtx)
             gdlbytes += cmd_G_VTX(nverts, vtx_ofs, vidx)
 
-            # print(f'  mtx {mtx:02X} nv {nverts} ofs {vtx_ofs:08X} idx {vidx}')
-
             vtx_ofs += nverts * 12
             vidx += nverts
 
-        # meshes with no matrix
+        # handle meshes with no matrix
         if not batch.mtxs:
             gdlbytes += cmd_G_VTX(nverts, vtx_ofs, vidx)
             vtx_ofs += nverts * 12
 
+        # flush triangles
+        trigroup = []
         for tri in batch.tris:
-            gdlbytes += cmd_G_TRI([v for v in tri])
+            trigroup.append(tri)
+            if len(trigroup) == 4:
+                gdlbytes += cmd_G_TRI4(trigroup)
+                trigroup.clear()
+
+        # flush remaining tris
+        if len(trigroup) > 0:
+            gdlbytes += cmd_G_TRI4(trigroup)
 
     if geobits != 0:
         gdlbytes += cmd_G_CLEARGEOMETRY(geobits)
