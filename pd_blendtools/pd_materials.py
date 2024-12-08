@@ -5,7 +5,8 @@ from gbi import *
 import pd_utils as pdu
 
 TEMPLATE_NAME = 'PD_MaterialTemplate'
-MAT_BLENDFILE = 'pd_materials.blend'
+MAT_BLENDFILE_4X = 'pd_materials.blend'
+MAT_BLENDFILE_3X = 'pd_materials_v3_x.blend'
 
 class PDMaterialSetup:
     def __init__(self, mesh_idx, current_mat=None):
@@ -242,9 +243,9 @@ def material_new(matsetup, use_alpha):
 def material_from_template(name, preset):
     if TEMPLATE_NAME not in bpy.data.materials:
         addon_path = pdu.addon_path()
-        with bpy.data.libraries.load(f'{addon_path}/{MAT_BLENDFILE}') as (data_from, data_to):
+        blend_file = MAT_BLENDFILE_4X if bpy.app.version >= (4, 0, 0) else MAT_BLENDFILE_3X
+        with bpy.data.libraries.load(f'{addon_path}/{blend_file}') as (data_from, data_to):
             data_to.materials = data_from.materials
-            # print(f'template added {data_from.materials}')
 
     bpy.data.materials[TEMPLATE_NAME].use_fake_user = True
     mat = bpy.data.materials[TEMPLATE_NAME].copy()

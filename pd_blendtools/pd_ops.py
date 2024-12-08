@@ -10,6 +10,7 @@ import romdata as rom
 import pd_import as pdi
 import pd_export as pde
 import pd_utils as pdu
+from mtxpalette_panel import gen_icons
 
 class PDTOOLS_OT_LoadRom(Operator, ImportHelper):
     bl_idname = "pdtools.load_rom"
@@ -170,6 +171,12 @@ class PDTOOLS_OT_ImportModelFromROM(Operator):
 
     def execute(self, context):
         scn = context.scene
+
+        # when the addon is first installed, the icons need to be generated
+        # because the lost_post handler won't be called
+        if len(scn.color_collection) == 0:
+            gen_icons(context)
+
         item = scn.pdmodel_list[scn.pdmodel_listindex]
         load_model(context, item.filename)
         return {'FINISHED'}

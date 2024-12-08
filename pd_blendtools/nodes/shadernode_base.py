@@ -34,7 +34,10 @@ class PD_ShaderNodeBase(bpy.types.ShaderNodeCustomGroup):
         if bpy.app.version >= (4, 0, 0):
             self.node_tree.interface.new_socket(name, in_out=inout, socket_type=socket_type)
         else:
-            self.node_tree.outputs.new(socket_type, name)
+            if inout == 'INPUT':
+                self.node_tree.inputs.new(socket_type, name)
+            else:
+                self.node_tree.outputs.new(socket_type, name)
 
     def set_cmd(self, cmd):
         self.cmd = cmd

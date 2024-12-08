@@ -1,5 +1,6 @@
 import bpy
 from nodeitems_utils import NodeItem
+import nodeitems_utils as ndu
 from nodeitems_builtins import ShaderNodeCategory
 from bpy.types import Menu
 from bl_ui import node_add_menu
@@ -34,7 +35,7 @@ classes = [
 ]
 
 node_categories = [
-    ShaderNodeCategory('PD', "PD Nodes", items=[
+    ShaderNodeCategory('PD', "PD Material CMD", items=[
         NodeItem(c.bl_idname) for c in classes
     ]),
 ]
@@ -61,18 +62,16 @@ def register():
     for cls in classes:
         register_class(cls)
 
-    bpy.types.NODE_MT_shader_node_add_all.append(pd_materials_draw)
-
-    # TODO if bpy.app.version < (4, 0, 0):
-    # ndu.unregister_node_categories('PDNODES')
-    # ndu.register_node_categories('PDNODES', node_categories)
+    if bpy.app.version >= (4, 0, 0):
+        bpy.types.NODE_MT_shader_node_add_all.append(pd_materials_draw)
+    else:
+        ndu.register_node_categories('PDNODES', node_categories)
 
 
 def unregister():
     for cls in reversed(classes):
         unregister_class(cls)
 
-    # if bpy.app.version < (4, 0, 0):
-    # TODO if bpy.app.version < (4, 0, 0):
-    # ndu.unregister_node_categories('PDNODES')
+    if bpy.app.version < (4, 0, 0):
+        ndu.unregister_node_categories('PDNODES')
 

@@ -2,7 +2,6 @@
 
 import bpy
 import bpy.utils.previews
-from bpy.app.handlers import persistent
 
 import mtxpalette as mtxp
 
@@ -15,9 +14,10 @@ class PDTOOLS_PT_MtxPalettePanel(bpy.types.Panel):
     bl_category = 'Tool'
 
     def draw(self, context):
+        scn = context.scene
+
         layout = self.layout
         col = layout.column(align=True)
-        scn = context.scene
 
         col.prop(scn, 'show_all_mtxs', text='Show All')
         show_all = scn.show_all_mtxs
@@ -79,14 +79,14 @@ class ColorCollection(bpy.types.PropertyGroup):
          size = 4)
 
 
-# We can store multiple preview collections here,
-# however in this example we only store "main"
+# custom icons for the mtx colors
 preview_collections = {}
 
-def gen_icons():
+def gen_icons(context):
     # clear the collection
-    if hasattr(bpy.context.scene, "color_collection"):
-        bpy.context.scene.color_collection.clear()
+    scene = context.scene
+    if hasattr(scene, "color_collection"):
+        scene.color_collection.clear()
 
     # generate colors and icons
     pcoll = bpy.utils.previews.new()
@@ -102,7 +102,7 @@ def gen_icons():
         icon.icon_pixels_float = pixels
 
         # add the item to the collection
-        color_item = bpy.context.scene.color_collection.add()
+        color_item = scene.color_collection.add()
         color_item.name = color_name
         color_item.color = color
         color_item.icon = pcoll[color_name].icon_id
@@ -127,9 +127,3 @@ def unregister():
 
 if __name__ == "__main__":
     register()
-
-@persistent
-def load_handler(_):
-    gen_icons()
-
-bpy.app.handlers.load_post.append(load_handler)

@@ -185,7 +185,6 @@ class PD_ShaderNodeSetCombine(PD_ShaderNodeBase):
 
     def init(self, context):
         self.pd_init()
-        # self['num_cycles'] = 1
 
     def post_init(self):
         self.init_num_cycles()
@@ -211,19 +210,19 @@ class PD_ShaderNodeSetCombine(PD_ShaderNodeBase):
 
         self.draw_combiner(box, True, 1)
 
-        if self['num_cycles'] == 2:
+        if self.num_cycles == 2:
             box.separator(type='LINE')
             self.draw_combiner(box, True, 2)
 
     def draw_buttons_ext(self, context, layout):
         self.draw_combiner(layout, False, 1)
 
-        if self['num_cycles'] == 2:
+        if self.num_cycles == 2:
             layout.separator(type='LINE')
             self.draw_combiner(layout, False, 2)
 
     def draw_combiner(self, layout, col_layout, cycle):
-        if self['num_cycles'] == 2:
+        if self.num_cycles == 2:
             layout.label(text=f'Cycle {cycle}')
 
         if col_layout:
@@ -252,4 +251,4 @@ class PD_ShaderNodeSetCombine(PD_ShaderNodeBase):
                 row.prop(self, f'combiner_{name}{a}', text='')
 
     def set_num_cycles(self, num_cycles):
-        self['num_cycles'] = num_cycles
+        self.num_cycles = num_cycles
