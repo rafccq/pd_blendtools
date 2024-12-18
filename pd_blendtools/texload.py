@@ -1,6 +1,7 @@
 import pd_utils as pdu
 import imageutils as imu
 from bitreader import BitReader
+from gbi import *
 
 # format consts
 PDFORMAT_RGBA32 = 0
@@ -32,10 +33,42 @@ TexFormatNumChannels = [4, 3, 3, 3, 2, 2, 1, 1, 1, 1, 1, 1, 1]
 TexFormatHas1BitAlpha = [0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0]
 TexFormatChannelSizes = [256, 32, 256, 32, 256, 16, 8, 256, 16, 256, 16, 256, 16]
 TexFormatBitsPerPixel = [32, 16, 24, 15, 16, 8, 4, 8, 4, 16, 16, 16, 16]
+TexFormatDepths = [
+    G_IM_SIZ_32b,
+    G_IM_SIZ_16b,
+    G_IM_SIZ_32b,
+    G_IM_SIZ_16b,
+    G_IM_SIZ_16b,
+    G_IM_SIZ_8b,
+    G_IM_SIZ_4b,
+    G_IM_SIZ_8b,
+    G_IM_SIZ_4b,
+    G_IM_SIZ_8b,
+    G_IM_SIZ_4b,
+    G_IM_SIZ_8b,
+    G_IM_SIZ_4b,
+]
+
+TexFormatGbiMapping = [
+    G_IM_FMT_RGBA,
+    G_IM_FMT_RGBA,
+    G_IM_FMT_RGBA,
+    G_IM_FMT_RGBA,
+    G_IM_FMT_IA,
+    G_IM_FMT_IA,
+    G_IM_FMT_IA,
+    G_IM_FMT_I,
+    G_IM_FMT_I,
+    G_IM_FMT_CI,
+    G_IM_FMT_CI,
+    G_IM_FMT_CI,
+    G_IM_FMT_CI,
+]
 
 class Image:
     def __init__(self):
         self.format = 0
+        self.depth = 0
         self.compression = 0
         self.width = 0
         self.height = 0
@@ -66,6 +99,7 @@ def tex_inflate_zlib(br, sp14a8, lod):
     for i in range(0, numimages):
         img = tex.image
         img.format = fmt
+        img.depth = TexFormatDepths[fmt]
         img.width = br.read(8)
         img.height = br.read(8)
 
@@ -84,6 +118,7 @@ def tex_inflate_nonzlib(br):
     for i in range(numimages):
         img = tex.image
         img.format = br.read(4)
+        img.depth = TexFormatDepths[img.format]
         img.width = br.read(8)
         img.height = br.read(8)
         img.compression = br.read(4)
@@ -580,6 +615,8 @@ def tex_load(filedata, outdir, texid):
         tex = tex_inflate_nonzlib(br)
 
     tex_write_image(outdir, tex, texid)
+
+    return tex
 
 def tex_write_image(outdir, tex, filename):
     colbuffer = bytearray()
