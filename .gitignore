@@ -16,3 +16,4 @@ pd_blendtools/.idea
 pd_blendtools/nodes/__pycache__
 .idea
 pd_blendtools/__pycache__
+config.ini
