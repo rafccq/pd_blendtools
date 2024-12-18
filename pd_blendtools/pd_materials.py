@@ -38,7 +38,7 @@ class PDMaterialSetup:
         w0 = (cmdint & 0xffffffff00000000) >> 32
         w1 = cmdint & 0xffffffff
         if op == G_PDTEX:
-            self.texnum = cmdint & 0xffff
+            self.texnum = cmdint & 0xfff
             self.loadtex = True
             self.smode = (w0 >> 22) & 3
         elif op == G_SETGEOMETRYMODE:
@@ -60,7 +60,6 @@ class PDMaterialSetup:
 
         # we'll remove all the setgeo and cleargeo cmds, and keep the others
         new_cmds = []
-        # print(f'optimize {self.id()}')
         for idx, cmd in enumerate(self.cmds):
             bits = int.from_bytes(cmd[4:], 'big')
             if cmd[0] == G_SETGEOMETRYMODE:
@@ -157,7 +156,7 @@ def materials_clear():
 def tex_has_alpha(fmt, depth):
     if fmt == G_IM_FMT_IA and depth in [G_IM_SIZ_4b, G_IM_SIZ_8b, G_IM_SIZ_16b]: return True
     if fmt == G_IM_FMT_CI and depth in [G_IM_SIZ_4b, G_IM_SIZ_8b]: return True
-    if fmt == G_IM_FMT_RGBA and depth in [G_IM_SIZ_4b, G_IM_SIZ_8b, G_IM_SIZ_16b, G_IM_SIZ_32b]: return True
+    if fmt == G_IM_FMT_RGBA: return True
 
     return False
 
@@ -237,6 +236,9 @@ def material_new(matsetup, use_alpha):
         mat.node_tree.links.new(node_bsdf.inputs['Alpha'], node_tex.outputs['Alpha'])
 
     material_setup_cmds(mat.node_tree, matsetup)
+
+    if bpy.app.version < (4, 0, 0) and use_alpha and not material_has_lighting(mat):
+        mat.blend_method = 'BLEND'
 
     return mat
 
@@ -326,7 +328,6 @@ def material_texlod(mat):
         node = node.outputs[0].links[0].to_node
         if node.bl_idname == PD_ShaderNodeSetOtherModeH.bl_idname:
             if node.mode == 'g_mdsft_texlod':
-                # return node.g_mdsft_texlod == UPPER_TEXLOD[1][0].lower()
                 lod = node.g_mdsft_texlod == UPPER_TEXLOD[1][0].lower()
 
     return lod
@@ -351,3 +352,30 @@ def material_cmds(mat, geobits):
         cmds.append(node.get_cmd())
 
     return cmds, geobits
+
+PORTAL_MAT = 'PD_PortalMat'
+
+def portal_material():
+    if PORTAL_MAT in bpy.data.materials:
+        return bpy.data.materials[PORTAL_MAT]
+
+    portal_mat = bpy.data.materials.new(PORTAL_MAT)
+    portal_mat.use_nodes = True
+    portal_mat.use_fake_user = True
+    nodes = portal_mat.node_tree.nodes
+
+    for node in nodes:
+        nodes.remove(node)
+
+    links = portal_mat.node_tree.links
+
+    # create the basic material nodes
+    node_output = nodes.new(type='ShaderNodeOutputMaterial')
+    node_output.location.x += 200
+    node_pbsdf = nodes.new(type='ShaderNodeBsdfPrincipled')
+    node_pbsdf.location = 0, 0
+    node_pbsdf.inputs['Alpha'].default_value = 0
+
+    links.new(node_pbsdf.outputs['BSDF'], node_output.inputs['Surface'])
+    portal_mat.surface_render_method = 'BLENDED'
+    return portal_mat

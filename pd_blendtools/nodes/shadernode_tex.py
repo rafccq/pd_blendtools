@@ -89,7 +89,7 @@ class PD_ShaderNodeTexLoad(PD_ShaderNodeBase):
     bl_icon = 'TEXTURE'
 
     def on_update(self, context):
-        img = self.cmd[12:]
+        img = '0' + self.cmd[13:]
         if self.image:
             img = self.image.name.replace('.png', '')
 
