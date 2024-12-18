@@ -6,6 +6,7 @@ import mtxpalette as mtxp
 from pd_materials import *
 import log_util as log
 from gbi import *
+import romdata as rom
 
 
 logger = log.log_get(__name__)
@@ -190,13 +191,15 @@ class TriBatch:
         self.vtxdata = vtxdata
         self.color_indices = colorindices
 
-    def vtx_bytes(self, model, texsize):
+    def vtx_bytes(self, model, texsize, apply_mtx):
         if not self.colors: self.build_color_indices()
+
+        en = int(apply_mtx) # true/false to 1/0
         vtxdata = bytearray()
         for v, vdata in enumerate(self.vtxdata):
             mtx = model.matrices[self.vtxmtxs[v]] if self.vtxmtxs else (0,0,0)
             vpos = vdata[0]
-            vpos = (vpos[0] - mtx[0], vpos[1] - mtx[1], vpos[2] - mtx[2])
+            vpos = (vpos[0] - mtx[0]*en, vpos[1] - mtx[1]*en, vpos[2] - mtx[2]*en)
             uvcoord = vdata[2]
 
             # pos flag col_idx s t
@@ -391,7 +394,7 @@ def create_gdl(mesh: ExportMeshData):
     return gdlbytes
 
 def loadmodel(romdata, modelname):
-    modeldata = romdata.modeldata(modelname)
+    modeldata = romdata.filedata(modelname)
     return PDModel(modeldata)
 
 def export_model(model_obj, filename):
@@ -401,8 +404,9 @@ def export_model(model_obj, filename):
     modelname = model_obj.pdmodel_props.name
     logger.debug(f'export model: {modelname}')
 
-    romdata = pdu.loadrom()
+    romdata = rom.load()
     model = loadmodel(romdata, modelname)
+    apply_mtx = model_obj.pdmodel_props.name[0] != 'P'
 
     # objmap: idx -> list of meshes
     for idx, meshes in objmap.items():
@@ -433,7 +437,7 @@ def export_model(model_obj, filename):
                 else:
                     print(f'WARNING: material has no texture. Mesh{mesh.name} mat {mat.name}')
 
-                vtxdata += batch.vtx_bytes(model, texsize)
+                vtxdata += batch.vtx_bytes(model, texsize, apply_mtx)
                 colordata += batch.color_bytes()
 
         model.replace_vtxdata(idx, vtxdata)
