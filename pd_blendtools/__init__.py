@@ -31,8 +31,8 @@ from pd_addonprefs import PD_AddonPreferences
 import nodes.pd_shadernodes as pdn
 import pd_panels
 import pd_ops as pdo
-import pd_utils as pdu
 import mtxpalette_panel as mtxp
+import pd_addonprefs as pdp
 
 submodules = [
     pdn,
@@ -53,7 +53,12 @@ def register_types():
         TypeInfo.register(name, decl)
 
 def register():
-    bpy.utils.register_class(PD_AddonPreferences)
+    try:
+        bpy.utils.register_class(PD_AddonPreferences)
+    except RuntimeError as err:
+        print('unregister error:', err)
+        pass
+
     bpy.utils.register_class(PDModelPropertyGroup)
     Object.pdmodel_props = bpy.props.PointerProperty(type=PDModelPropertyGroup)
     register_types()
@@ -80,6 +85,6 @@ def pd_load_handler(_dummy):
     context = bpy.context
 
     mtxp.gen_icons(context) # we need to generate the mtx icons again
-    rompath = pdu.addon_prefs().rompath
+    rompath = pdp.pref_get(pdp.PD_PREF_ROMPATH)
     if rompath:
         pdo.PDTOOLS_OT_LoadRom.load_rom(context, rompath)

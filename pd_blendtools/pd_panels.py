@@ -4,6 +4,7 @@ from bpy.props import IntProperty, StringProperty, BoolProperty, CollectionPrope
 
 import pd_utils as pdu
 from pd_import import MeshLayer
+import pd_addonprefs as pdp
 
 
 class PDTOOLS_PT_PanelModel(Panel):
@@ -17,12 +18,11 @@ class PDTOOLS_PT_PanelModel(Panel):
         self.layout.operator_context = "INVOKE_DEFAULT"
         row = self.layout.row()
 
-        addon_prefs = pdu.addon_prefs()
-        rom_exists = bool(addon_prefs.rompath)
+        rompath = pdp.pref_get(pdp.PD_PREF_ROMPATH)
+        rom_exists = bool(rompath)
         row.enabled = rom_exists
-        icon = 'NONE' if addon_prefs.rompath else 'ERROR'
+        icon = 'NONE' if rompath else 'ERROR'
         row.operator("pdtools.import_model_rom", icon=icon)
-        # self.layout.operator("pdtools.import_model_file")
 
         obj = context.object
         row = self.layout.row()

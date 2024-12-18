@@ -34,6 +34,58 @@ G_IM_SIZ_16b  = 2
 G_IM_SIZ_32b  = 3
 G_IM_SIZ_DD	  = 5
 
+GDLcodes = {
+    0x00: 'G_SPNOOP',
+    0x01: 'G_MTX',
+    0x03: 'G_MOVEMEM',
+    0x04: 'G_VTX',
+    0x06: 'G_DL',
+    0x07: 'G_COL',
+    0xB1: 'G_TRI4',
+    0xB2: 'G_RDPHALF_CONT',
+    0xB3: 'G_RDPHALF_2',
+    0xB4: 'G_RDPHALF_1',
+    0xB6: 'G_CLEARGEOMETRYMODE',
+    0xB7: 'G_SETGEOMETRYMODE',
+    0xB8: 'G_ENDDL',
+    0xB9: 'G_SetOtherMode_L',
+    0xBA: 'G_SetOtherMode_H',
+    0xBB: 'G_TEXTURE',
+    0xBC: 'G_MOVEWORD',
+    0xBD: 'G_POPMTX',
+    0xBE: 'G_CULLDL',
+    0xBF: 'G_TRI1',
+    0xC0: 'G_NOOP',
+    0xE4: 'G_TEXRECT',
+    0xE5: 'G_TEXRECTFLIP',
+    0xE6: 'G_RDPLOADSYNC',
+    0xE7: 'G_RDPPIPESYNC',
+    0xE8: 'G_RDPTILESYNC',
+    0xE9: 'G_RDPFULLSYNC',
+    0xEA: 'G_SETKEYGB',
+    0xEB: 'G_SETKEYR',
+    0xEC: 'G_SETCONVERT',
+    0xED: 'G_SETSCISSOR',
+    0xEE: 'G_SETPRIMDEPTH',
+    0xEF: 'G_RDPSetOtherMode',
+    0xF0: 'G_LOADTLUT',
+    0xF2: 'G_SETTILESIZE',
+    0xF3: 'G_LOADBLOCK',
+    0xF4: 'G_LOADTILE',
+    0xF5: 'G_SETTILE',
+    0xF6: 'G_FILLRECT',
+    0xF7: 'G_SETFILLCOLOR',
+    0xF8: 'G_SETFOGCOLOR',
+    0xF9: 'G_SETBLENDCOLOR',
+    0xFA: 'G_SETPRIMCOLOR',
+    0xFB: 'G_SETENVCOLOR',
+    0xFC: 'G_SETCOMBINE',
+    0xFD: 'G_SETTIMG',
+    0xFE: 'G_SETZIMG',
+    0xFF: 'G_SETCIMG',
+}
+
+
 def cmd_G_COL(count, offset):
     offset |= 0x05000000
     cmd = bytearray([0x07, 0x00])

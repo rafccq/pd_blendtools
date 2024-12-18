@@ -233,7 +233,7 @@ class PDModel:
     def read_modelparts(self):
         rd = self.rd
         n = self.modeldef['numparts']
-        TypeInfo.register('parts', decl_parts, vardict={'N': n})
+        TypeInfo.register('parts', decl_parts, varmap={'N': n})
         addr = unmask(self.modeldef['parts'])
         rd.set_cursor(addr)
         self.modelparts = rd.read_block('parts')

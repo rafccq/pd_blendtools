@@ -22,14 +22,19 @@ class TypeInfo:
     decl_map = {}
 
     @classmethod
-    def register(cls, name, declaration, add_padding=True, _vars=None):
-        if _vars:
+    def register_all(cls, decls):
+        for name, decl in decls.items():
+            cls.register(name, decl)
+
+    @classmethod
+    def register(cls, name, declaration, add_padding=True, varmap=None):
+        if varmap:
             # replace variables in the declaration. Example: 'u8 val[N]' -> 'u8 val[5]'
             # where _vars = {'N': 5}
             decl = declaration.copy()
             n = len(decl)
-            pairs = [(idx, key) for idx in range(n) for key in _vars.keys()]
-            for (idx, key) in pairs: decl[idx] = decl[idx].replace(key, str(_vars[key]))
+            pairs = [(idx, key) for idx in range(n) for key in varmap.keys()]
+            for (idx, key) in pairs: decl[idx] = decl[idx].replace(key, str(varmap[key]))
 
             cls.decl_map[name] = decl
             return
@@ -60,14 +65,14 @@ class TypeInfo:
                 name = info['typename']
                 fieldname = info['fieldname']
                 if log: print(f'/*{cur_offset:02x}*/ struct {name} {fieldname}')
-                struct_sz, type_sz = TypeInfo._struct_size(info['typename'])
+                struct_sz, type_sz = cls._struct_size(info['typename'])
 
                 cur_offset += struct_sz
                 max_sz = max(max_sz, type_sz)
                 new_decl.append(field)
                 continue
 
-            type_sz = TypeInfo.sizeof(info['typename'])
+            type_sz = cls.sizeof(info['typename'])
             max_sz = max(max_sz, type_sz)
 
             # add pads if needed
@@ -108,7 +113,7 @@ class TypeInfo:
                 max_sz = max(max_sz, type_sz)
                 continue
 
-            type_sz = TypeInfo.sizeof(info['typename'])
+            type_sz = cls.sizeof(info['typename'])
             max_sz = max(max_sz, type_sz)
             if info['is_array']:
                 size += type_sz * info['array_size']
@@ -131,6 +136,7 @@ class TypeInfo:
     @classmethod
     def get_decl(cls, typename):
         if typename not in cls.decl_map:
+            print(cls.decl_map)
             raise Exception(f'type not registered: {typename}')
 
         return cls.decl_map[typename]
@@ -148,7 +154,7 @@ class TypeInfo:
             if field == decl[-1]:
                 raise Exception(f'declaration {decl_name} does not contain the field {field}')
 
-            size = TypeInfo.sizeof(info['typename'])
+            size = cls.sizeof(info['typename'])
             if info['is_array']:
                 size *= info['array_size']
             ofs += size

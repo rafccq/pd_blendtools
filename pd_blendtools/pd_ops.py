@@ -10,6 +10,7 @@ import romdata as rom
 import pd_import as pdi
 import pd_export as pde
 import pd_utils as pdu
+import pd_addonprefs as pdp
 from mtxpalette_panel import gen_icons
 
 class PDTOOLS_OT_LoadRom(Operator, ImportHelper):
@@ -32,8 +33,7 @@ class PDTOOLS_OT_LoadRom(Operator, ImportHelper):
         romdata = rom.Romdata(filepath)
 
         # save into the addon settings
-        addon_prefs = pdu.addon_prefs()
-        addon_prefs.rompath = filepath
+        pdp.pref_save(pdp.PD_PREF_ROMPATH, filepath)
 
         # fill the scene's list of models
         scn.pdmodel_list.clear()
@@ -142,8 +142,8 @@ class PDTOOLS_OT_SelectDirectory(Operator):
 
 
 def load_model(_context, name):
-    addon_prefs = pdu.addon_prefs()
-    romdata = rom.Romdata(addon_prefs.rompath)
+    rompath = pdp.pref_get(pdp.PD_PREF_ROMPATH)
+    romdata = rom.Romdata(rompath)
     pdi.import_model(romdata, name)
 
 

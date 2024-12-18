@@ -1,130 +1,18 @@
 import zlib
 import os
 import json
+from functools import cache
 from pathlib import Path
 from glob import glob
+import struct
 
 import bpy
 import bmesh
 from mathutils import Vector
 
-import romdata as rom
 import mtxpalette as mtxp
+from gbi import GDLcodes
 
-GDLcodes = {
-    0x00: 'G_SPNOOP',
-    0x01: 'G_MTX',
-    0x03: 'G_MOVEMEM',
-    0x04: 'G_VTX',
-    0x06: 'G_DL',
-    0x07: 'G_COL',
-    0xB1: 'G_TRI4',
-    0xB2: 'G_RDPHALF_CONT',
-    0xB3: 'G_RDPHALF_2',
-    0xB4: 'G_RDPHALF_1',
-    0xB6: 'G_CLEARGEOMETRYMODE',
-    0xB7: 'G_SETGEOMETRYMODE',
-    0xB8: 'G_ENDDL',
-    0xB9: 'G_SetOtherMode_L',
-    0xBA: 'G_SetOtherMode_H',
-    0xBB: 'G_TEXTURE',
-    0xBC: 'G_MOVEWORD',
-    0xBD: 'G_POPMTX',
-    0xBE: 'G_CULLDL',
-    0xBF: 'G_TRI1',
-    0xC0: 'G_NOOP',
-    0xE4: 'G_TEXRECT',
-    0xE5: 'G_TEXRECTFLIP',
-    0xE6: 'G_RDPLOADSYNC',
-    0xE7: 'G_RDPPIPESYNC',
-    0xE8: 'G_RDPTILESYNC',
-    0xE9: 'G_RDPFULLSYNC',
-    0xEA: 'G_SETKEYGB',
-    0xEB: 'G_SETKEYR',
-    0xEC: 'G_SETCONVERT',
-    0xED: 'G_SETSCISSOR',
-    0xEE: 'G_SETPRIMDEPTH',
-    0xEF: 'G_RDPSetOtherMode',
-    0xF0: 'G_LOADTLUT',
-    0xF2: 'G_SETTILESIZE',
-    0xF3: 'G_LOADBLOCK',
-    0xF4: 'G_LOADTILE',
-    0xF5: 'G_SETTILE',
-    0xF6: 'G_FILLRECT',
-    0xF7: 'G_SETFILLCOLOR',
-    0xF8: 'G_SETFOGCOLOR',
-    0xF9: 'G_SETBLENDCOLOR',
-    0xFA: 'G_SETPRIMCOLOR',
-    0xFB: 'G_SETENVCOLOR',
-    0xFC: 'G_SETCOMBINE',
-    0xFD: 'G_SETTIMG',
-    0xFE: 'G_SETZIMG',
-    0xFF: 'G_SETCIMG',
-}
-
-setup_props_names = {
-    'stagesetup': 'stagesetup',
-    'obj_header': 'objheader',
-    'defaultobj': 'defaultobj',
-    'coord': 'coord',
-    'tvscreen': 'tvscreen',
-    'hov': 'hov',
-    'path': 'path',
-    'ailist': 'ailist',
-    'pads': 'pads',
-    'multiammocrateslot': 'multiammocrateslot',
-    0x01: 'doorobj',
-    0x02: 'doorscaleobj',
-    0x03: 'defaultobj',
-    0x04: 'keyobj',
-    0x05: 'defaultobj',
-    0x06: 'cctvobj',
-    0x07: 'ammocrateobj',
-    0x08: 'weaponobj',
-    0x09: 'packedchr',
-    0x0a: 'singlemonitorobj',
-    0x0b: 'multimonitorobj',
-    0x0c: 'hangingsmonitorobj',
-    0x0d: 'autogunobj',
-    0x0e: 'linkgunsobj',
-    0x0f: 'defaultobj',
-    0x11: 'hatobj',
-    0x12: 'grenadeprobobj',
-    0x13: 'linkliftdoorobj',
-    0x14: 'multiammocrateobj',
-    0x15: 'shieldobj',
-    0x16: 'tag',
-    0x17: 'objective',
-    0x1e: 'criteria_holograph',
-    0x20: 'criteria_roomentered',
-    0x21: 'criteria_throwinroom',
-    0x23: 'briefingobj',
-    0x24: 'defaultobj',
-    0x25: 'textoverride',
-    0x26: 'padlockeddoorobj',
-    0x27: 'truckobj',
-    0x28: 'helioobj',
-    0x29: 'defaultobj',
-    0x2a: 'glassobj',
-    0x2b: 'defaultobj',
-    0x2c: 'safeitemobj',
-    0x2e: 'cameraposobj',
-    0x2f: 'tintedglassobj',
-    0x30: 'liftobj',
-    0x31: 'linksceneryobj',
-    0x32: 'blockedpathobj',
-    0x33: 'hoverbikeobj',
-    0x34: 'objheader',
-    0x35: 'hoverpropobj',
-    0x36: 'fanobj',
-    0x37: 'hovercarobj',
-    0x38: 'padeffectobj',
-    0x39: 'chopperobj',
-    0x3a: 'weaponobj',
-    0x3b: 'escalatorobj',
-}
-
-G_ENDDL = 0xb8
 MAX_GDL_CMDS = 512
 
 def printGDL(data, nspaces = 0, byte_order='big'):
@@ -199,7 +87,7 @@ def offsetpointer_x64(data, addr, offset, byteorder, signed=False):
     val = int.from_bytes(data[addr: addr + 8], byteorder=byteorder)
     data[addr: addr + 8] = (val + offset).to_bytes(8, byteorder=byteorder, signed=signed)
 
-def print_bin(title, data, start, nbytes, group_size=1, groups_per_row=4):
+def print_bin(title, data, start, nbytes, group_size=4, groups_per_row=4):
     if title: print(title)
 
     s = ''
@@ -388,6 +276,23 @@ def createCube():
 
     # bpy.data.collections['Meshes'].objects.link(parent_object)
 
+def mesh_from_verts(verts, name = '', triangulate = True):
+    bm = bmesh.new()
+    for v in verts:
+        bm.verts.new(v)
+    bm.faces.new(bm.verts)
+
+    bm.normal_update()
+
+    if triangulate:
+        bmesh.ops.triangulate(bm, faces=bm.faces[:])
+
+    mesh = bpy.data.meshes.new(name)
+    bm.to_mesh(mesh)
+    bm.free()
+
+    return mesh
+
 def clear_collection(collection):
     meshes = set()
     for obj in collection.objects:
@@ -421,7 +326,6 @@ def new_empty_obj(name, parent=None, dsize = 0, dtype='PLAIN_AXES', link=True):
 def active_collection():
     view_layer = bpy.context.view_layer
     return view_layer.active_layer_collection.collection
-
 
 def active_mesh():
     obj = bpy.context.view_layer.objects.active
@@ -503,10 +407,6 @@ def assign_mtx_to_selected_verts(mtx):
 def index_where(array, condition, default = -1):
     return next((idx for idx, e in enumerate(array) if condition(e)), default)
 
-def loadrom():
-    filename = addon_prefs().rompath
-    return rom.Romdata(filename)
-
 def get_model_obj(obj):
     while obj:
         name = obj.pdmodel_props.name
@@ -515,7 +415,7 @@ def get_model_obj(obj):
 
     return None
 
-# Select vertices that don't have a matrix assigned, returns the numbert of vertices selected
+# Select vertices that don't have a matrix assigned and returns the number of vertices selected
 # It assumes a mesh is selected and edit mode is on
 def select_vtx_unassigned_mtxs():
     mesh = active_mesh()
@@ -573,6 +473,9 @@ def new_obj(name, pos, parent):
 
     collection.objects.link(obj)
 
+def f32(value):
+    return struct.unpack('f', value.to_bytes(4, 'little'))[0]
+
 def addon_path():
     return os.path.dirname(os.path.realpath(__file__))
 
@@ -581,3 +484,15 @@ def addon_name():
 
 def addon_prefs():
     return bpy.context.preferences.addons[addon_name()].preferences
+
+@cache
+def ini_file(filename):
+    configs = {}
+    file = open(filename, "r")
+
+    for line in file:
+        if line.strip().startswith('#'): continue
+        tokens = [e.strip() for e in line.rpartition('=')]
+        configs[tokens[0].lower()] = tokens[2]
+
+    return configs
