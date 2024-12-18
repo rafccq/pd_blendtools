@@ -1,5 +1,6 @@
 import struct
 import math
+from collections import namedtuple
 
 import bpy
 import bmesh
@@ -12,10 +13,14 @@ from gbi import *
 import texload as tex
 import mtxpalette as mtxp
 import log_util as log
+from decl_model import *
+from typeinfo import TypeInfo
 
 logger = log.log_get(__name__)
 log.log_config(logger, log.LOG_FILE_IMPORT)
 
+PDMeshData = namedtuple('PDMeshData',
+                        'opagdl xlugdl ptr_vtx ptr_col vtxdata coldata matrices')
 def create_mesh(mesh, tex_configs, meshidx, sub_idx):
     mesh_data = bpy.data.meshes.new('mesh_data')
 
@@ -32,9 +37,6 @@ def create_mesh(mesh, tex_configs, meshidx, sub_idx):
     name = f'{meshidx:02X}.Mesh{suffix}'
 
     obj = bpy.data.objects.new(name, mesh_data)
-    obj.pdmodel_props.name = name
-    obj.pdmodel_props.idx = meshidx
-    obj.pdmodel_props.layer = mesh.layer
 
     collection = pdu.active_collection()
     collection.objects.link(obj)
@@ -106,7 +108,8 @@ def create_mesh(mesh, tex_configs, meshidx, sub_idx):
         # material does not exist, create a new one
         if mat_idx < 0:
             mat_idx = len(obj.data.materials)
-            use_alpha = matsetup.smode == 1 or pdm.tex_has_alpha(tc['format'], tc['depth'])
+            fmt = tex.TexFormatGbiMapping[tc['format']]
+            use_alpha = matsetup.smode == 1 or pdm.tex_has_alpha(fmt, tc['depth'])
             mat = pdm.material_new(matsetup, use_alpha)
             obj.data.materials.append(mat)
 
@@ -233,22 +236,19 @@ class VtxBufferEntry:
         self.meshes_loaded = []
         self.hasnormal = hasnormal
 
-def collect_sub_meshes(model, rodata, idx):
-    ptr_opagdl = rodata['opagdl']
+def collect_sub_meshes(pdmeshdata, idx, apply_mtx):
+    ptr_vtx = pdmeshdata.ptr_vtx
+    ptr_col = pdmeshdata.ptr_col
+    vtxdata = pdmeshdata.vtxdata
+    coldata = pdmeshdata.coldata
+    nvtx = len(vtxdata) // 12
 
-    nodetype = rodata['_node_type_']
-
-    ptr_vtx = rodata['vertices'] & 0xffffff
-    vtxbytes = model.data(ptr_vtx)
-    nvtx = rodata['numvertices']
-
-    col_start = pdu.align(ptr_vtx + nvtx*12, 8)
     col_ofs = 0
 
     sc = 1
-    verts = pdu.read_vtxs(vtxbytes, nvtx, sc)
+    verts = pdu.read_vtxs(vtxdata, nvtx, sc)
 
-    gdl = model.data(ptr_opagdl)
+    gdl = pdmeshdata.opagdl
     addr = 0
     bo='big'
     dbg = 1
@@ -265,7 +265,8 @@ def collect_sub_meshes(model, rodata, idx):
     nverts = 0
 
     if dbg:
-        logger.debug(f'[COLLECTMESH {idx:02X}] ptr_vtx {ptr_vtx:04X} ptr_col {col_start:04X} nvtx {len(verts)}')
+        # logger.debug(f'[COLLECTMESH {idx:02X}] ptr_vtx {ptr_vtx:04X} ptr_col {col_start:04X} nvtx {len(verts)}')
+        logger.debug(f'[COLLECTMESH {idx:02X}] nvtx {len(verts)}')
         # n = min(nvtx, 300)
         for i in range(0, nvtx):
             v = verts[i]
@@ -283,15 +284,15 @@ def collect_sub_meshes(model, rodata, idx):
         op = cmd[0]
 
         if op == G_END:
-            ptr_xlugdl = rodata['xlugdl']
-            if ptr_xlugdl and gdlnum == 0:
-                gdl = model.data(ptr_xlugdl)
+            xlugdl = pdmeshdata.xlugdl
+            if xlugdl and gdlnum == 0:
+                gdl = xlugdl
                 addr = 0
                 gdlnum += 1
-                # meshes in the xlu layer may use vertices loaded for the opa layer
+                # meshes in the xlu layer may use vertices loaded for the opa layer...
                 vtxs = mesh.verts[-nverts:]
                 mesh = ImportMeshData(MeshLayer.XLU, has_mtx=mesh.has_mtx)
-                # so we need to copy them over to new xlu mesh
+                # ... so we need to copy them over to new xlu mesh
                 mesh.add_vertices(vtxs)
                 meshes.append(mesh)
                 trinum = 0
@@ -320,12 +321,14 @@ def collect_sub_meshes(model, rodata, idx):
 
             vtx_segmented = (w1 & 0x05000000) == 0x05000000
             vstart = (vtx_ofs - ptr_vtx)//12 if vtx_segmented else vtx_ofs//12
-            pos = model.matrices[mtxindex] if mtxindex >= 0 else (0,0,0)
+            pos = pdmeshdata.matrices[mtxindex] if mtxindex >= 0 and apply_mtx else (0,0,0)
 
-            logger.debug(f'  vstart {vstart} n {nverts} vidx {vtx_idx:01X} col_offset {(col_ofs-col_start)>>2} seg {vtx_segmented:08X} mtx {mtxindex}')
+            # logger.debug(f'  vstart {vstart} n {nverts} vidx {vtx_idx:01X} col_offset {(col_ofs-col_start)>>2} seg {vtx_segmented:08X} mtx {mtxindex}')
+            logger.debug(f'  vstart {vstart} n {nverts} vidx {vtx_idx:01X} seg {vtx_segmented:08X} mtx {mtxindex}')
 
-            col_addr = col_start + col_ofs if nodetype in [0x16, 0x18] else col_ofs
-            col_data = model.data(col_addr)
+            col_segmented = (col_ofs & 0x05000000) == 0x05000000
+            col_addr = (col_ofs & 0xffffff) - ptr_col if col_segmented else col_ofs
+            col_data = coldata[col_addr:]
             vertlist = []
             for i, v in enumerate(verts[vstart:vstart+nverts]):
                 vpos = (v[0] + pos[0], v[1] + pos[1], v[2] + pos[2])
@@ -355,8 +358,8 @@ def collect_sub_meshes(model, rodata, idx):
 
     return meshes, model_mtxs
 
-def create_model_mesh(idx, model, rodata, sc, tex_configs, parent_obj):
-    subMeshes, model_mtxs = collect_sub_meshes(model, rodata, idx)
+def create_model_mesh(idx, model, meshdata, sc, tex_configs, parent_obj, apply_mtx):
+    subMeshes, model_mtxs = collect_sub_meshes(meshdata, idx, apply_mtx)
     n_submeshes = len(subMeshes)
     for sub_idx, meshdata in enumerate(subMeshes):
         sub_idx = sub_idx if n_submeshes > 1 else -1
@@ -372,7 +375,6 @@ def create_model_meshes(model, sc, model_obj):
     for tc in model.texconfigs:
         texnum = tc['texturenum']
         tex_configs[texnum] = tc
-        # print(f'tex {texnum:04X} w {width:02X} h {height:02X}')
 
     idx = 0
     for ro in model.rodatas:
@@ -389,8 +391,20 @@ def create_model_meshes(model, sc, model_obj):
                 rodata['xlugdl'] = None
                 rodata['numvertices'] = ro['unk00']*4
 
-            # print(f'createModelMesh {idx:02X} t {nodetype:02X}')
-            create_model_mesh(idx, model, rodata, sc, tex_configs, model_obj)
+            ptr_vtx = rodata['vertices']
+            ptr_col = ptr_vtx + rodata['numvertices']*12
+            meshdata = PDMeshData(
+                model.data(rodata['opagdl']),
+                model.data(rodata['xlugdl']) if rodata['xlugdl'] else None, # xlu_gdl
+                ptr_vtx,
+                ptr_col,
+                model.data(ptr_vtx),
+                model.data(ptr_col),
+                model.matrices
+            )
+
+            apply_mtx = model_obj.pdmodel_props.name[0] != 'P'
+            create_model_mesh(idx, model, meshdata, sc, tex_configs, model_obj, apply_mtx)
         idx += 1
 
 def import_model(romdata, model_name):
@@ -411,28 +425,70 @@ def import_model(romdata, model_name):
     # model.traverse(create_joint, root_obj=joints_obj)
 
     create_model_meshes(model, sc, model_obj)
-    model_obj.rotation_euler[0] = math.radians(90)
-    model_obj.rotation_euler[2] = math.radians(90)
+    # model_obj.rotation_euler[0] = math.radians(90)
+    # model_obj.rotation_euler[2] = math.radians(90)
 
-def loadimages(romdata, model):
+    return model_obj, model
+
+def model_loadimages(romdata, model):
+   textures = [tc['texturenum'] for tc in model.texconfigs]
+   loadimages(romdata, textures)
+
+def loadimages(romdata, texnums):
     imglib = bpy.data.images
 
     addon_path = pdu.addon_path()
     tex_path = f'{addon_path}/tex'
 
-    for tc in model.texconfigs:
-        texnum = tc['texturenum']
+    for texnum in texnums:
         imgname = f'{texnum:04X}.png'
 
         if imgname not in imglib:
             texdata = romdata.texturedata(texnum)
-            tex.tex_load(texdata, tex_path, imgname)
-            imglib.load(f'{tex_path}/{imgname}')
+            texture = tex.tex_load(texdata, tex_path, imgname)
+            teximg = texture.image
+            img = imglib.load(f'{tex_path}/{imgname}')
+            img['texinfo'] = {
+                'width': teximg.width,
+                'height': teximg.height,
+                'format': teximg.format,
+                'depth': teximg.depth,
+            }
+
 
 def loadmodel(romdata, modelname):
-    modeldata = romdata.modeldata(modelname)
-    # pdu.write_file('D:/Mega/PD/pd_blend/modelbin', f'{modelname}.bin', modeldata)
+    modeldata = romdata.filedata(modelname)
     model = PDModel(modeldata)
-    loadimages(romdata, model)
+    loadimages(romdata, [tc['texturenum'] for tc in model.texconfigs])
     return model
 
+
+def clearImgs():
+    imglib = bpy.data.images
+    for img in imglib:
+        imglib.remove(img)
+
+    matlib = bpy.data.materials
+    for mat in matlib:
+        if mat.name.startswith('Mat-'):
+            matlib.remove(mat)
+
+from bpy.app.handlers import persistent
+
+@persistent
+def on_update_graph(*args):
+    pass
+    # print('update', bpy.context.selected_objects)
+
+def register_handlers():
+    # bpy.app.handlers.depsgraph_update_post.append(on_update_graph)
+    # bpy.app.handlers.depsgraph_update_pre.append(on_update_graph_pre)
+    bpy.msgbus.subscribe_rna(
+        key=(bpy.types.LayerObjects, "active"),
+        owner=object(),
+        args=tuple(),
+        notify=on_update_graph,
+    )
+
+def register():
+    TypeInfo.register_all(model_decls)

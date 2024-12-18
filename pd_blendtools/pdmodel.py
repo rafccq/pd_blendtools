@@ -1,7 +1,9 @@
 import struct
+from collections import namedtuple
 
 from bytereader import *
 from decl_model import *
+import pd_utils as pdu
 
 NODETYPE_CHRINFO      = 0x01
 NODETYPE_POSITION     = 0x02
@@ -20,6 +22,8 @@ def unmask(addr):
 def log(*args):
     if enableLog:
         print(''.join(args))
+
+Bbox = namedtuple('Bbox', 'xmin xmax ymin ymax zmin zmax')
 
 class PDModel:
     def __init__(self, modeldata, skipDLdata=False):
@@ -85,7 +89,7 @@ class PDModel:
             rodata = model.find_rodata(node['rodata'])
 
             pos = rodata['pos']
-            # note: this is for external use so we use little-ending
+            # note: this is for external use so we use little-endian
             x = struct.unpack('f', pos['x'].to_bytes(4, 'little'))[0]
             y = struct.unpack('f', pos['y'].to_bytes(4, 'little'))[0]
             z = struct.unpack('f', pos['z'].to_bytes(4, 'little'))[0]
@@ -229,7 +233,7 @@ class PDModel:
     def read_modelparts(self):
         rd = self.rd
         n = self.modeldef['numparts']
-        TypeInfo.register('parts', decl_parts, _vars={'N': n})
+        TypeInfo.register('parts', decl_parts, vardict={'N': n})
         addr = unmask(self.modeldef['parts'])
         rd.set_cursor(addr)
         self.modelparts = rd.read_block('parts')
@@ -361,6 +365,17 @@ class PDModel:
 
         colorblock = self.colors[idx]
         colorblock.bytes = colordata
+
+    def find_bbox(self):
+        for ro in self.rodatas:
+            nodetype = ro['_node_type_']
+            if nodetype == NODETYPE_BBOX:
+                coords = [pdu.f32(ro[e]) for e in ['xmin', 'xmax', 'ymin', 'ymax', 'zmin', 'zmax']]
+                bbox = Bbox(*coords)
+                return bbox
+
+        return None
+
 
 def read(path, filename, skipDLdata=False):
     modeldata = read_file(f'{path}/{filename}')

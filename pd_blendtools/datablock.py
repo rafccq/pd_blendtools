@@ -31,3 +31,6 @@ class DataBlock:
     def __setitem__(self, key, value):
         self.fields[key] = value
 
+    def __repr__(self):
+        return str(self.fields)
+
