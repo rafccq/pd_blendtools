@@ -1,4 +1,5 @@
 import pd_utils as pdu
+import pd_addonprefs as pdp
 
 
 class Romdata:
@@ -13,6 +14,7 @@ class Romdata:
         self.data = pdu.decompress(self.rom[dataofs:])
 
         self.fileoffsets = {}
+        self.filenames = []
         self.texoffsets = {}
 
         self.read_files()
@@ -20,7 +22,7 @@ class Romdata:
 
     def read_files(self):
         offsets_list = self.get_file_offsets()
-        names = self.get_file_names(offsets_list[-1])
+        self.filenames = self.get_file_names(offsets_list[-1])
 
         for (index, offset) in enumerate(offsets_list):
             if index == 0:
@@ -30,10 +32,10 @@ class Romdata:
             except:
                 break
 
-            name = names[index]
+            name = self.filenames[index]
             self.fileoffsets[name] = (offset, endoffset)
 
-    def modeldata(self, modelname):
+    def filedata(self, modelname):
         ofs = self.fileoffsets[modelname]
         data = self.rom[ofs[0]:ofs[1]]
         return pdu.decompress(data) if data[0:2] == b'\x11\x73' else data
@@ -93,3 +95,8 @@ section_offsets = {
     'textureconfig': [0x7eb270,  0x7d6a70,  0x7da900,  ],
     'textures':      [0x1d65f40, 0x1d5ca20, 0x1d61f90, ],
 }
+
+def load(filename):
+    if not filename:
+        filename = pdp.pref_get(pdp.PD_PREF_ROMPATH)
+    return Romdata(filename)
