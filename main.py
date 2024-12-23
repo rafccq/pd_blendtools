@@ -1,14 +1,22 @@
 import sys
 import os
+import time
+import pkgutil
+import importlib
+
 import bpy
-from bpy import context as ctx
-from mathutils import *
 import bmesh
-from time import gmtime, strftime
-import os
+
+
+os.system('cls')
+
+t = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
+ln = '\n' + '-'*32 + '\n'
+print(ln, t, ln)
 
 # add modules to path
 blend_dir = os.path.dirname(bpy.data.filepath)
+sys.path.append(blend_dir)
 
 base_dir = f'{blend_dir}/pd_blendtools'
 modules_dirs = [base_dir, f'{base_dir}/nodes']
@@ -17,85 +25,114 @@ for dir in modules_dirs:
     if dir not in sys.path:
         print('added to path: ', dir)
         sys.path.append(dir)
-
-
-import importlib
-import pd_utils as pdu
-import decl_model as decl
-import pdmodel
-import pd_materials as pdm
-import nodes.pd_shadernodes as pdn
-import nodes.shadernode_base as base
-import nodes.shadernode_othermode_h as otherH
-import nodes.shadernode_othermode_l as otherL
-import nodes.shadernode_geomode as geo
-import nodes.shadernode_tex as nodetex
-import nodes.shadernode_setcombine as comb
-import nodes.nodeutils as ndu
-import pd_export as pde
-import bitreader as br
-import texload as tex
-import imageutils as imu
-import romdata as rom
-import log_util as log
-
-import mtxpalette_panel as mtxpan
-import mtxpalette as mtxp
-import datablock as dat
-import typeinfo as typ
-import pd_ops as pdop
-import pd_panels as pdp
-
-import gbi
-import pd_import as pdi
-import bytereader
-import struct
-
-os.system('cls')
-
-modules = [pdu, log, typ, gbi, pdm, base, dat, bytereader, decl, pdmodel, pdi, mtxpan, mtxp]
-modules += [ndu, base, otherH, otherL, geo, nodetex, comb, pdn, pde, br, tex, imu, rom]
-modules += [pdop, pdp]
-
-for m in modules:
-    importlib.reload(m)
-    
-t = strftime("%Y-%m-%d %H:%M:%S", gmtime())
-
-ln = '\n' + '-'*32 + '\n'
-print(ln, t, ln)
-
-def clearLib():
-    imglib = bpy.data.images
-    for img in imglib:
-       imglib.remove(img)
         
-    matlib = bpy.data.materials
-    for mat in matlib:
-        if mat.name.startswith('Mat-'):
-            matlib.remove(mat)
-            
-def load():
-    clearLib()
-    pdi.main()
-    
-def export():
-    root = list(filter(lambda e: e.name[-1]=='Z', bpy.data.objects))[0]
-    pde.export_model(root, f'{blend_dir}\modelbin\{root.name}')
-    
+
+import pd_blendtools as pdbt
+import typeinfo
+importlib.reload(pdbt)
+#importlib.reload(typeinfo)
+
+submodules = {}
+for modinfo in pkgutil.iter_modules(pdbt.__path__):
+    submod = __import__(modinfo.name, globals(), locals(), [], 0)
+    submodules[modinfo.name] = importlib.reload(submod)
+    print(f'reloaded {modinfo.name}')
+
+pdi = submodules['pd_import']
+tiles = submodules['tiles_import']
+setup = submodules['setup_import']
+bgi = submodules['bg_import']
+pdm = submodules['pd_materials']
+pdu = submodules['pd_utils']
+pdp = submodules['pd_addonprefs']
+rom = submodules['romdata']
+import nodes.pd_shadernodes as pdn
+
 def register():
-    pdi.register()
-    pdop.register()
-    pdp.register()
-    mtxpan.register()
-    
-#clearLib()
+    try:
+        pdn.unregister()
+    except RuntimeError as err:
+        print('unregister error:', err)
+        pass
+
+#    pdn.register()
+    tiles.register()
+    setup.register()
+    bgi.register()
+    pdbt.register()
+
+
+def clear():
+    pdi.clear_materials()
+    pdu.clear_scene()
+
+def loadmodel(name):
+    pdu.ini_file.cache_clear()
+    rompath = pdp.pref_get('rompath')
+    romdata = rom.Romdata(rompath)
+    pdi.import_model(romdata, name)
+
+
+#clear()
 register()
-#load()
-#export()
-
-#pdu.show_normals()
+#loadmodel('PchrremotemineZ')
 
 
-#pdu.select('vtx', 517)
-#pdu.select('face', 12)
+#pdi.register_handlers()
+
+#bgi.bg_import('bg_ame')
+#bgi.bg_import('bg_mp15')
+#bgi.bg_import('bg_mp4')
+#bgi.bg_import('bg_pete')
+
+#setup.setup_import('bg_mp15', True)
+#setup.setup_import('bg_mp4', True)
+#setup.setup_import('bg_pete')
+
+#tiles.bg_loadtiles('bg_mp15')
+
+#pdi.bg_loadroom(0x02)
+#pdm.portal_material()
+#pdi.bg_portals_hide()
+#pdi._bg_loadlights()
+
+
+
+
+#flag = tiles.GEOFLAG_FLOOR1
+#flag = tiles.GEOFLAG_FLOOR2
+#flag = tiles.GEOFLAG_WALL
+#flag = tiles.GEOFLAG_BLOCK_SIGHT
+#flag = tiles.GEOFLAG_BLOCK_SHOOT
+#flag = tiles.GEOFLAG_LIFTFLOORl
+#flag = tiles.GEOFLAG_LADDER
+#flag = tiles.GEOFLAG_RAMPWALL
+#flag = tiles.GEOFLAG_SLOPE
+#flag = tiles.GEOFLAG_UNDERWATER
+#flag = tiles.GEOFLAG_0400
+#flag = tiles.GEOFLAG_AIBOTCROUCH
+#flag = tiles.GEOFLAG_AIBOTDUCK
+#flag = tiles.GEOFLAG_STEP
+#flag = tiles.GEOFLAG_DIE
+#flag = tiles.GEOFLAG_LADDER_PLAYERONLY
+
+res, wco, flg, flc, flt = ['reset', 'wallfloor', 'flag', 'floorcol', 'floortype']
+#pdi.bg_colortiles(flg, flag=flag)
+#tiles.bg_colortiles(flt)
+
+#blend_dir = bpy.path.abspath('//')
+#configs = pdu.ini_file(f'{blend_dir}/config.ini')
+#print(configs)
+
+#print(pdp.pref_get.cache_info())
+
+#os.system('cls')
+#M = bpy.context.scene.objects['Pmulti_ammo_crateZ.009'].matrix_world
+#t = [M[i].w for i in range(3)]
+#print(M)
+#print(t)
+
+#obj = bpy.context.view_layer.objects.active
+#M = obj.matrix_world
+#print(obj)
+#print(M)
