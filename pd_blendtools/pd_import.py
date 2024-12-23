@@ -1,5 +1,4 @@
 import struct
-import math
 from collections import namedtuple
 
 import bpy
@@ -7,6 +6,7 @@ import bmesh
 from mathutils import Euler, Vector, Matrix
 
 import pd_materials as pdm
+import pd_utils as pdu
 from pd_materials import *
 from pdmodel import unmask, PDModel
 from gbi import *
@@ -319,15 +319,13 @@ def collect_sub_meshes(pdmeshdata, idx, apply_mtx):
             vtx_idx = cmd[1] & 0xf
             vtx_ofs = int.from_bytes(cmd[5:8], bo)
 
-            vtx_segmented = (w1 & 0x05000000) == 0x05000000
-            vstart = (vtx_ofs - ptr_vtx)//12 if vtx_segmented else vtx_ofs//12
+            segmented = (w1 & 0x05000000) == 0x05000000
+            vstart = (vtx_ofs - ptr_vtx)//12 if segmented else vtx_ofs//12
             pos = pdmeshdata.matrices[mtxindex] if mtxindex >= 0 and apply_mtx else (0,0,0)
 
-            # logger.debug(f'  vstart {vstart} n {nverts} vidx {vtx_idx:01X} col_offset {(col_ofs-col_start)>>2} seg {vtx_segmented:08X} mtx {mtxindex}')
-            logger.debug(f'  vstart {vstart} n {nverts} vidx {vtx_idx:01X} seg {vtx_segmented:08X} mtx {mtxindex}')
+            logger.debug(f'  vstart {vstart} n {nverts} vidx {vtx_idx:01X} seg {segmented:08X} mtx {mtxindex}')
 
-            col_segmented = (col_ofs & 0x05000000) == 0x05000000
-            col_addr = (col_ofs & 0xffffff) - ptr_col if col_segmented else col_ofs
+            col_addr = col_ofs - ptr_col if segmented else col_ofs
             col_data = coldata[col_addr:]
             vertlist = []
             for i, v in enumerate(verts[vstart:vstart+nverts]):
@@ -391,8 +389,8 @@ def create_model_meshes(model, sc, model_obj):
                 rodata['xlugdl'] = None
                 rodata['numvertices'] = ro['unk00']*4
 
-            ptr_vtx = rodata['vertices']
-            ptr_col = ptr_vtx + rodata['numvertices']*12
+            ptr_vtx = rodata['vertices'] & 0xffffff
+            ptr_col = pdu.align(ptr_vtx + rodata['numvertices']*12, 8)
             meshdata = PDMeshData(
                 model.data(rodata['opagdl']),
                 model.data(rodata['xlugdl']) if rodata['xlugdl'] else None, # xlu_gdl
@@ -407,11 +405,11 @@ def create_model_meshes(model, sc, model_obj):
             create_model_mesh(idx, model, meshdata, sc, tex_configs, model_obj, apply_mtx)
         idx += 1
 
-def import_model(romdata, model_name):
+def import_model(romdata, model_name, link=True):
     logger.debug(f'import model {model_name}')
     model = loadmodel(romdata, model_name)
 
-    model_obj = pdu.new_empty_obj(model_name)
+    model_obj = pdu.new_empty_obj(model_name, link=link)
 
     model_obj.pdmodel_props.name = model_name
     model_obj.pdmodel_props.idx = -1
@@ -463,14 +461,14 @@ def loadmodel(romdata, modelname):
     return model
 
 
-def clearImgs():
+def clear_materials():
     imglib = bpy.data.images
     for img in imglib:
         imglib.remove(img)
 
     matlib = bpy.data.materials
     for mat in matlib:
-        if mat.name.startswith('Mat-'):
+        if mat.name.startswith('Mat-') or mat.name.startswith('PD_'):
             matlib.remove(mat)
 
 from bpy.app.handlers import persistent
