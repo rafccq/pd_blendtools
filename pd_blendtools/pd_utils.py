@@ -304,11 +304,23 @@ def clear_collection(collection):
     for mesh in meshes:
         bpy.data.meshes.remove(mesh)
 
+    for group in bpy.data.node_groups:
+        bpy.data.node_groups.remove(group)
+
+def new_collection(name):
+    lib = bpy.data.collections
+    if name in lib:
+        coll = lib[name]
+        if not bpy.context.scene.user_of_id(coll):
+            bpy.context.scene.collection.children.link(coll)
+        return coll
+
+    coll = lib.new(name)
+    bpy.context.scene.collection.children.link(coll)
+    return coll
+
 def clear_scene():
-    view_layer = bpy.context.view_layer
-    clear_collection(view_layer.active_layer_collection.collection)
-    # if name not in bpy.data.collections: return
-    # collection = bpy.data.collections[name]
+    clear_collection(active_collection())
 
 def new_empty_obj(name, parent=None, dsize = 0, dtype='PLAIN_AXES', link=True):
     obj = bpy.data.objects.new(name, None)
@@ -473,8 +485,17 @@ def new_obj(name, pos, parent):
 
     collection.objects.link(obj)
 
+def s8(value):
+    return struct.unpack('b', value.to_bytes(1, 'little'))[0]
+
+def s16(value):
+    return struct.unpack('h', value.to_bytes(2, 'little'))[0]
+
 def f32(value):
     return struct.unpack('f', value.to_bytes(4, 'little'))[0]
+
+def u32(value):
+    return struct.unpack('I', value.to_bytes(4, 'little'))[0]
 
 def addon_path():
     return os.path.dirname(os.path.realpath(__file__))
