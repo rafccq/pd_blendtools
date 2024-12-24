@@ -311,7 +311,7 @@ class PD_ShaderNodeSetOtherModeL(PD_ShaderNodeBase):
             header = 'Blender (Color = (P * A + M * B) / (A + B)' if blender_textfull else 'Cycle 1'
             self.draw_blender(1, header, col, col_layout)
 
-            if self['num_cycles'] == 2:
+            if self.num_cycles == 2:
                 # col.separator(type='AUTO') #BL4.2
                 col.separator()
                 self.draw_blender(2, 'Cycle 2', col, col_layout)
@@ -338,5 +338,5 @@ class PD_ShaderNodeSetOtherModeL(PD_ShaderNodeBase):
             col2.prop(self, f'blend_b{cycle}', text='B')
 
     def set_num_cycles(self, num_cycles):
-        self['num_cycles'] = num_cycles
+        self.num_cycles = num_cycles
 
