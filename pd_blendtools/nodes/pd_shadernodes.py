@@ -32,6 +32,7 @@ classes = [
     PD_ShaderNodeTexConfig,
     PD_ShaderNodeTexLoad,
     PD_ShaderNodeSetCombine,
+    PD_ShaderNodeSetTImage,
 ]
 
 node_categories = [

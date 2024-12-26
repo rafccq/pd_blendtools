@@ -689,3 +689,17 @@ def tex_write_image(outdir, tex, filename):
         pngdata = ConversionFuncs[fmt][1](colbuffer, w, h)
 
     pdu.write_file(f'{outdir}/{filename}', pngdata, log=False)
+
+def tex_set_pixels(teximg, texdata):
+    n = len(texdata)
+
+    if teximg.format in [PDFORMAT_I4, PDFORMAT_IA4]:
+        teximg.pixels = [0]*n*2
+        for i in range(n):
+            teximg.pixels[i] = texdata[i] >> 4
+            teximg.pixels[i+1] = texdata[i] & 0xf
+    elif teximg.format in [PDFORMAT_I8, PDFORMAT_IA8, PDFORMAT_RGBA16,
+                           PDFORMAT_RGB15, PDFORMAT_RGBA16, PDFORMAT_RGB15]:
+        teximg.pixels = [0]*n
+        for i in range(n):
+            teximg.pixels[i] = texdata[i]

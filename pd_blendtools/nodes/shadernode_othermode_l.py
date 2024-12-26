@@ -273,7 +273,7 @@ class PD_ShaderNodeSetOtherModeL(PD_ShaderNodeBase):
     def draw_buttons_ext(self, context, layout):
         self.draw_props(context, layout, False, True)
 
-    def draw_props(self, context, layout, col_layout, blender_textfull=False):
+    def draw_props(self, _context, layout, col_layout, blender_textfull=False):
         col: UILayout = layout.column(align=True)
         col.label(text='Mode')
         col.context_pointer_set('enum', self.bl_rna.properties['mode'])

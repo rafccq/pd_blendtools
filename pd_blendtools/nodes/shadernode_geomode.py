@@ -32,7 +32,7 @@ class PD_ShaderNodeSetGeoMode(PD_ShaderNodeBase):
 
     opcode = 0xB7
 
-    def on_update(self, context):
+    def on_update(self, _context):
         mode_bits = 0
         for flag, bits in GEO_FLAGS.items():
             mode_bits |= bits if getattr(self, flag) else 0
@@ -50,7 +50,7 @@ class PD_ShaderNodeSetGeoMode(PD_ShaderNodeBase):
     g_texture_gen_linear: BoolProperty(name='g_texture_gen_linear', update=on_update, default=False, description=DESC_GEO_TEXTURE_GEN_LINEAR)
     g_shading_smooth: BoolProperty(name='g_shading_smooth', update=on_update, default=False, description=DESC_GEO_SHADING_SMOOTH)
 
-    def init(self, context):
+    def init(self, _context):
         self.cmd = 'B700000000060000'
         self.pd_init()
 
@@ -59,7 +59,7 @@ class PD_ShaderNodeSetGeoMode(PD_ShaderNodeBase):
         for flag, bits in GEO_FLAGS.items():
             setattr(self, flag, bool(cmd & bits))
 
-    def draw_props(self, context, layout):
+    def draw_props(self, _context, layout):
         col: UILayout = layout.column(align=True)
         for flag, _ in GEO_FLAGS.items():
             col.prop(self, flag)

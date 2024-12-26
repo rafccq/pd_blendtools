@@ -7,6 +7,20 @@ from bpy.props import (
     PointerProperty, EnumProperty, FloatProperty, BoolProperty
 )
 
+class PD_ShaderNodeSetTImage(PD_ShaderNodeBase):
+    bl_idname = 'pd.nodes.settimg'
+    bl_label = "SetTexImage"
+    bl_icon = 'TEXTURE'
+
+    def init(self, _context):
+        self.pd_init()
+
+    def draw_buttons(self, context, layout):
+        super().draw_buttons(context, layout)
+        row = layout.row()
+        row.label(text=f'IMG: {self.cmd[8:]}')
+
+
 class PD_ShaderNodeTexConfig(PD_ShaderNodeBase):
     bl_idname = 'pd.nodes.textureconfig'
     bl_label = "TextureConfig"
@@ -22,7 +36,7 @@ class PD_ShaderNodeTexConfig(PD_ShaderNodeBase):
         t = int(self.tex_scale[1] * 2**16) if t != 1.0 else 0xFFFF
         return s, t
 
-    def on_update(self, context):
+    def on_update(self, _context):
         s, t = self.get_texscale()
 
         b = self.tile_index | (self.max_lods << 3)
@@ -41,7 +55,7 @@ class PD_ShaderNodeTexConfig(PD_ShaderNodeBase):
     tile_index: bpy.props.IntProperty(name='tile_index', default=0, min=0, max=7, update=on_update)
     max_lods: bpy.props.IntProperty(name='max_lods', default=0, min=0, max=7, update=on_update)
 
-    def init(self, context):
+    def init(self, _context):
         self.pd_init()
 
     def update_ui(self):

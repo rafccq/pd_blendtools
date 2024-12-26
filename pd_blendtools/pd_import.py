@@ -38,8 +38,8 @@ def create_mesh(mesh, tex_configs, meshidx, sub_idx):
 
     obj = bpy.data.objects.new(name, mesh_data)
 
-    collection = pdu.active_collection()
-    collection.objects.link(obj)
+    # collection = pdu.active_collection()
+    # collection.objects.link(obj)
 
     logger.debug(f'[CREATEMESH {meshidx:02X}] {name}')
 
@@ -276,7 +276,7 @@ def collect_sub_meshes(pdmeshdata, idx, apply_mtx):
     MAT_CMDS = [
         G_SetOtherMode_L, G_SetOtherMode_H, G_SETCOMBINE,
         G_SETGEOMETRYMODE, G_CLEARGEOMETRYMODE,
-        G_TEXTURE, G_PDTEX
+        G_SETTIMG, G_TEXTURE, G_PDTEX
     ]
 
     while True:
@@ -428,9 +428,37 @@ def import_model(romdata, model_name, link=True):
 
     return model_obj, model
 
-def model_loadimages(romdata, model):
-   textures = [tc['texturenum'] for tc in model.texconfigs]
-   loadimages(romdata, textures)
+def loadimages_embedded(model):
+    imglib = bpy.data.images
+
+    addon_path = pdu.addon_path()
+    tex_path = f'{addon_path}/tex'
+
+    for tc in model.texconfigs:
+        texnum = tc['texturenum']
+        if not texnum & 0x05ffffff: continue
+        pdtex = tex.PDTex()
+        teximg = pdtex.image
+        fmt, w, h, d = tc['format'], tc['width'], tc['height'], tc['depth']
+
+        teximg.format = tex.tex_config_to_format(fmt, d)
+        teximg.width = w
+        teximg.height = h
+        teximg.depth = d
+
+        imgname = f'{texnum & 0xffffff:04X}.png'
+
+        if imgname not in imglib:
+            texdata = model.texdata[texnum].bytes
+            tex.tex_set_pixels(teximg, texdata)
+            tex.tex_write_image(tex_path, pdtex, imgname)
+            img = imglib.load(f'{tex_path}/{imgname}')
+            img['texinfo'] = {
+                'width': teximg.width,
+                'height': teximg.height,
+                'format': teximg.format,
+                'depth': teximg.depth,
+            }
 
 def loadimages(romdata, texnums):
     imglib = bpy.data.images
@@ -439,7 +467,9 @@ def loadimages(romdata, texnums):
     tex_path = f'{addon_path}/tex'
 
     for texnum in texnums:
-        imgname = f'{texnum:04X}.png'
+        if texnum & 0x05000000: continue
+
+        imgname = f'{texnum & 0xffffff:04X}.png'
 
         if imgname not in imglib:
             texdata = romdata.texturedata(texnum)
@@ -453,13 +483,15 @@ def loadimages(romdata, texnums):
                 'depth': teximg.depth,
             }
 
-
 def loadmodel(romdata, modelname):
     modeldata = romdata.filedata(modelname)
     model = PDModel(modeldata)
-    loadimages(romdata, [tc['texturenum'] for tc in model.texconfigs])
-    return model
 
+    loadimages(romdata, [tc['texturenum'] for tc in model.texconfigs])
+    if model.has_embedded_tex():
+        loadimages_embedded(model)
+
+    return model
 
 def clear_materials():
     imglib = bpy.data.images

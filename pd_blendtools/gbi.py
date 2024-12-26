@@ -6,6 +6,7 @@ G_CLEARGEOMETRYMODE = 0xb6
 G_SETGEOMETRYMODE   = 0xb7
 G_SetOtherMode_L    = 0xb9
 G_SetOtherMode_H    = 0xba
+G_SETTIMG           = 0xfd
 G_TEXTURE           = 0xbb
 G_PDTEX             = 0xc0
 G_RDPPIPESYNC       = 0xe7

@@ -40,13 +40,16 @@ class PDMaterialSetup:
             self.texnum = cmdint & 0xfff
             self.loadtex = True
             self.smode = (w0 >> 22) & 3
+        elif op == G_SETTIMG:
+            self.texnum = cmdint & 0xffffffff
+            self.loadtex = True
         elif op == G_SETGEOMETRYMODE:
             self.geom_mode = w1
         elif op == G_CLEARGEOMETRYMODE:
             self.geom_mode = 0
 
         # if this material already has these cmds, just replace it
-        (idx, current) = self.find_cmd(op) if op in [G_PDTEX] else (-1, None)
+        (idx, current) = self.find_cmd(op) if op in [G_PDTEX, G_SETTIMG] else (-1, None)
 
         if current:
             self.cmds[idx] = cmd
@@ -186,6 +189,8 @@ def material_setup_cmds(nodetree, matsetup):
             new_node = nodetree.nodes.new('pd.nodes.setothermodeH')
         elif op == G_TEXTURE:
             new_node = nodetree.nodes.new('pd.nodes.textureconfig')
+        elif op == G_SETTIMG:
+            new_node = nodetree.nodes.new('pd.nodes.settimg')
         elif op == G_PDTEX:
             new_node = nodetree.nodes.new('pd.nodes.textureload')
         elif op == G_SETCOMBINE:
@@ -226,7 +231,8 @@ def material_new(matsetup, use_alpha):
     node_vtxcolor = mat.node_tree.nodes['vtxcolor']
     node_vtxcolor.layer_name = 'vtxcolor'
 
-    img = f'{matsetup.texnum:04X}.png'
+    texnum = matsetup.texnum & 0xffffff
+    img = f'{texnum:04X}.png'
     imglib = bpy.data.images
     node_tex.image = imglib[img]
     node_tex.extension = tex_smode(matsetup.smode)

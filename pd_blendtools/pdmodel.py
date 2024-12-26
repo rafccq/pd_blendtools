@@ -36,10 +36,12 @@ class PDModel:
         self.nodes = {}
         self.rodatas = []
         self.texconfigs = []
-        self.texdatas = []
+        self.texdata = {}
 
         self.vertices = {}
         self.colors = {}
+
+        self.has_embedded_tex = False
 
         self._read()
 
@@ -156,7 +158,7 @@ class PDModel:
         for node in self.nodes.values():
             rd.write_block(dataout, 'modelnode', node, pad=4)
 
-        for texdata in self.texdatas:
+        for texdata in self.texdata.values():
             rd.write_block_raw(dataout, texdata)
 
         idx = 0
@@ -175,7 +177,7 @@ class PDModel:
             rd.write_block(dataout, rodata_decls[nodetype], rodata, pad=8)
             idx += 1
 
-        texaddrs = { blk.addr: blk.write_addr for blk in self.texdatas }
+        texaddrs = {blk.addr: blk.write_addr for blk in self.texdata.values()}
 
         # manually patch the texconfig pointers
         m = 0x05000000
@@ -312,7 +314,11 @@ class PDModel:
         if embeddedtex:
             self.read_texdata()
 
+    def has_embedded_tex(self):
+        return self.has_embedded_tex
+
     def read_texdata(self):
+        self.has_embedded_tex = True
         rd = self.rd
         n = len(self.texconfigs)
         texaddrs = [texconf['texturenum'] for texconf in self.texconfigs]
@@ -323,13 +329,10 @@ class PDModel:
             next = texaddrs[i+1]
 
             texdata = rd.read_block_raw(unmask(addr), unmask(next))
-            self.texdatas.append(texdata)
-            log(f'^TEX {addr:08X}:{next:08X}')
-            print_bin(f'texdata_{i}', self.texdatas[0]['bytes'], 0, 16*10, 4, 4)
+            self.texdata[addr] = texdata
 
     def data(self, ptr):
         return self.modeldata[ptr & 0xffffff:]
-        # print_bin('texdata_0', self.texdatas[0]['bytes'], 0, -1, group_size=4)
 
     def find_rodata(self, addr):
         addr = unmask(addr)

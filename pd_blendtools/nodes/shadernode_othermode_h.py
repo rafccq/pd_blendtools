@@ -170,7 +170,7 @@ class PD_ShaderNodeSetOtherModeH(PD_ShaderNodeBase):
     g_mdsft_cycletype: make_prop('g_mdsft_cycletype', UPPER_ITEMS, '1cycle', on_update)
     g_mdsft_pipelinemode: make_prop('g_mdsft_pipelinemode', UPPER_ITEMS, '1primitive', on_update)
 
-    def init(self, context):
+    def init(self, _context):
         self.pd_init()
 
     # def post_init(self):
