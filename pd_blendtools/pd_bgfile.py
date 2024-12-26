@@ -408,7 +408,7 @@ class PatchBGFile:
                 log(f'GDL #{i:02} [{start:04X}:{e:04X}]')
                 # if sz['pointer'] == 8: printGDL(gdldata.bytes, 2, 'little')
                 # else: printGDL_x86(gdldata.bytes, 2)
-                printGDL_x86(gdldata.bytes, 2)
+                printGDL(gdldata.bytes, 2)
 
             # if start not in room['_gdldata']: room['_gdldata'][start] = []
             room['_gdldata'][start] = gdldata

@@ -19,29 +19,6 @@ def printGDL(data, nspaces = 0, byte_order='big'):
     spaces = ' ' * nspaces if nspaces > 0 else ''
     addr = 0
     for i in range(0, MAX_GDL_CMDS):
-        val = data[addr:addr+16]
-        # cmd = int.from_bytes(val, byte_order)
-
-        w0 = int.from_bytes(data[addr:addr+8], byte_order)
-        w1 = int.from_bytes(data[addr+8:addr+16], byte_order)
-        code = (w0 & (0xff << 24)) >> 24
-        # code = (w0 & (0xff << 32)) >> 32
-
-        # w0 = int.from_bytes(data[addr:addr+8], byte_order)
-        # w1 = int.from_bytes(data[addr+8:addr+16], byte_order)
-        name = GDLcodes[code] if code in GDLcodes else '--'
-        print(f'{spaces}{w0<<32:016X} {w1:016X}: {name}')
-
-        val = (w0 << 32) | (w1)
-        # print(f'{spaces}{val:016X}: {name}')
-
-        if name == 'G_ENDDL': break
-        addr += 16
-
-def printGDL_x86(data, nspaces = 0, byte_order='big'):
-    spaces = ' ' * nspaces if nspaces > 0 else ''
-    addr = 0
-    for i in range(0, MAX_GDL_CMDS):
         val = data[addr:addr+8]
         cmd = int.from_bytes(val, byte_order)
 
@@ -193,7 +170,7 @@ def write_file(filename, data, log=True):
     fd.write(data)
     fd.close()
 
-    if log: print(f'file written: {dir}/{filename}')
+    if log: print(f'file written: {filename}')
 
 def read_tri4(cmd, ofs=0):
     bo = 'big'
@@ -517,3 +494,9 @@ def ini_file(filename):
         configs[tokens[0].lower()] = tokens[2]
 
     return configs
+
+def add_to_collection(obj, col_name):
+    collection = new_collection(col_name)
+    collection.objects.link(obj)
+    for child in obj.children:
+        collection.objects.link(child)

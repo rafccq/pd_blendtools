@@ -155,14 +155,15 @@ def loadroom(bgdata, roomnum, tex_configs):
         meshes += mesh
 
     for idx, mesh in enumerate(meshes):
-        mesh_obj = pdi.create_mesh(mesh, tex_configs, roomnum, idx)
-        mesh_obj.matrix_world.translation.x = x
-        mesh_obj.matrix_world.translation.y = y
-        mesh_obj.matrix_world.translation.z = z
+        room_obj = pdi.create_mesh(mesh, tex_configs, roomnum, idx)
+        room_obj.matrix_world.translation.x = x
+        room_obj.matrix_world.translation.y = y
+        room_obj.matrix_world.translation.z = z
 
         # to blender coords
         rot_mat = Euler((pi/2, 0, pi/2)).to_matrix().to_4x4()
-        mesh_obj.matrix_world = rot_mat @ mesh_obj.matrix_world
+        room_obj.matrix_world = rot_mat @ room_obj.matrix_world
+        pdu.add_to_collection(room_obj, 'Rooms')
 
 def _bg_loadlights():
     for name, decl in bgfile_decls.items(): #TMP
