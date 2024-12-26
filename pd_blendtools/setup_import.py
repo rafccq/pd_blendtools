@@ -13,6 +13,7 @@ import pd_utils as pdu
 import pd_import as pdi
 import romdata as rom
 from filenums import ModelStates
+import template_mesh as tmesh
 
 
 M_BADPI = 3.141092641
@@ -29,12 +30,12 @@ def obj_setup_mtx(obj, pad, pos, rotation=None, scale=None, flags=None, bbox=Non
     side = up.cross(look).normalized()
     up = look.cross(side).normalized()
 
-    M = Matrix(
-        (side.x, up.x, look.x, 0),
-        (side.y, up.y, look.y, 0),
-        (side.z, up.z, look.z, 0),
-        (0,0,0,1)
-    )
+    M = Matrix([
+        [side.x, up.x, look.x, 0],
+        [side.y, up.y, look.y, 0],
+        [side.z, up.z, look.z, 0],
+        [0,0,0,1]
+    ])
 
     T = Matrix.Identity(4)
     if scale:
@@ -61,8 +62,6 @@ def obj_setup_mtx(obj, pad, pos, rotation=None, scale=None, flags=None, bbox=Non
                 newpos = tuple([pos[i] - T[i][1] * ymax for i in range(3)])
             elif flags & OBJFLAG_00000008:
                 TMP = M @ T
-                for i in range(3):
-                    print(f'    [{i}] {TMP[i][1]} {TMP[1][i]}')
                 newpos = tuple([pos[i] - TMP[i][1] * ymin for i in range(3)])
             else:
                 # Row 0
@@ -122,12 +121,12 @@ def blender_align(obj):
     obj.matrix_world = rot_mat @ obj.matrix_world
 
 def setup_create_door(prop, romdata, paddata):
-    model_obj, model = obj_load_model(romdata, prop['base']['modelnum'])
-    collection = pdu.new_collection('Props')
-    collection.objects.link(model_obj)
     padnum = prop['base']['pad']
+    print(f"{padnum:02X} {prop['base']['modelnum']:04X}")
+    model_obj, model = obj_load_model(romdata, prop['base']['modelnum'])
 
-    # print('-'*40, f'{padnum:02X}')
+    pdu.add_to_collection(model_obj, 'Props')
+    padnum = prop['base']['pad']
 
     fields = PADFIELD_POS | PADFIELD_LOOK | PADFIELD_UP | PADFIELD_NORMAL | PADFIELD_BBOX
     pad = paddata.pad_unpack(padnum, fields)
@@ -144,8 +143,6 @@ def setup_create_door(prop, romdata, paddata):
     if sx <= 0.000001 or sy <= 0.000001 or sz <= 0.000001:
         sx = sy = sz = 1
 
-    # print(f'x1 {pad.bbox[3] - pad.bbox[2]} x2 {bbox.xmax - bbox.xmin}')
-
     # sc = max(sx, sy, sz)
     # sc *= pdu.f32(model.modeldef['scale'])
     model_obj['pd_padnum'] = f'{padnum:02X}'
@@ -159,19 +156,19 @@ def setup_create_door(prop, romdata, paddata):
 
 def setup_create_obj(obj, romdata, paddata):
     padnum = obj['pad']
-    print(f'{padnum:04X}')
+    # print(f'{padnum:04X}')
     if padnum == 0xffff:
-        print('TMP: skipping obj', obj)
+        print(f"TMP: skipping obj with no pad {obj['modelnum']:04X}")
         return
 
     modelnum = obj['modelnum']
-    if modelnum == 0x11:
-        print('TMP SKIPPING model', modelnum) #TMP
-        return
 
     model_obj, model = obj_load_model(romdata, modelnum)
-    collection = pdu.new_collection('Props')
-    collection.objects.link(model_obj)
+
+    model_obj['modelnum'] = f'{modelnum:04X}'
+    model_obj['pad'] = f'{padnum:04X}'
+
+    pdu.add_to_collection(model_obj, 'Props')
 
     fields = PADFIELD_POS | PADFIELD_LOOK | PADFIELD_UP | PADFIELD_NORMAL | PADFIELD_BBOX
     pad = paddata.pad_unpack(padnum, fields)
@@ -190,6 +187,8 @@ def setup_create_obj(obj, romdata, paddata):
     modelscale = ModelStates[modelnum].scale / 0x1000
 
     sx = sy = sz = 1.0
+    modelscale *= obj['extrascale'] * (1.0 / 256.0)
+
     bbox = model.find_bbox()
     if hasbbox:
         # assuming here that models always have a bbox
@@ -258,7 +257,7 @@ def setup_create_obj(obj, romdata, paddata):
     if flags & OBJFLAG_00000002: # logic from func0f06ab60
         rotation = (pi * 1.5, M_BADPI, 0)
 
-    print(f'{padnum:02X} {model_obj.name} {center}')
+    print(f'{padnum:02X} {model_obj.name}')
     obj_setup_mtx(model_obj, pad, center, rotation, scale, flags, bbox)
     blender_align(model_obj)
 
@@ -285,12 +284,14 @@ obj_types1 = [
     OBJTYPE_LIFT,
     OBJTYPE_HOVERPROP,
     OBJTYPE_HOVERCAR,
+    OBJTYPE_AMMOCRATE,
+    OBJTYPE_AUTOGUN,
+    OBJTYPE_TINTEDGLASS,
 ]
 
 obj_types2 = [
     OBJTYPE_BASIC,
     OBJTYPE_ALARM,
-    OBJTYPE_AMMOCRATE,
     OBJTYPE_DEBRIS,
     OBJTYPE_GASBOTTLE,
     OBJTYPE_29,
@@ -335,7 +336,7 @@ def import_intro(introcmds, paddata):
 def intro_obj(name, pad, padnum, sc=16):
     meshname = name.lower()
     name = f'{name}_{padnum:02X}'
-    spawn_obj = pdu.template_mesh(name, meshname)
+    spawn_obj = tmesh.create_mesh(name, meshname)
     spawn_obj.show_wire = True
     collection = pdu.new_collection('Intro')
     collection.objects.link(spawn_obj)
