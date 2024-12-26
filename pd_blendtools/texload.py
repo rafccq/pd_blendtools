@@ -14,9 +14,9 @@ PDFORMAT_IA4 = 6
 PDFORMAT_I8 = 7
 PDFORMAT_I4 = 8
 PDFORMAT_RGBA16_CI8 = 9
-PDFORMAT_RGBA16_CI4 = 10
-PDFORMAT_IA16_CI8 = 11
-PDFORMAT_IA4_CI4 = 12
+PDFORMAT_RGBA16_CI4 = 0xa
+PDFORMAT_IA16_CI8 = 0xb
+PDFORMAT_IA4_CI4 = 0xc
 
 # compression consts
 PDCOMPRESSION_HUFFMAN = 2
@@ -252,7 +252,7 @@ def tex_channels_to_pixels(src, img):
 
             if w & 1:
                 pos -= 1
-            row += w
+            row += w//2
     elif fmt == PDFORMAT_I4:
         for i in range(w*h):
             dst[i] = src[i]
@@ -513,7 +513,7 @@ def tex_inflate_lookup_from_buffer(src, img, lookup, numcolors):
             indices[i] = src[i]
     else:
         for i in range(w*h):
-            indices[i] = src[2*i]
+            indices[i] = (src[2*i + 1] << 8) | src[2*i]
 
     dst = img.pixels
     row = 0
@@ -557,9 +557,9 @@ def tex_inflate_lookup_from_buffer(src, img, lookup, numcolors):
             idxofs += w
     elif fmt in [PDFORMAT_IA4, PDFORMAT_I4]:
         for y in range(h):
-            for x in range(0, w, 2):
-                dst[row + (x >> 1)] = lookup[indices[idxofs + x]*2] << 4 | lookup[indices[idxofs + x + 1]*2]
-            row += w >> 1
+            for x in range(w):
+                dst[row + x] = lookup[indices[idxofs + x]*2 + 1]
+            row += w
             idxofs += w
 
 def tex_blur(pixels, width, height, method, chansize):
@@ -618,6 +618,39 @@ def tex_load(filedata, outdir, texid):
 
     return tex
 
+def tex_config_to_format(fmt, depth):
+    if fmt == G_IM_FMT_I:
+        if depth == G_IM_SIZ_4b:
+            return PDFORMAT_I4
+        elif depth == G_IM_SIZ_8b:
+            return PDFORMAT_I8
+
+    elif fmt == G_IM_FMT_IA:
+        if depth == G_IM_SIZ_4b:
+            return PDFORMAT_IA4
+        elif depth == G_IM_SIZ_8b:
+            return PDFORMAT_IA8
+        elif depth == G_IM_SIZ_16b:
+            return PDFORMAT_IA16
+
+    elif fmt == G_IM_FMT_CI:
+        if depth == G_IM_SIZ_4b:
+            return PDFORMAT_IA16_CI4
+        elif depth == G_IM_SIZ_8b:
+            return PDFORMAT_IA16_CI8
+
+    elif fmt == G_IM_FMT_RGBA:
+        if depth == G_IM_SIZ_4b:
+            return PDFORMAT_RGBA16_CI4
+        elif depth == G_IM_SIZ_8b:
+            return PDFORMAT_RGBA16_CI8
+        elif depth == G_IM_SIZ_16b:
+            return PDFORMAT_RGBA16
+        elif depth == G_IM_SIZ_32b:
+            return PDFORMAT_RGBA32
+
+    return PDFORMAT_I8
+
 def tex_write_image(outdir, tex, filename):
     colbuffer = bytearray()
 
@@ -630,21 +663,21 @@ def tex_write_image(outdir, tex, filename):
         PDFORMAT_RGBA32:     (copy, imu.png_rgba32),
         PDFORMAT_RGBA16:     (imu.rgba16_to_rgba32, imu.png_rgba32),
         PDFORMAT_RGB24:      (copy, imu.png_rgb24),
-        PDFORMAT_RGB15:      (imu.rgba15_to_rgb24, imu.png_rgb24),
+        PDFORMAT_RGB15:      (imu.rgb15_to_rgb24, imu.png_rgb24),
         PDFORMAT_IA8:        (imu.ia8_to_rgba32, imu.png_rgba32),
-        PDFORMAT_IA4:        (imu.ia4_to_rgba32, imu.png_rgb24),
+        PDFORMAT_IA4:        (imu.ia4_to_ia16, imu.png_ia16),
         PDFORMAT_I8:         (imu.i8_to_rgb24, imu.png_rgb24),
         PDFORMAT_I4:         (imu.i4_to_rgb24, imu.png_rgb24),
         PDFORMAT_RGBA16_CI8: (imu.rgba16_to_rgba32, imu.png_rgba32),
         PDFORMAT_RGBA16_CI4: (imu.rgba16_to_rgba32, imu.png_rgba32),
         PDFORMAT_IA16_CI8:   (imu.ia16_to_rgba32, imu.png_rgba32),
-        PDFORMAT_IA4_CI4:    (imu.ia8_to_rgba32, imu.png_rgb24),
+        PDFORMAT_IA4_CI4:    (imu.ia4_to_ia16, imu.png_ia16),
     }
 
     if fmt not in ConversionFuncs:
         print(f'ERROR: Invalid color format: {fmt}')
 
-    is_paletted = fmt in [PDFORMAT_RGBA16_CI4, PDFORMAT_RGBA16_CI8, PDFORMAT_IA16_CI8]
+    is_paletted = fmt in [PDFORMAT_RGBA16_CI4, PDFORMAT_RGBA16_CI8, PDFORMAT_IA16_CI8, PDFORMAT_IA4_CI4]
 
     if is_paletted:
         colors = ConversionFuncs[fmt][0](tex.palette, tex.numcolors)
