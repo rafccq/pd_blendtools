@@ -3,10 +3,11 @@ import os
 import time
 import pkgutil
 import importlib
+from math import pi
 
 import bpy
 import bmesh
-
+from mathutils import Euler, Vector, Matrix
 
 os.system('cls')
 
@@ -28,8 +29,10 @@ for dir in modules_dirs:
         
 
 import pd_blendtools as pdbt
+import pd_blendtools.nodes as pdnodes
 import typeinfo
 importlib.reload(pdbt)
+importlib.reload(pdnodes)
 #importlib.reload(typeinfo)
 
 submodules = {}
@@ -37,6 +40,16 @@ for modinfo in pkgutil.iter_modules(pdbt.__path__):
     submod = __import__(modinfo.name, globals(), locals(), [], 0)
     submodules[modinfo.name] = importlib.reload(submod)
     print(f'reloaded {modinfo.name}')
+
+#import pd_blendtools.nodes as pdnodes
+for modinfo in pkgutil.iter_modules(pdnodes.__path__):
+#    print(f'will reload.. {modinfo.name}')
+    submod = __import__(modinfo.name, globals(), locals(), [None], 0)
+    submodules[modinfo.name] = importlib.reload(submod)
+    print(f'reloaded {modinfo.name}')
+importlib.reload(pdnodes)
+
+#print('PATH', pdbt.nodes.__path__)
 
 pdi = submodules['pd_import']
 tiles = submodules['tiles_import']
@@ -70,24 +83,35 @@ def loadmodel(name):
     pdu.ini_file.cache_clear()
     rompath = pdp.pref_get('rompath')
     romdata = rom.Romdata(rompath)
-    pdi.import_model(romdata, name)
+    obj, _ = pdi.import_model(romdata, name, link=False)
+    pdu.add_to_collection(obj, 'Props')
+    rot_mat = Euler((pi/2, 0, pi/2)).to_matrix().to_4x4()
+    obj.matrix_world = rot_mat @ obj.matrix_world
+
 
 
 #clear()
 register()
-#loadmodel('PchrremotemineZ')
+
+#loadmodel('ProofgunZ')
 
 
 #pdi.register_handlers()
 
-#bgi.bg_import('bg_ame')
-#bgi.bg_import('bg_mp15')
-#bgi.bg_import('bg_mp4')
-#bgi.bg_import('bg_pete')
+#bgi.bg_import('bg_ame') # Defection
+#bgi.bg_import('bg_ear') # Investigation
+#bgi.bg_import('bg_mp15') # Grid
+#bgi.bg_import('bg_mp4') # Warehouse
+#bgi.bg_import('bg_eld') # Villa
+#bgi.bg_import('bg_pete') # Chicago
+#bgi.bg_import('bg_pete', range(0x5c, 0x5d))
 
 #setup.setup_import('bg_mp15', True)
 #setup.setup_import('bg_mp4', True)
 #setup.setup_import('bg_pete')
+#setup.setup_import('bg_eld')
+
+#pdu.tiles_from_obj(bpy.data.objects['Plane'])
 
 #tiles.bg_loadtiles('bg_mp15')
 
