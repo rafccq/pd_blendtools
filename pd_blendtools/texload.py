@@ -72,7 +72,7 @@ class Image:
         self.compression = 0
         self.width = 0
         self.height = 0
-        self.pixels = []
+        self.colors = []
 
 class PDTex:
     def __init__(self):
@@ -124,7 +124,7 @@ def tex_inflate_nonzlib(br):
         img.compression = br.read(4)
 
         fmt, w, h = img.format, img.width, img.height
-        img.pixels = [0] * w * h * 4
+        img.colors = [0] * w * h * 4
 
         if img.compression == PDCOMPRESSION_HUFFMAN:
             tex_inflate_huffman(br, scratch, 0, TexFormatNumChannels[fmt]*w*h, TexFormatChannelSizes[fmt])
@@ -192,7 +192,7 @@ def tex_channels_to_pixels(src, img):
     mult = w * h
     pos = 0
     row = 0
-    dst = img.pixels
+    dst = img.colors
 
     if fmt == PDFORMAT_RGBA32:
         for y in range(h):
@@ -401,7 +401,7 @@ def tex_inflate_lookup(br, image, lookup, numcolors):
     bitspercolor = tex_get_bit_size(numcolors)
     fmt, w, h = image.format, image.width, image.height
 
-    dst = image.pixels
+    dst = image.colors
     dstofs = 0
     if fmt == PDFORMAT_RGBA32:
         for y in range(h):
@@ -515,7 +515,7 @@ def tex_inflate_lookup_from_buffer(src, img, lookup, numcolors):
         for i in range(w*h):
             indices[i] = (src[2*i + 1] << 8) | src[2*i]
 
-    dst = img.pixels
+    dst = img.colors
     row = 0
     idxofs = 0
     if fmt == PDFORMAT_RGBA32:
@@ -589,7 +589,7 @@ def tex_align_indices(imgdata, img):
     fmt, width, height = img.format, img.width, img.height
     if fmt == PDFORMAT_RGBA16_CI8 or fmt == PDFORMAT_IA16_CI8:
         n = width * height
-        img.pixels = [imgdata[i] for i in range(n)]
+        img.colors = [imgdata[i] for i in range(n)]
     elif fmt == PDFORMAT_RGBA16_CI4 or fmt == PDFORMAT_IA4_CI4:
         row = 0
         for y in range(height):
@@ -597,7 +597,7 @@ def tex_align_indices(imgdata, img):
             src = imgdata[row:]
             for x in range(width):
                 value = src[x//2] & 0xf if readside else src[x//2] >> 4
-                img.pixels.append(value)
+                img.colors.append(value)
                 readside = 1 - readside
 
             row += (width+1)//2
@@ -681,11 +681,11 @@ def tex_write_image(outdir, tex, filename):
 
     if is_paletted:
         colors = ConversionFuncs[fmt][0](tex.palette, tex.numcolors)
-        for px in image.pixels:
+        for px in image.colors:
             colbuffer += bytearray([colors[px * 4 + i] for i in range(4)])
         pngdata = ConversionFuncs[fmt][1](colbuffer, w, h)
     else:
-        colbuffer = ConversionFuncs[fmt][0](image.pixels, w * h)
+        colbuffer = ConversionFuncs[fmt][0](image.colors, w * h)
         pngdata = ConversionFuncs[fmt][1](colbuffer, w, h)
 
     pdu.write_file(f'{outdir}/{filename}', pngdata, log=False)
@@ -694,12 +694,17 @@ def tex_set_pixels(teximg, texdata):
     n = len(texdata)
 
     if teximg.format in [PDFORMAT_I4, PDFORMAT_IA4]:
-        teximg.pixels = [0]*n*2
+        teximg.colors = [0] * n * 2
         for i in range(n):
-            teximg.pixels[i] = texdata[i] >> 4
-            teximg.pixels[i+1] = texdata[i] & 0xf
+            teximg.colors[i] = texdata[i] >> 4
+            teximg.colors[i + 1] = texdata[i] & 0xf
     elif teximg.format in [PDFORMAT_I8, PDFORMAT_IA8, PDFORMAT_RGBA16,
                            PDFORMAT_RGB15, PDFORMAT_RGBA16, PDFORMAT_RGB15]:
-        teximg.pixels = [0]*n
+        texsize = teximg.width * teximg.height
+        # TODO this is probably not 100% correct but for some reason some embedded textures don't have enough
+        #  color data, so to prevent an out-of-bounds access later on, we pad the color list with 0's
+        padding = texsize - n if texsize > n else 0
+        bpp = 1 if teximg.format in [PDFORMAT_I8, PDFORMAT_IA8] else 2 # bytes per pixel
+        teximg.colors = [0] * (n + padding) * bpp
         for i in range(n):
-            teximg.pixels[i] = texdata[i]
+            teximg.colors[i] = texdata[i]

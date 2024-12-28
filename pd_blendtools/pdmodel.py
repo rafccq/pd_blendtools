@@ -41,7 +41,7 @@ class PDModel:
         self.vertices = {}
         self.colors = {}
 
-        self.has_embedded_tex = False
+        self._has_embedded_tex = False
 
         self._read()
 
@@ -315,20 +315,22 @@ class PDModel:
             self.read_texdata()
 
     def has_embedded_tex(self):
-        return self.has_embedded_tex
+        return self._has_embedded_tex
 
     def read_texdata(self):
-        self.has_embedded_tex = True
+        self._has_embedded_tex = True
         rd = self.rd
         n = len(self.texconfigs)
         texaddrs = [texconf['texturenum'] for texconf in self.texconfigs]
-        texaddrs.append(self.rodatas[0].addr)
+        # texaddrs.append(self.rodatas[0].addr)
+        texaddrs.append(None)
 
         for i in range(0, n):
             addr = texaddrs[i]
             next = texaddrs[i+1]
 
-            texdata = rd.read_block_raw(unmask(addr), unmask(next))
+            end = unmask(next) if next else next
+            texdata = rd.read_block_raw(unmask(addr), end)
             self.texdata[addr] = texdata
 
     def data(self, ptr):
