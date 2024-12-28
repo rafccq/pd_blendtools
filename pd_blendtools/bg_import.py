@@ -160,6 +160,10 @@ def loadroom(bgdata, roomnum, tex_configs):
         room_obj.matrix_world.translation.y = y
         room_obj.matrix_world.translation.z = z
 
+        for mat in room_obj.data.materials:
+            if mat['has_envmap']:
+                pdm.mat_show_vtxcolors(mat)
+
         # to blender coords
         rot_mat = Euler((pi/2, 0, pi/2)).to_matrix().to_4x4()
         room_obj.matrix_world = rot_mat @ room_obj.matrix_world

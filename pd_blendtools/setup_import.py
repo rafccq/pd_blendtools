@@ -4,6 +4,7 @@ from math import pi
 import bpy
 from mathutils import Vector, Euler, Matrix
 
+import pd_materials as pdm
 from pd_setupfile import PD_SetupFile
 from pd_padsfile import PD_PadsFile, Vec3
 from decl_setupfile import *
@@ -165,6 +166,13 @@ def setup_create_obj(obj, romdata, paddata):
 
     model_obj, model = obj_load_model(romdata, modelnum)
 
+    if obj['type'] in [OBJTYPE_TINTEDGLASS, OBJTYPE_GLASS]:
+        for child in model_obj.children:
+            for mat in child.data.materials:
+                pdm.mat_remove_links(mat, 'p_bsdf', ['Base Color', 'Alpha'])
+                s = .12
+                pdm.mat_set_basecolor(mat, (s, s, s, 1))
+
     model_obj['modelnum'] = f'{modelnum:04X}'
     model_obj['pad'] = f'{padnum:04X}'
 
@@ -278,12 +286,14 @@ def setup_import(lvname, mp = False):
     import_objects(romdata, setupdata, paddata)
     import_intro(setupdata.introcmds, paddata)
 
+# these objects have a 'base' struct preceding the obj data
 obj_types1 = [
     OBJTYPE_MULTIAMMOCRATE,
     OBJTYPE_GLASS,
     OBJTYPE_LIFT,
     OBJTYPE_HOVERPROP,
     OBJTYPE_HOVERCAR,
+    OBJTYPE_HOVERBIKE,
     OBJTYPE_AMMOCRATE,
     OBJTYPE_AUTOGUN,
     OBJTYPE_TINTEDGLASS,

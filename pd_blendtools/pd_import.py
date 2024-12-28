@@ -70,8 +70,7 @@ def create_mesh(mesh, tex_configs, meshidx, sub_idx):
             vn = tuple([int.from_bytes(normcolor[i:i+1], 'big', signed=True) for i in range(0,3)])
             n = Vector((vn[0], vn[1], vn[2]))
             normals.append(n.normalized())
-            c = [float(ci/255) for ci in normcolor]
-            colors.append((1,1,1,1))
+            colors.append(tuple([ci/255.0 for ci in normcolor]))
 
         # c = normcolor
         # txtnorm = '' if hascolors else ' (N)'
@@ -337,7 +336,7 @@ def collect_sub_meshes(pdmeshdata, idx, apply_mtx):
 
                 if dbg: logger.debug(f'  {i} col {coloridx} ({c[0]:02X} {c[1]:02X} {c[2]:02X} {c[3]:02X}) mtx {mtxindex}')
 
-                hasnormal = mat_setup.has_normal()
+                hasnormal = mat_setup.has_envmap()
                 vertlist.append(VtxBufferEntry(vpos, uv, color, coloridx, nverts, mtxindex, hasnormal))
 
             mesh.add_vertices(vertlist, vtx_idx)
@@ -401,7 +400,9 @@ def create_model_meshes(model, sc, model_obj):
                 model.matrices
             )
 
-            apply_mtx = model_obj.pdmodel_props.name[0] != 'P'
+            props_with_mtx = ['ProofgunZ', 'PgroundgunZ']
+            name = model_obj.pdmodel_props.name
+            apply_mtx = name[0] != 'P' or name in props_with_mtx
             create_model_mesh(idx, model, meshdata, sc, tex_configs, model_obj, apply_mtx)
         idx += 1
 

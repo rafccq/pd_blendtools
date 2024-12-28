@@ -114,8 +114,8 @@ class PDMaterialSetup:
         self.optimize_texconfig()
         self.optimized = True
 
-    def has_normal(self):
-        return self.geom_mode & (G_LIGHTING | G_TEXTURE_GEN)
+    def has_envmap(self):
+        return bool(self.geom_mode & (G_LIGHTING | G_TEXTURE_GEN))
 
     # returns a ID for this setup, based on the commands/texture id etc
     def id(self):
@@ -223,7 +223,8 @@ def material_new(matsetup, use_alpha):
     if name in bpy.data.materials:
         return bpy.data.materials[name]
 
-    preset = 'ENV_MAPPING' if matsetup.geom_mode & (G_TEXTURE_GEN | G_LIGHTING) else 'DIFFUSE'
+    has_envmap = matsetup.has_envmap()
+    preset = 'ENV_MAPPING' if has_envmap else 'DIFFUSE'
     mat = material_from_template(name, preset)
 
     node_tex = mat.node_tree.nodes['teximage']
@@ -245,7 +246,24 @@ def material_new(matsetup, use_alpha):
     if bpy.app.version < (4, 0, 0) and use_alpha and not material_has_lighting(mat):
         mat.blend_method = 'BLEND'
 
+    mat['has_envmap'] = has_envmap
+
     return mat
+
+def mat_show_vtxcolors(mat):
+    node_bsdf = mat.node_tree.nodes['p_bsdf']
+    node_vtxcolor = mat.node_tree.nodes['vtxcolor']
+    mat.node_tree.links.new(node_bsdf.inputs['Base Color'], node_vtxcolor.outputs['Color'])
+
+def mat_remove_links(mat, nodename, inputnames):
+    node = mat.node_tree.nodes[nodename]
+    for inputname in inputnames:
+        links = node.inputs[inputname].links
+        for link in links:
+            mat.node_tree.links.remove(link)
+
+def mat_set_basecolor(mat, color):
+    mat.node_tree.nodes['p_bsdf'].inputs['Base Color'].default_value = color
 
 def material_from_template(name, preset):
     if TEMPLATE_NAME not in bpy.data.materials:
