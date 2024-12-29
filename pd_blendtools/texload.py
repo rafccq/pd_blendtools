@@ -513,7 +513,7 @@ def tex_inflate_lookup_from_buffer(src, img, lookup, numcolors):
             indices[i] = src[i]
     else:
         for i in range(w*h):
-            indices[i] = (src[2*i + 1] << 8) | src[2*i]
+            indices[i] = (src[2*i + 0] << 8) | src[2*i + 1]
 
     dst = img.colors
     row = 0
