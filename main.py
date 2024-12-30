@@ -98,18 +98,32 @@ register()
 
 #pdi.register_handlers()
 
+#bgi.bg_import('bg_dish') # Carrington Institute
 #bgi.bg_import('bg_ame') # Defection
+#bgi.bg_import('bg_ame', range(0x20, 0x30)) # Defection
 #bgi.bg_import('bg_ear') # Investigation
-#bgi.bg_import('bg_mp15') # Grid
-#bgi.bg_import('bg_mp4') # Warehouse
 #bgi.bg_import('bg_eld') # Villa
 #bgi.bg_import('bg_pete') # Chicago
-#bgi.bg_import('bg_pete', range(0x5c, 0x5d))
+#bgi.bg_import('bg_pete', range(0x5c, 0x5d)) # Chicago
+#bgi.bg_import('bg_lue') # Area 51
+#bgi.bg_import('bg_pete') # Chicago
+#bgi.bg_import('bg_azt') # Crash Site
+#bgi.bg_import('bg_rit') # Air Force One
 
+#bgi.bg_import('bg_mp15') # Grid
+#bgi.bg_import('bg_mp4') # Warehouse
+
+# ------------------ SETUPS ------------------
 #setup.setup_import('bg_mp15', True)
 #setup.setup_import('bg_mp4', True)
+#setup.setup_import('bg_dish')
+#setup.setup_import('bg_ame')
 #setup.setup_import('bg_pete')
 #setup.setup_import('bg_eld')
+#setup.setup_import('bg_ear')
+#setup.setup_import('bg_rit')
+#setup.setup_import('bg_lue')
+
 
 #pdu.tiles_from_obj(bpy.data.objects['Plane'])
 

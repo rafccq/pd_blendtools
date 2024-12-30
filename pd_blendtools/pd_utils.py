@@ -449,18 +449,17 @@ def msg_box(title, message, icon = 'INFO'):
         self.layout.label(text=message)
     bpy.context.window_manager.popup_menu(draw, title = title, icon = icon)
 
-def new_obj(name, pos, parent):
-    pos = Vector(pos)
+def new_obj(name, parent=None, dsize=50, link=True):
+    obj = new_empty_obj(name, link=link, dsize=dsize)
 
-    obj = new_empty_obj(name, dsize=50, link=False)
+    if parent:
+        obj.parent = parent
 
-    view_layer = bpy.context.view_layer
-    collection = view_layer.active_layer_collection.collection
+    if link:
+        collection = active_collection()
+        collection.objects.link(obj)
 
-    obj.location = pos
-    obj.parent = parent
-
-    collection.objects.link(obj)
+    return obj
 
 def s8(value):
     return struct.unpack('b', value.to_bytes(1, 'little'))[0]

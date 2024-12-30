@@ -4,7 +4,7 @@ from math import pi
 import bpy
 from mathutils import Euler, Vector, Matrix
 
-from pd_bgfile import PatchBGFile as PDBGFile
+from pd_bgfile import PatchBGFile as PDBGFile, ROOMBLOCKTYPE_LEAF, ROOMBLOCKTYPE_PARENT
 from decl_bgfile import bgfile_decls
 from typeinfo import TypeInfo
 import pd_utils as pdu
@@ -28,7 +28,7 @@ def bg_import(lvname, roomrange=None):
     for roomnum in roomrange:
         loadroom(bgdata, roomnum, tex_configs)
 
-    # bg_loadportals(bgdata, room1, room2)
+    bg_loadportals(bgdata, roomrange)
     # tiles.bg_loadtiles(lvname)
 
 def bg_load(lvname, loadimgs = True):
@@ -39,7 +39,6 @@ def bg_load(lvname, loadimgs = True):
 
     filename = f'bgdata/{lvname}.seg'
     bgdata = romdata.filedata(filename)
-    # pdu.print_bin(f'^{lvname.upper()}', bgdata, 0, 64)
     bgdata = PDBGFile(bgdata)
 
     print('nrooms', len(bgdata.rooms))
@@ -63,11 +62,18 @@ def bg_load(lvname, loadimgs = True):
 def bg_loadroom(room):
     bg_loadrooms(room, room)
 
-def bg_loadportals(bgdata, room_first, room_last):
+def loadportals(roomrange):
+    blend_dir = os.path.dirname(bpy.data.filepath)
+    romdata = rom.load(f'{blend_dir}/pd.ntsc-final.z64')
+    filename = f'bgdata/bg_ame.seg'
+    bgdata = romdata.filedata(filename)
+    bgdata = PDBGFile(bgdata)
+    bg_loadportals(bgdata, roomrange)
+
+def bg_loadportals(bgdata, roomrange):
     portals = bgdata.portals
     portalvtxs = bgdata.portalvertices
 
-    roomrange = range(room_first, room_last+1)
     for portalnum, portal in enumerate(portals):
         portalvtx = portalvtxs[portalnum]
         room1 = portal['roomnum1']
@@ -82,7 +88,7 @@ def bg_loadportals(bgdata, room_first, room_last):
             z = pdu.f32(v['z'])
 
             M =  Matrix.Translation((x, y, z))
-            R = Euler((pi / 2, 0, pi / 2)).to_matrix().to_4x4()
+            R = Euler((pi/2, 0, pi/2)).to_matrix().to_4x4()
             M = R @ M
             t = M.translation
             verts_bl.append((round(t.x), round(t.y), round(t.z)))
@@ -97,8 +103,7 @@ def bg_loadportals(bgdata, room_first, room_last):
         portalmat = pdm.portal_material()
         portalobj.color = (0, 0.8, 0.8, 0.4)
         portalobj.data.materials.append(portalmat)
-        collection = pdu.active_collection()
-        collection.objects.link(portalobj)
+        pdu.add_to_collection(portalobj, 'Portals')
 
 def bg_loadrooms(room_from, room_to):
     for name, decl in bgfile_decls.items():
@@ -115,59 +120,86 @@ def loadroom(bgdata, roomnum, tex_configs):
     print(f'loadroom {roomnum:02X}')
     room = bgdata.rooms[roomnum]
     gfxdata = room['gfxdata']
-    roomid = room['id']
-    pos = room['pos']
 
+    bl_room = pdu.new_obj(f'Room_{roomnum:02X}', link=False, dsize=0.0001)
+    pdu.add_to_collection(bl_room, 'Rooms')
+    bl_room.matrix_world.translation = get_vec3(room['pos'])
+
+    # to blender coords
+    rot_mat = Euler((pi / 2, 0, pi / 2)).to_matrix().to_4x4()
+    bl_room.matrix_world = rot_mat @ bl_room.matrix_world
+
+    bg_create_roomblocks(room, gfxdata['opablocks'], bl_room, tex_configs, 'opa', 0)
+    bg_create_roomblocks(room, gfxdata['xlublocks'], bl_room, tex_configs, 'xlu', 0)
+
+def get_vec3(pos):
     x = pdu.f32(pos['x'])
     y = pdu.f32(pos['y'])
     z = pdu.f32(pos['z'])
+    return x, y, z
+
+def bg_create_roomblock(room, block, rootobj, tex_configs, layer, idx):
+    gfxdata = room['gfxdata']
+    roomid = room['id']
+    roomnum = room['roomnum']
 
     room_ptr_vtx = gfxdata['vertices']
     room_ptr_cols = gfxdata['colours']
 
-    meshes = []
-    for idx, block in enumerate(room['roomblocks']):
-        if block['type'] != 0: continue
+    ptr_gdl = block['gdl|child'] - roomid
+    gdldata = room['_gdldata'][ptr_gdl].bytes
+    # pdu.print_bin(f'^GDL', gdldata, 0, 64, 8, 1)
 
-        ptr_gdl = block['gdl|child'] - roomid
-        gdldata = room['_gdldata'][ptr_gdl].bytes
-        # pdu.print_bin(f'^GDL', gdldata, 0, 64, 8, 1)
+    vtxstart = (block['vertices|coord1'] - room_ptr_vtx)
+    colstart = (block['colours'] - room_ptr_cols)
 
-        vtxstart = (block['vertices|coord1'] - room_ptr_vtx)
-        colstart = (block['colours'] - room_ptr_cols)
+    # print(f"block_{idx} vstart {vtxstart:08X} colstart {colstart:08X} {room['id'] + block.addr:08X} gdl {block['gdl|child']:08X}")
 
-        # print(f"block_{idx} vstart {vtxstart:08X} colstart {colstart:08X} {room['id'] + block.addr:08X} gdl {block['gdl|child']:08X}")
+    meshdata = pdi.PDMeshData(
+        gdldata,
+        None,  # xlu_gdl
+        None,  # ptr_vtx
+        None,  # ptr_col
+        room['vtx'].bytes[vtxstart:],
+        room['colors'].bytes[colstart:],
+        None
+    )
 
-        # vdata = room['vtx'].bytes[vtxstart:]
-        # pdu.print_bin(f'^VTX', vdata, 0, 12*8, 2, 6)
+    mesh, _ = pdi.collect_sub_meshes(meshdata, idx, False)
 
-        meshdata = pdi.PDMeshData(
-            gdldata,
-            None, # xlu_gdl
-            None, # ptr_vtx
-            None, # ptr_col
-            room['vtx'].bytes[vtxstart:],
-            room['colors'].bytes[colstart:],
-            None
-        )
+    bl_roomblock = pdi.create_mesh(mesh[0], tex_configs, roomnum, idx)
+    bl_roomblock.name = f'block {idx} ({layer}) R{roomnum:02X}'
+    bl_roomblock.parent = rootobj
+    pdu.add_to_collection(bl_roomblock, 'Rooms')
 
-        mesh, _ = pdi.collect_sub_meshes(meshdata, idx, False)
-        meshes += mesh
+    for mat in bl_roomblock.data.materials:
+        if mat['has_envmap']:
+            pdm.mat_show_vtxcolors(mat)
 
-    for idx, mesh in enumerate(meshes):
-        room_obj = pdi.create_mesh(mesh, tex_configs, roomnum, idx)
-        room_obj.matrix_world.translation.x = x
-        room_obj.matrix_world.translation.y = y
-        room_obj.matrix_world.translation.z = z
+def bg_create_roomblocks(room, rootaddr, rootobj, tex_configs, layer, idx):
+    if rootaddr == 0: return
 
-        for mat in room_obj.data.materials:
-            if mat['has_envmap']:
-                pdm.mat_show_vtxcolors(mat)
+    roomblocks = room['roomblocks']
+    rootblock = roomblocks[rootaddr]
+    roomnum = room['roomnum']
 
-        # to blender coords
-        rot_mat = Euler((pi/2, 0, pi/2)).to_matrix().to_4x4()
-        room_obj.matrix_world = rot_mat @ room_obj.matrix_world
-        pdu.add_to_collection(room_obj, 'Rooms')
+    next_block = lambda addr: roomblocks[addr] if addr else None
+
+    block = rootblock
+    while block:
+        blocktype = block['type']
+        if blocktype == ROOMBLOCKTYPE_LEAF:
+            bg_create_roomblock(room, block, rootobj, tex_configs, layer, idx)
+            block = next_block(block['next'])
+        elif blocktype == ROOMBLOCKTYPE_PARENT:
+            name = f'block {idx} ({layer}) (BSP) R{roomnum:02X}'
+            root = pdu.new_obj(name, rootobj, link=False)
+            pdu.add_to_collection(root, 'Rooms')
+            idx = bg_create_roomblocks(room, block['gdl|child'], root, tex_configs, layer, idx + 1)
+            block = next_block(block['next'])
+        idx += 1
+
+    return idx
 
 def _bg_loadlights():
     for name, decl in bgfile_decls.items(): #TMP

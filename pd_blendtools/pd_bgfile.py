@@ -170,11 +170,10 @@ class PatchBGFile:
             log(f'room #{n+1:02X}: {roomid:08X} ({rd.cursor:04X}) ------------------------^')
             n += 1
             room['id'] = roomid
+            room['roomnum'] = n
             # self.rooms[n] = room
             self.rooms.append(room)
-            # self.rooms[n] = {'id': roomid, 'addr': addr}
 
-        # self.rooms.append(room0)
         self.numrooms = n
 
     def read_lights(self):
@@ -426,11 +425,10 @@ class PatchBGFile:
         # log(f'>blocks [{self.cursor:08X}] (len={len(self.section):04X}, end={end:04X})')
 
         blockcoords = []
-        blocks = []
+        blocks = {}
 
         gdls = []
         n = 0
-        # blocksize = 4 * sz['u8'] + 4 * sz['pointer']
         blocksize = 4 * TypeInfo.sizeof('u8') + 4 * TypeInfo.sizeof('pointer')
         while (rd.cursor + blocksize) <= end:
             blockaddr = rd.cursor + offset
@@ -455,11 +453,9 @@ class PatchBGFile:
                 gdl = roomblock['gdl|child']
                 if gdl != 0: gdls.append(gdl)
 
-            blocks.append(roomblock)
-
+            blocks[blockaddr] = roomblock
             n += 1
 
-        # log(f'roomid={roomid:08X}')
         room['roomblocks'] = blocks
         rd.ofs = 0
         return gdls, blockcoords

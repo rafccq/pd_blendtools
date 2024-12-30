@@ -165,7 +165,8 @@ def create_joint(model, node, idx, depth, **kwargs):
             parentname = posNodeName(parentidx)
             parentobj = pdu.active_collection().objects[parentname]
 
-        pdu.new_obj(posNodeName(idx), (x, y, z), parentobj)
+        joint_obj = pdu.new_obj(posNodeName(idx), parentobj)
+        joint_obj.location = (x, y, z)
 
 from enum import IntEnum
 class MeshLayer(IntEnum):
