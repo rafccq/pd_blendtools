@@ -9,34 +9,7 @@ from typeinfo import TypeInfo
 import pd_utils as pdu
 import mtxpalette as mtxp
 import romdata as rom
-
-GEOFLAG_FLOOR1            = 0x0001
-GEOFLAG_FLOOR2            = 0x0002
-GEOFLAG_WALL              = 0x0004
-GEOFLAG_BLOCK_SIGHT       = 0x0008
-GEOFLAG_BLOCK_SHOOT       = 0x0010
-GEOFLAG_LIFTFLOOR         = 0x0020
-GEOFLAG_LADDER            = 0x0040
-GEOFLAG_RAMPWALL          = 0x0080
-GEOFLAG_SLOPE             = 0x0100
-GEOFLAG_UNDERWATER        = 0x0200
-GEOFLAG_0400              = 0x0400
-GEOFLAG_AIBOTCROUCH       = 0x0800
-GEOFLAG_AIBOTDUCK         = 0x1000
-GEOFLAG_STEP              = 0x2000
-GEOFLAG_DIE               = 0x4000
-GEOFLAG_LADDER_PLAYERONLY = 0x8000
-
-FLOORTYPE_DEFAULT = 0
-FLOORTYPE_WOOD    = 1
-FLOORTYPE_STONE   = 2
-FLOORTYPE_CARPET  = 3
-FLOORTYPE_METAL   = 4
-FLOORTYPE_MUD     = 5
-FLOORTYPE_WATER   = 6
-FLOORTYPE_DIRT    = 7
-FLOORTYPE_SNOW    = 8
-TILECOLOR_CMDS = ['reset', 'wallfloor', 'flag', 'floorcol', 'floortype']
+import pd_blendprops as pdprops
 
 FLOORTYPE_COLORS = [
     0xBBBBBB, # DEFAULT
@@ -50,9 +23,33 @@ FLOORTYPE_COLORS = [
     0xffffff  # SNOW
 ]
 
+yellow = (.8, .8, 0, 1)
+red = (.8, 0, 0, 1)
+white = (1, 1, 1, 1)
 
 def register():
     TypeInfo.register_all(bgtiles_decl)
+
+floortype_names = {
+    0: 'default',
+    1: 'wood',
+    2: 'stone',
+    3: 'carpet',
+    4: 'metal',
+    5: 'mud',
+    6: 'water',
+    7: 'dirt',
+    8: 'snow',
+}
+
+def tile_setprops(bl_tile, geo):
+    bl_tile.pd_obj.name = bl_tile.name
+    bl_tile.pd_obj.type = pdprops.PD_OBJTYPE_TILE
+    flags = geo['header']['flags']
+    for i in range(16):
+        bl_tile.pd_tile.flags[i] = bool(flags & (1 << i))
+    bl_tile.pd_tile.floorcol = col444_to_RGBA(geo['floorcol'])
+    bl_tile.pd_tile.floortype = floortype_names[geo['floortype']]
 
 def bg_loadtiles(lvname):
     blend_dir = os.path.dirname(bpy.data.filepath)
@@ -76,18 +73,15 @@ def bg_loadtiles(lvname):
 
             basename = f'Tile_{idx:02X}'
             tilemesh = pdu.mesh_from_verts(verts, f'{basename}_mesh', triangulate=False)
-            tileobj = bpy.data.objects.new(f'{basename}', tilemesh)
-            tileobj['flags'] = geo['header']['flags']
-            tileobj['floorcol'] = geo['floorcol']
-            tileobj['floortype'] = geo['floortype']
-            # tileobj.display_type = 'WIRE'
-            tileobj.show_wire = True
-            collection = pdu.active_collection()
-            collection.objects.link(tileobj)
+            bl_tile = bpy.data.objects.new(f'{basename}', tilemesh)
+            bl_tile['flags'] = geo['header']['flags']
+            bl_tile['floorcol'] = geo['floorcol']
+            bl_tile['floortype'] = geo['floortype']
+            # bl_tile.display_type = 'WIRE'
+            bl_tile.show_wire = True
+            pdu.add_to_collection(bl_tile, 'Tiles')
+            tile_setprops(bl_tile, geo)
 
-yellow = (.8, .8, 0, 1)
-red = (.8, 0, 0, 1)
-white = (1, 1, 1, 1)
 def col444_to_RGBA(col):
     r = ((col & 0xf00) >> 8) / 15
     g = ((col & 0x0f0) >> 4) / 15
@@ -95,31 +89,45 @@ def col444_to_RGBA(col):
 
     return r, g, b, 1
 
-def bg_colortiles(cmd, flag=None):
-    if cmd not in TILECOLOR_CMDS: raise RuntimeError(f'bg_colortiles() Invalid cmd {cmd}')
+def bg_colortile(bl_tile, context, flags=None):
+    scn = context.scene
+    mode = scn.pd_tile_hilightmode
+
+    affected = 0
+    props_tile = bl_tile.pd_tile
+
+    color = white
+    if mode == 'wallfloor':
+        flags = tile_flags(props_tile.flags)
+        isfloor = (flags & GEOFLAG_FLOOR1) or (flags & GEOFLAG_FLOOR2)
+        iswall = flags & GEOFLAG_WALL
+        if isfloor: color = yellow
+        elif iswall: color = red
+        affected = 1
+    elif mode == 'floorcolor':
+        color = props_tile.floorcol
+        affected = 1
+    elif mode == 'flags':
+        tileflags = tile_flags(props_tile.flags)
+        affected = 1 if tileflags & flags else 0
+        color = red if affected else white
+    elif mode == 'floortype':
+        floortype = props_tile.floortype
+        floortype = pdprops.FLOORTYPES_VALUES[floortype]
+        hexcol = FLOORTYPE_COLORS[floortype]
+        color = mtxp.hex2col(hexcol)
+        affected = 1
+
+    bl_tile.color = color
+
+    return affected
+
+def bg_colortiles(context):
+    scn = context.scene
+    flags = tile_flags(scn.pd_tile_hilight.flags)
 
     numaffected = 0
-    for tile in bpy.context.scene.objects:
-        if not tile.name.startswith('Tile_'): continue
+    for bl_tile in bpy.data.collections['Tiles'].objects:
+        numaffected += bg_colortile(bl_tile, context, flags)
 
-        color = white
-        if cmd == 'wallfloor':
-            flags = tile['flags']
-            isfloor = (flags & GEOFLAG_FLOOR1) or (flags & GEOFLAG_FLOOR2)
-            color = yellow if isfloor else red
-            numaffected += 1
-        elif cmd == 'floorcol':
-            color = col444_to_RGBA(tile['floorcol'])
-            numaffected += 1
-        elif cmd == 'flag':
-            flags = tile['flags']
-            color = red if flags & flag else white
-            if flags & flag: numaffected += 1
-        elif cmd == 'floortype':
-            floortype = tile['floortype']
-            hexcol = FLOORTYPE_COLORS[floortype]
-            color = mtxp.hex2col(hexcol)
-
-        tile.color = color
-
-    print(f'tiles tagged: {numaffected}')
+    return numaffected

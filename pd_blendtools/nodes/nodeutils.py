@@ -3,7 +3,7 @@ from bpy.props import (
 )
 
 def make_id(name):
-    for c in [' ', '(', ')', '[', ']', '{', '}', '.', '?', '//']:
+    for c in [' ', '(', ')', '[', ']', '{', '}', '.', '?', '/']:
         name = name.replace(c, '')
     return name.lower()
 

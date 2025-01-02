@@ -12,11 +12,15 @@ import pd_import as pdi
 import pd_materials as pdm
 import tiles_import as tiles
 import romdata as rom
+import pd_blendprops as pdprops
 
 def register():
     TypeInfo.register_all(bgfile_decls)
 
 def bg_import(lvname, roomrange=None):
+    scn = bpy.context.scene
+    scn['rooms'] = {}
+
     bgdata, tex_configs = bg_load(lvname)
 
     # room1, room2 = 0x10, 0x37
@@ -29,7 +33,7 @@ def bg_import(lvname, roomrange=None):
         loadroom(bgdata, roomnum, tex_configs)
 
     bg_loadportals(bgdata, roomrange)
-    # tiles.bg_loadtiles(lvname)
+    tiles.bg_loadtiles(lvname)
 
 def bg_load(lvname, loadimgs = True):
     print(f'bgload {lvname}')
@@ -79,7 +83,10 @@ def bg_loadportals(bgdata, roomrange):
         room1 = portal['roomnum1']
         room2 = portal['roomnum2']
 
-        if room1 not in roomrange and room2 not in roomrange: continue
+        if room1 not in roomrange and room2 not in roomrange:
+            print(f'WARNING: Portal {portalnum} is invalid, room1: {room1} room2: {room2}')
+            continue
+
         verts = portalvtx['vertices']
         verts_bl = []
         for v in verts:
@@ -97,13 +104,22 @@ def bg_loadportals(bgdata, roomrange):
 
         basename = f'portal_{portalnum:02X}'
         portalmesh = pdu.mesh_from_verts(verts_bl, f'{basename}_mesh')
-        portalobj = bpy.data.objects.new(f'{basename}({room1:02X}-{room2:02X})', portalmesh)
-        # portalobj.display_type = 'WIRE'
-        portalobj.show_wire = True
+        bl_portal = bpy.data.objects.new(f'{basename}({room1:02X}-{room2:02X})', portalmesh)
+        # bl_portal.display_type = 'WIRE'
+        bl_portal.show_wire = True
         portalmat = pdm.portal_material()
-        portalobj.color = (0, 0.8, 0.8, 0.4)
-        portalobj.data.materials.append(portalmat)
-        pdu.add_to_collection(portalobj, 'Portals')
+        # bl_portal.color = (0, 0.8, 0.8, 0.4)
+        bl_portal.color = (0, 0.8, 0.8, 0)
+        bl_portal.data.materials.append(portalmat)
+        pdu.add_to_collection(bl_portal, 'Portals')
+        bl_portal.pd_obj.name = basename
+        bl_portal.pd_obj.type = pdprops.PD_OBJTYPE_PORTAL
+        bl_portal.display_type = 'WIRE'
+
+        scn = bpy.context.scene
+        rooms = scn['rooms']
+        bl_portal.pd_portal.room1 = rooms[str(room1)]
+        bl_portal.pd_portal.room2 = rooms[str(room2)]
 
 def bg_loadrooms(room_from, room_to):
     for name, decl in bgfile_decls.items():
@@ -122,6 +138,11 @@ def loadroom(bgdata, roomnum, tex_configs):
     gfxdata = room['gfxdata']
 
     bl_room = pdu.new_obj(f'Room_{roomnum:02X}', link=False, dsize=0.0001)
+
+    bl_room.pd_obj.name = bl_room.name
+    bl_room.pd_obj.type = pdprops.PD_OBJTYPE_ROOM
+    bl_room.pd_room.roomnum = roomnum
+
     pdu.add_to_collection(bl_room, 'Rooms')
     bl_room.matrix_world.translation = get_vec3(room['pos'])
 
@@ -132,11 +153,25 @@ def loadroom(bgdata, roomnum, tex_configs):
     bg_create_roomblocks(room, gfxdata['opablocks'], bl_room, tex_configs, 'opa', 0)
     bg_create_roomblocks(room, gfxdata['xlublocks'], bl_room, tex_configs, 'xlu', 0)
 
+    bpy.context.scene['rooms'][str(roomnum)] = bl_room
+
 def get_vec3(pos):
     x = pdu.f32(pos['x'])
     y = pdu.f32(pos['y'])
     z = pdu.f32(pos['z'])
     return x, y, z
+
+def roomblock_set_props(bl_roomblock, blocknum, layer, blocktype, bsp_pos=None, bsp_norm=None):
+    bl_roomblock.pd_obj.name = f'block {blocknum}'
+    bl_roomblock.pd_obj.type = pdprops.PD_OBJTYPE_ROOMBLOCK
+
+    bl_roomblock.pd_room.blocknum = blocknum
+    bl_roomblock.pd_room.layer = layer
+    bl_roomblock.pd_room.blocktype = blocktype
+
+    if bsp_pos:
+        bl_roomblock.pd_room.bsp_position = bsp_pos
+        bl_roomblock.pd_room.bsp_normal = bsp_norm
 
 def bg_create_roomblock(room, block, rootobj, tex_configs, layer, idx):
     gfxdata = room['gfxdata']
@@ -171,13 +206,14 @@ def bg_create_roomblock(room, block, rootobj, tex_configs, layer, idx):
     bl_roomblock.name = f'block {idx} ({layer}) R{roomnum:02X}'
     bl_roomblock.parent = rootobj
     pdu.add_to_collection(bl_roomblock, 'Rooms')
+    roomblock_set_props(bl_roomblock, idx, layer, 'Display List')
 
     for mat in bl_roomblock.data.materials:
         if mat['has_envmap']:
             pdm.mat_show_vtxcolors(mat)
 
 def bg_create_roomblocks(room, rootaddr, rootobj, tex_configs, layer, idx):
-    if rootaddr == 0: return
+    if rootaddr == 0: return idx
 
     roomblocks = room['roomblocks']
     rootblock = roomblocks[rootaddr]
@@ -193,10 +229,12 @@ def bg_create_roomblocks(room, rootaddr, rootobj, tex_configs, layer, idx):
             block = next_block(block['next'])
         elif blocktype == ROOMBLOCKTYPE_PARENT:
             name = f'block {idx} ({layer}) (BSP) R{roomnum:02X}'
-            root = pdu.new_obj(name, rootobj, link=False)
-            pdu.add_to_collection(root, 'Rooms')
-            idx = bg_create_roomblocks(room, block['gdl|child'], root, tex_configs, layer, idx + 1)
+            bl_rootblock = pdu.new_obj(name, rootobj, link=False, dsize=0.0001)
+            pdu.add_to_collection(bl_rootblock, 'Rooms')
+            roomblock_set_props(bl_rootblock, idx, layer, 'BSP') # TODO BSP pos/normal
+            idx = bg_create_roomblocks(room, block['gdl|child'], bl_rootblock, tex_configs, layer, idx + 1)
             block = next_block(block['next'])
+
         idx += 1
 
     return idx

@@ -27,18 +27,21 @@ from bpy.app.handlers import persistent
 from typeinfo import TypeInfo
 from decl_model import model_decls
 from pd_addonprefs import PD_AddonPreferences
+import pd_blendprops as pdprops
 
-import nodes.pd_shadernodes as pdn
+import pd_shadernodes as pdn
+# import nodes.pd_shadernodes as pdn
 import pd_panels
-import pd_ops as pdo
+import pd_ops as pdops
 import mtxpalette_panel as mtxp
 import pd_addonprefs as pdp
 
 submodules = [
     pdn,
     pd_panels,
-    pdo,
-    mtxp
+    pdops,
+    mtxp,
+    pdprops,
 ]
 
 
@@ -87,4 +90,4 @@ def pd_load_handler(_dummy):
     mtxp.gen_icons(context) # we need to generate the mtx icons again
     rompath = pdp.pref_get(pdp.PD_PREF_ROMPATH)
     if rompath:
-        pdo.PDTOOLS_OT_LoadRom.load_rom(context, rompath)
+        pdops.PDTOOLS_OT_LoadRom.load_rom(context, rompath)
