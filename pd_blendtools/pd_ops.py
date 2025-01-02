@@ -11,6 +11,9 @@ import pd_import as pdi
 import pd_export as pde
 import pd_utils as pdu
 import pd_addonprefs as pdp
+import pd_blendprops as pdprops
+import bg_utils as bgu
+import tiles_import as tiles
 from mtxpalette_panel import gen_icons
 
 class PDTOOLS_OT_LoadRom(Operator, ImportHelper):
@@ -115,6 +118,60 @@ class PDTOOLS_OT_SelectVertsUnassignedMtxs(Operator):
         pdu.redraw_ui()
         return {'FINISHED'}
 
+
+class PDTOOLS_OT_PortalFindRooms(Operator):
+    bl_idname = "pdtools.portal_find_rooms"
+    bl_label = "Auto Find"
+    bl_description = "Find and assign 2 nearest rooms to the portal"
+
+    def execute(self, context):
+        bl_portal = context.active_object
+        rooms = bgu.portal_find_rooms(bl_portal)
+        print(rooms)
+        # TODO check result
+
+        props_portal = bl_portal.pd_portal
+        props_portal.room1 = rooms[0]
+        props_portal.room2 = rooms[1]
+
+        return {'FINISHED'}
+
+class PDTOOLS_OT_TileApplyProps(Operator):
+    bl_idname = "pdtools.tile_apply_props"
+    bl_label = "Apply Tile Props"
+    bl_description = "Apply Props to Selected Tiles"
+
+    def execute(self, context):
+        prop = context.pd_tile
+        for bl_tile in context.selected_objects:
+            bl_tile.pd_tile.flags = prop.flags
+            bl_tile.pd_tile.floorcol = prop.floorcol
+            bl_tile.pd_tile.floortype = prop.floortype
+            # bl_tile.pd_tile.room = prop.room
+        n = tiles.bg_colortiles(context)
+        return {'FINISHED'}
+
+
+class PDTOOLS_OT_RoomCreatePortalBetween(Operator):
+    bl_idname = "pdtools.room_create_portal_between"
+    bl_label = "Create Portal"
+    bl_description = "Create Portal Between Rooms"
+
+    @classmethod
+    def poll(cls, context):
+        sel = context.selected_objects
+        n = len(sel)
+        isroom = lambda o: (o.pd_obj.type & 0xff00) == pdprops.PD_OBJTYPE_ROOMBLOCK
+        # typeok = all([(o.pd_obj.type & 0xff00) == pdprops.PD_OBJTYPE_ROOMBLOCK for o in sel])
+        return n == 2 and isroom(sel[0]) and isroom(sel[1])
+
+    def execute(self, context):
+        sel = context.selected_objects
+        room1 = sel[0]
+        room2 = sel[1]
+        return {'FINISHED'}
+
+
 class PDTOOLS_OT_SelectDirectory(Operator):
     bl_idname = "pdtools.select_directory"
     bl_label = "Select Directory"
@@ -124,13 +181,13 @@ class PDTOOLS_OT_SelectDirectory(Operator):
     directory: StringProperty(
         name="Path",
         description="Select Directory"
-        )
+    )
 
     # Filters folders
     filter_folder: BoolProperty(
         default=True,
         options={"HIDDEN"}
-        )
+    )
 
     def execute(self, context):
         print("Selected dir: '" + self.directory + "'")
@@ -191,6 +248,22 @@ class PDTOOLS_OT_ImportModelFromROM(Operator):
                                   scn, "pdmodel_listindex", rows=20)
 
 
+class PDTOOLS_OT_MessageBox(bpy.types.Operator):
+    bl_idname = "pdtools.messagebox"
+    bl_label = "Message Box"
+    # bl_options = {'REGISTER', 'INTERNAL'}
+
+    msg: StringProperty(default='')
+
+    def execute(self, context):
+        self.report({'INFO'}, self.msg)
+        print(f'OP: {self.msg}')
+        return {'FINISHED'}
+
+    def invoke(self, context, event):
+        return self.execute(context)
+
+
 classes = [
     PDTOOLS_OT_LoadRom,
     PDTOOLS_OT_ImportModelFromROM,
@@ -199,6 +272,10 @@ classes = [
     PDTOOLS_OT_ExportModel,
     PDTOOLS_OT_SelectVertsUnassignedMtxs,
     PDTOOLS_OT_SelectDirectory,
+    PDTOOLS_OT_PortalFindRooms,
+    PDTOOLS_OT_RoomCreatePortalBetween,
+    PDTOOLS_OT_TileApplyProps,
+    PDTOOLS_OT_MessageBox,
 ]
 
 def register():
