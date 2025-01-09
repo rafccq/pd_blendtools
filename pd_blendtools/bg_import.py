@@ -8,6 +8,7 @@ from pd_bgfile import PatchBGFile as PDBGFile, ROOMBLOCKTYPE_LEAF, ROOMBLOCKTYPE
 from decl_bgfile import bgfile_decls
 from typeinfo import TypeInfo
 import pd_utils as pdu
+import bg_utils as bgu
 import pd_import as pdi
 import pd_materials as pdm
 import tiles_import as tiles
@@ -106,15 +107,7 @@ def bg_loadportals(bgdata, roomrange):
         portalmesh = pdu.mesh_from_verts(verts_bl, f'{basename}_mesh')
         bl_portal = bpy.data.objects.new(f'{basename}({room1:02X}-{room2:02X})', portalmesh)
         # bl_portal.display_type = 'WIRE'
-        bl_portal.show_wire = True
-        portalmat = pdm.portal_material()
-        # bl_portal.color = (0, 0.8, 0.8, 0.4)
-        bl_portal.color = (0, 0.8, 0.8, 0)
-        bl_portal.data.materials.append(portalmat)
-        pdu.add_to_collection(bl_portal, 'Portals')
-        bl_portal.pd_obj.name = basename
-        bl_portal.pd_obj.type = pdprops.PD_OBJTYPE_PORTAL
-        bl_portal.display_type = 'WIRE'
+        bgu.init_portal(bl_portal, basename)
 
         scn = bpy.context.scene
         rooms = scn['rooms']
@@ -147,8 +140,8 @@ def loadroom(bgdata, roomnum, tex_configs):
     bl_room.matrix_world.translation = get_vec3(room['pos'])
 
     # to blender coords
-    rot_mat = Euler((pi / 2, 0, pi / 2)).to_matrix().to_4x4()
-    bl_room.matrix_world = rot_mat @ bl_room.matrix_world
+    R = Euler((pi / 2, 0, pi / 2)).to_matrix().to_4x4()
+    bl_room.matrix_world = R @ bl_room.matrix_world
 
     bg_create_roomblocks(room, gfxdata['opablocks'], bl_room, tex_configs, 'opa', 0)
     bg_create_roomblocks(room, gfxdata['xlublocks'], bl_room, tex_configs, 'xlu', 0)
@@ -205,6 +198,7 @@ def bg_create_roomblock(room, block, rootobj, tex_configs, layer, idx):
     bl_roomblock = pdi.create_mesh(mesh[0], tex_configs, roomnum, idx)
     bl_roomblock.name = f'block {idx} ({layer}) R{roomnum:02X}'
     bl_roomblock.parent = rootobj
+    bl_roomblock.color = (0,0,0,1)
     pdu.add_to_collection(bl_roomblock, 'Rooms')
     roomblock_set_props(bl_roomblock, idx, layer, 'Display List')
 
