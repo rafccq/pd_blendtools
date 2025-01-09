@@ -189,10 +189,22 @@ class PDTOOLS_PT_TileTools(Panel):
             container = box.grid_flow(columns=2, align=True)
             for idx, flag in enumerate(TILE_FLAGS):
                 container.prop(scn.pd_tile_hilight, 'flags', index=idx, text=flag, toggle=True)
+        elif scn.pd_tile_hilightmode == 'room':
+            container = box.row()
+            # container.label(text='Room')
+            container.prop(scn.pd_tile_hilight, 'room', text='Room')
+
+        row = layout.row()
+        row.operator('pdtools.op_tiles_select_room', text='Select All In The Same Room')
+
+        bl_tile = context.active_object
+        nsel = len(context.selected_objects)
+        row.enabled = bool(bl_tile) and pdu.pdtype(bl_tile) == pdprops.PD_OBJTYPE_TILE and nsel == 1
+        # col.operator('pdtools.room_split_by_portal', text='Split By Portal')
 
 
 class PDTOOLS_PT_RoomTools(Panel):
-    bl_label = 'Rooms Tools'
+    bl_label = 'Room Tools'
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
     bl_category = "PD Tools"

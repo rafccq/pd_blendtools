@@ -50,6 +50,11 @@ def tile_setprops(bl_tile, geo):
         bl_tile.pd_tile.flags[i] = bool(flags & (1 << i))
     bl_tile.pd_tile.floorcol = col444_to_RGBA(geo['floorcol'])
     bl_tile.pd_tile.floortype = floortype_names[geo['floortype']]
+    roomnum = geo['room']
+    bl_tile.pd_tile.roomnum = roomnum
+    scn = bpy.context.scene
+    if 'rooms' in scn and roomnum != 0:
+        bl_tile.pd_tile.room = scn['rooms'][str(roomnum)]
 
 def bg_loadtiles(lvname):
     blend_dir = os.path.dirname(bpy.data.filepath)
@@ -89,7 +94,7 @@ def col444_to_RGBA(col):
 
     return r, g, b, 1
 
-def bg_colortile(bl_tile, context, flags=None):
+def bg_colortile(bl_tile, context, flags=None, room=None):
     scn = context.scene
     mode = scn.pd_tile_hilightmode
 
@@ -117,6 +122,9 @@ def bg_colortile(bl_tile, context, flags=None):
         hexcol = FLOORTYPE_COLORS[floortype]
         color = mtxp.hex2col(hexcol)
         affected = 1
+    elif mode == 'room':
+        affected = 1 if props_tile.room == room else 0
+        color = red if affected else white
 
     bl_tile.color = color
 
@@ -125,9 +133,10 @@ def bg_colortile(bl_tile, context, flags=None):
 def bg_colortiles(context):
     scn = context.scene
     flags = tile_flags(scn.pd_tile_hilight.flags)
+    room = scn.pd_tile_hilight.room
 
     numaffected = 0
     for bl_tile in bpy.data.collections['Tiles'].objects:
-        numaffected += bg_colortile(bl_tile, context, flags)
+        numaffected += bg_colortile(bl_tile, context, flags, room)
 
     return numaffected

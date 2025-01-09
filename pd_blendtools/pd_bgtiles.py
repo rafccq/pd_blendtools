@@ -61,24 +61,9 @@ class PatchBGTiles:
                 room += 1
             # log(f'  geo # {i:04X} t {geotype:02X} ({geotypes[geotype]}) n {numvtx:04d}')
 
-            decl = ''
             if geotype == GEOTYPE_TILE_I:
                 TypeInfo.register('geotilei', decl_geotilei, varmap={'N': numvtx})
                 geo = rd.read_block('geotilei')
-                decl = 'geotilei'
-                for v in range(0, numvtx*3, 3):
-                    x = geo['vertices'][v]
-                    y = geo['vertices'][v+1]
-                    z = geo['vertices'][v+2]
-
-                    x = np.int16(x)
-                    y = np.int16(y)
-                    z = np.int16(z)
-
-                    xmin, xmax = geo['xmin']*6+14, geo['xmax']*6+14
-                    ymin, ymax = geo['ymin']*6+16, geo['ymax']*6+16
-                    zmin, zmax = geo['zmin']*6+18, geo['zmax']*6+18
-                    # print(f'  {x:.3f} {y:.3f} {z:.3f} bbox ({xmin} {xmax} {ymin} {ymax} {zmin} {zmax})')
             elif geotype == GEOTYPE_TILE_F:
                 TypeInfo.register('geotilef', decl_geotilei, varmap={'N': numvtx})
                 geo = rd.read_block('geotilef')
@@ -90,6 +75,7 @@ class PatchBGTiles:
                 log(f'WARNING: wrong geo geotype {geotype:02X}')
                 break
 
+            geo['room'] = room-1
             self.geos.append(geo)
             i += 1
 

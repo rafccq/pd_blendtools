@@ -5,7 +5,7 @@ from bpy.utils import register_class, unregister_class
 from mathutils import Vector, Matrix
 
 import nodes.nodeutils as ndu
-import pd_utils
+import pd_utils as pdu
 import tiles_import as tiles
 from decl_bgtiles import *
 
@@ -42,18 +42,15 @@ class PDObject_RoomBlock(PropertyGroup):
     bsp_normal: FloatVectorProperty(name='bsp_normal', default=(1,0,0), options={'LIBRARY_EDITABLE'})
 
 
-def on_update_room(self, context):
-    pdtype = self.room1.pd_obj.type
-    valid = pdtype & 0xff00 == PD_OBJTYPE_ROOM
-    # print('update room', 'valid' if valid else 'INVALID')
-
 def check_isroom(_scene, obj):
-    pdtype = obj.pd_obj.type
-    return pdtype & 0xff00 == PD_OBJTYPE_ROOM
+    return pdu.pdtype(obj) == PD_OBJTYPE_ROOM
+
+def check_isportal(_scene, obj):
+    return pdu.pdtype(obj) == PD_OBJTYPE_PORTAL
 
 class PDObject_Portal(PropertyGroup):
-    room1: PointerProperty(name='room1', update=on_update_room, type=bpy.types.Object, poll=check_isroom, options={'LIBRARY_EDITABLE'})
-    room2: PointerProperty(name='room2', update=on_update_room, type=bpy.types.Object, poll=check_isroom, options={'LIBRARY_EDITABLE'})
+    room1: PointerProperty(name='room1', type=bpy.types.Object, poll=check_isroom, options={'LIBRARY_EDITABLE'})
+    room2: PointerProperty(name='room2', type=bpy.types.Object, poll=check_isroom, options={'LIBRARY_EDITABLE'})
 
 
 # cycle independent params
@@ -70,7 +67,6 @@ TILE_FLOORTYPES = [
 ]
 
 FLOORTYPES_VALUES = { name.lower(): val for name, _, val in TILE_FLOORTYPES }
-
 
 TILE_FLAGS = [
     'Floor1',
@@ -92,23 +88,27 @@ TILE_FLAGS = [
 ]
 
 TILE_HIGHLIGHT_MODE = [
-    ('Floor Color', 'Tile Floor Color',                     0),
-    ('Uniform',     'Constant Color For All Tiles',         1),
-    ('Wall/Floor',  'Highlight Wall or Floor Tiles',        2),
-    ('Flags',       'Highlight Tiles Based On Flags',       3),
-    ('Floor Type',  'Highlight Tiles Based On Floor Type',  4),
+    ('Floor Color', 'Tile Floor Color',                      0),
+    ('Floor Type',  'Highlight Tiles Based On Floor Type',   1),
+    ('Uniform',     'Constant Color For All Tiles',          2),
+    ('Wall/Floor',  'Highlight Wall or Floor Tiles',         3),
+    ('Flags',       'Highlight Tiles Based On Flags',        4),
+    ('Room',        'Highlight All Tiles From Room',         5),
 ]
+
 
 class PDObject_Tile(PropertyGroup):
     def update_scene_tiles(self, context):
         src = repr(self)
-        # print(src, self)
         if src.startswith('bpy.data.objects'):
+            if self.room: self.roomnum = self.room.pd_room.roomnum
+
             scn = context.scene
             mode = scn.pd_tile_hilightmode
             flags = tile_flags(scn.pd_tile_hilight.flags) if mode in ['flags', 'wallfloor'] else None
+
             if context.active_object:
-                tiles.bg_colortile(context.active_object, context, flags)
+                tiles.bg_colortile(context.active_object, context, flags, scn.pd_tile_hilight.room)
         elif src.startswith('bpy.data.scenes'):
             numaffected = tiles.bg_colortiles(context)
             msg = f'{numaffected} Tiles Affected'
@@ -121,6 +121,8 @@ class PDObject_Tile(PropertyGroup):
     flags: BoolVectorProperty(name='flags', size=len(TILE_FLAGS), update=update_scene_tiles, options={'LIBRARY_EDITABLE'})
     floorcol: FloatVectorProperty(name='floorcol', subtype='COLOR', size=4, min=0, max=1, update=update_scene_tiles, options={'LIBRARY_EDITABLE'})
     floortype: ndu.make_prop('floortype', {'floortype': TILE_FLOORTYPES}, 'default', update_scene_tiles)
+    roomnum: IntProperty(name='roomnum', default=0, options={'LIBRARY_EDITABLE'})
+    room: PointerProperty(name='room', update=update_scene_tiles, type=bpy.types.Object, poll=check_isroom, options={'LIBRARY_EDITABLE'})
 
 classes = [
     PDObject,
@@ -178,6 +180,7 @@ def register():
     Scene.pd_tile_hilight = bpy.props.PointerProperty(type=PDObject_Tile)
     Scene.pd_tile_hilightmode = ndu.make_prop('pd_tile_hilightmode', {'pd_tile_hilightmode': TILE_HIGHLIGHT_MODE}, 'floorcolor', update_scene_tilehighlight)
     Scene.pd_room_goto = bpy.props.PointerProperty(type=bpy.types.Object, update=update_scene_roomgoto, poll=check_isroom)
+    Scene.pd_portal = bpy.props.PointerProperty(type=bpy.types.Object, poll=check_isportal)
 
 def unregister():
     del Object.pd_tile
