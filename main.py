@@ -27,12 +27,19 @@ for dir in modules_dirs:
         print('added to path: ', dir)
         sys.path.append(dir)
         
+# try to unregister
+import nodes.pd_shadernodes as pdn
+#try:
+#    pdn.unregister()
+#except RuntimeError as err:
+#    print('unregister error:', err)
+#    pass
 
 import pd_blendtools as pdbt
 import pd_blendtools.nodes as pdnodes
 import typeinfo
 importlib.reload(pdbt)
-importlib.reload(pdnodes)
+#importlib.reload(pdnodes)
 #importlib.reload(typeinfo)
 
 submodules = {}
@@ -43,11 +50,11 @@ for modinfo in pkgutil.iter_modules(pdbt.__path__):
 
 #import pd_blendtools.nodes as pdnodes
 for modinfo in pkgutil.iter_modules(pdnodes.__path__):
-#    print(f'will reload.. {modinfo.name}')
     submod = __import__(modinfo.name, globals(), locals(), [None], 0)
     submodules[modinfo.name] = importlib.reload(submod)
     print(f'reloaded {modinfo.name}')
-importlib.reload(pdnodes)
+
+#importlib.reload(pdnodes)
 
 #print('PATH', pdbt.nodes.__path__)
 
@@ -55,19 +62,16 @@ pdi = submodules['pd_import']
 tiles = submodules['tiles_import']
 setup = submodules['setup_import']
 bgi = submodules['bg_import']
+bgu = submodules['bg_utils']
 pdm = submodules['pd_materials']
 pdu = submodules['pd_utils']
 pdp = submodules['pd_addonprefs']
 rom = submodules['romdata']
-import nodes.pd_shadernodes as pdn
+pdops = submodules['pd_ops']
+
 
 def register():
-    try:
-        pdn.unregister()
-    except RuntimeError as err:
-        print('unregister error:', err)
-        pass
-
+    pdops.remove_menu()
 #    pdn.register()
     tiles.register()
     setup.register()
@@ -95,8 +99,10 @@ register()
 
 #loadmodel('ProofgunZ')
 
+#bgu.new_room_from_selection(bpy.context)
+#bgu.new_portal_from_selection(bpy.context)
+#bgu.new_portal_from_edge(bpy.context)
 
-#pdi.register_handlers()
 
 #bgi.bg_import('bg_dish') # Carrington Institute
 #bgi.bg_import('bg_ame') # Defection
@@ -106,12 +112,13 @@ register()
 #bgi.bg_import('bg_pete') # Chicago
 #bgi.bg_import('bg_pete', range(0x5c, 0x5d)) # Chicago
 #bgi.bg_import('bg_lue') # Area 51
-#bgi.bg_import('bg_pete') # Chicago
 #bgi.bg_import('bg_azt') # Crash Site
 #bgi.bg_import('bg_rit') # Air Force One
 
 #bgi.bg_import('bg_mp15') # Grid
+#bgi.bg_import('bg_mp11') # Felicity
 #bgi.bg_import('bg_mp4') # Warehouse
+#bgi.bg_import('bg_mp12') # Fortress
 
 # ------------------ SETUPS ------------------
 #setup.setup_import('bg_mp15', True)
@@ -133,44 +140,3 @@ register()
 #pdm.portal_material()
 #pdi.bg_portals_hide()
 #pdi._bg_loadlights()
-
-
-
-
-#flag = tiles.GEOFLAG_FLOOR1
-#flag = tiles.GEOFLAG_FLOOR2
-#flag = tiles.GEOFLAG_WALL
-#flag = tiles.GEOFLAG_BLOCK_SIGHT
-#flag = tiles.GEOFLAG_BLOCK_SHOOT
-#flag = tiles.GEOFLAG_LIFTFLOORl
-#flag = tiles.GEOFLAG_LADDER
-#flag = tiles.GEOFLAG_RAMPWALL
-#flag = tiles.GEOFLAG_SLOPE
-#flag = tiles.GEOFLAG_UNDERWATER
-#flag = tiles.GEOFLAG_0400
-#flag = tiles.GEOFLAG_AIBOTCROUCH
-#flag = tiles.GEOFLAG_AIBOTDUCK
-#flag = tiles.GEOFLAG_STEP
-#flag = tiles.GEOFLAG_DIE
-#flag = tiles.GEOFLAG_LADDER_PLAYERONLY
-
-res, wco, flg, flc, flt = ['reset', 'wallfloor', 'flag', 'floorcol', 'floortype']
-#pdi.bg_colortiles(flg, flag=flag)
-#tiles.bg_colortiles(flt)
-
-#blend_dir = bpy.path.abspath('//')
-#configs = pdu.ini_file(f'{blend_dir}/config.ini')
-#print(configs)
-
-#print(pdp.pref_get.cache_info())
-
-#os.system('cls')
-#M = bpy.context.scene.objects['Pmulti_ammo_crateZ.009'].matrix_world
-#t = [M[i].w for i in range(3)]
-#print(M)
-#print(t)
-
-#obj = bpy.context.view_layer.objects.active
-#M = obj.matrix_world
-#print(obj)
-#print(M)

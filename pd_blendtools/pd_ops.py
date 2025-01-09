@@ -1,10 +1,16 @@
 import os
+import math
 import traceback
 
 import bpy
-from bpy.types import Operator
+from bpy.types import Operator, WorkSpaceTool
+import gpu
+import bmesh
+from gpu_extras.batch import batch_for_shader
 from bpy_extras.io_utils import ImportHelper, ExportHelper
-from bpy.props import IntProperty, StringProperty, BoolProperty
+from bpy.props import IntProperty, FloatProperty, StringProperty, BoolProperty
+from bl_ui import space_toolsystem_common
+
 
 import romdata as rom
 import pd_import as pdi
@@ -248,16 +254,300 @@ class PDTOOLS_OT_ImportModelFromROM(Operator):
                                   scn, "pdmodel_listindex", rows=20)
 
 
-class PDTOOLS_OT_MessageBox(bpy.types.Operator):
+class PDTOOLS_OT_RoomSplitByPortal(Operator):
+    bl_idname = "pdtools.room_split_by_portal"
+    bl_label = "Split Room By Portal"
+    # bl_options = {'REGISTER', 'INTERNAL'}
+
+    def execute(self, context):
+        # self.report({'INFO'}, self.msg)
+        scn = context.scene
+        bl_roomblock = context.active_object
+        bl_portal = scn.pd_portal
+        bl_roomblock_new = bgu.room_split_by_portal(bl_roomblock, bl_portal, context)
+        bpy.ops.object.select_all(action='DESELECT')
+        bpy.context.view_layer.objects.active = bl_roomblock_new
+        bl_roomblock_new.select_set(True)
+        scn.pd_portal = None
+        return {'FINISHED'}
+
+    def invoke(self, context, event):
+        return self.execute(context)
+
+
+class PDTOOLS_OT_RoomSelectAllBlocks(Operator):
+    bl_idname = "pdtools.op_room_select_all_blocks"
+    bl_label = "Select All Blocks In Room"
+    # bl_options = {'REGISTER', 'INTERNAL'}
+
+    def execute(self, context):
+        bl_room = context.active_object
+        bl_room = bgu.parent_room(bl_room) if pdu.pdtype(bl_room) == pdprops.PD_OBJTYPE_ROOMBLOCK else bl_room
+
+        bpy.ops.object.select_all(action="DESELECT")
+        for child in bl_room.children:
+            child.select_set(True)
+
+        return {'FINISHED'}
+
+# class PDTOOLS_OT_RoomSplitByPortal(bpy.types.Operator):
+class PDTOOLS_OT_PortalFromEdge(Operator):
+    bl_idname = "pdtools.op_portal_from_edge"
+    bl_label = "Portal From Edge"
+    # bl_options = {'REGISTER', 'INTERNAL'}
+
+    def ws_update_geometry(_self, _ctx):
+        PD_WSTOOL_PortalFromEdge.update_geometry()
+
+    direction: bpy.props.EnumProperty(
+        items=[
+            ('vertical', 'Vertical', 'Vertical', 'Vertical', 1),
+            ('horizontal', 'Horizontal', 'Horizontal', 'Horizontal', 2),
+        ],
+        name='Direction',
+        description='Portal Direction (World)',
+        default='vertical',
+    )
+
+    elevation: FloatProperty(name='Elevation', default=0, min=-180, max=180,
+                             description='Rotation From The Edge Towards The Up Direction',
+                             update=ws_update_geometry)
+
+    pitch: FloatProperty(name='Pitch', default=0, min=-180, max=180,
+                         # description='' ,
+                         description='Rotation Around The Edge Axis',
+                         update=ws_update_geometry)
+
+    width: FloatProperty(name='width', default=10, min=1, max=10000,
+                         update=ws_update_geometry)
+
+    height: FloatProperty(name='height', default=10, min=1, max=10000,
+                          update = ws_update_geometry)
+
+    def execute(self, context):
+        bl_obj = context.edit_object
+        bm = bmesh.from_edit_mesh(bl_obj.data)
+
+        edges_sel = [e for e in bm.edges if e.select]
+
+        n = len(edges_sel)
+        if n != 1:
+            bm.free()
+            msg = 'No Selection' if n < 1 else 'Select Only One Edge'
+            pdu.msg_box('', msg, 'ERROR')
+            return {'FINISHED'}
+
+        tool = context.workspace.tools.from_space_view3d_mode(context.mode, create=False)
+        props = tool.operator_properties(self.bl_idname)
+
+        w, h = props.width, props.height
+        elv, pitch = props.elevation, props.pitch
+        direction = props.direction
+
+        edge = edges_sel[0]
+        M = bl_obj.matrix_world
+        verts = bgu.portal_verts_from_edge(edge, M, w, h, elv, pitch, direction)
+        print(w, h, edge)
+        print(verts)
+        print(M)
+        bgu.new_portal_from_verts(bl_obj, verts)
+        edge.select = False
+        bm.free()
+        return {'FINISHED'}
+
+    def invoke(self, context, event):
+        return self.execute(context)
+
+
+class PD_WSTOOL_PortalFromEdge(WorkSpaceTool):
+    bl_space_type = 'VIEW_3D'
+    bl_context_mode = 'EDIT_MESH'
+    bl_idname = "pdtools.ws_new_portal_from_edge"
+    bl_label = "Portal From Edge"
+    bl_description = "Creates a new portal from the selected edge"
+    bl_icon = "ops.mesh.primitive_cube_add_gizmo"
+    bl_widget = None
+    # bl_keymap = (
+    #     ("object.simple_operator", {"type": 'LEFTMOUSE', "value": 'PRESS'}, None),
+    # )
+
+    _batch = None
+    _draw_handle = None
+    _shader = None
+
+    @staticmethod
+    def draw_prop(layout, props, name):
+        layout.label(text=f'{name}:')
+        layout.prop(props, name.lower(), text='')
+
+    @staticmethod
+    def draw_settings(context, layout, tool, extra=False):
+        props = tool.operator_properties('pdtools.op_portal_from_edge')
+
+        if extra:
+            col = layout.column()
+            row = col.row()
+            PD_WSTOOL_PortalFromEdge.draw_prop(row, props, 'Direction')
+            row = col.row()
+            PD_WSTOOL_PortalFromEdge.draw_prop(row, props, 'Elevation')
+            row = col.row()
+            PD_WSTOOL_PortalFromEdge.draw_prop(row, props, 'Pitch')
+            return
+
+        PD_WSTOOL_PortalFromEdge.draw_prop(layout, props, 'width')
+        PD_WSTOOL_PortalFromEdge.draw_prop(layout, props, 'height')
+
+        # this will call this very function, with the parameter extra = True
+        layout.popover("TOPBAR_PT_tool_settings_extra", text="...")
+        layout.operator("pdtools.op_portal_from_edge", text='Create Portal')
+
+    @classmethod
+    def poll(self, context):
+        if context.object and context.object.type == 'MESH':
+            return context.object.mode == 'EDIT'
+
+    @classmethod
+    def update_geometry(cls):
+        # Get current properties
+        context = bpy.context
+        tool = context.workspace.tools.from_space_view3d_mode(
+            context.mode, create=False
+        )
+        if tool and tool.idname == cls.bl_idname:
+            bl_obj = context.edit_object
+            bm = bmesh.from_edit_mesh(bl_obj.data)
+
+            edges_sel = [e for e in bm.edges if e.select]
+
+            if len(edges_sel) != 1:
+                bm.free()
+                context.area.tag_redraw()
+                return 1
+
+            props = tool.operator_properties(PDTOOLS_OT_PortalFromEdge.bl_idname)
+            w, h = props.width, props.height
+
+            elv, pitch = props.elevation, props.pitch
+            direction = props.direction
+
+            edge = edges_sel[0]
+            M = bl_obj.matrix_world
+            coords = bgu.portal_verts_from_edge(edge, M, w, h, elv, pitch, direction)
+            indices = [(0, 1), (1, 2), (2, 3), (3, 0)]
+
+            cls._batch = batch_for_shader(
+                cls._shader, 'LINES',
+                {'pos': coords}, indices= indices
+            )
+
+            # Force viewport update
+            if context.area:
+                context.area.tag_redraw()
+
+            bm.free()
+            return 0
+    @classmethod
+    def draw_callback_px(cls):
+        if cls._shader:
+            res = cls.update_geometry()
+            if res: return
+
+            gpu.state.line_width_set(2)
+            cls._shader.bind()
+            cls._shader.uniform_float("color", (1, 1, 0, 1))
+            cls._batch.draw(cls._shader)
+
+    @classmethod
+    def setup_draw_handler(cls):
+        if cls._draw_handle is None:
+            if not cls._shader:
+                cls._shader = gpu.shader.from_builtin('UNIFORM_COLOR')
+                # initial geometry creation
+                cls.update_geometry()
+
+            cls._draw_handle = bpy.types.SpaceView3D.draw_handler_add(
+                cls.draw_callback_px, (), 'WINDOW', 'POST_VIEW')
+
+    @classmethod
+    def remove_draw_handler(cls):
+        if cls._draw_handle is not None:
+            bpy.types.SpaceView3D.draw_handler_remove(cls._draw_handle, 'WINDOW')
+            cls._draw_handle = None
+
+
+class PDTOOLS_OT_PortalFromFace(Operator):
+    bl_idname = "pdtools.op_portal_from_face"
+    bl_label = "PD: Portal From Face"
+    bl_description = "Creates A Portal From The Selected Face"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        err = bgu.new_portal_from_faces(context)
+        if err:
+            pdu.msg_box('', err, 'ERROR')
+        return {'FINISHED'}
+
+class PDTOOLS_OT_TilesFromFaces(Operator):
+    bl_idname = "pdtools.op_tiles_from_faces"
+    bl_label = "PD: Tiles From Faces"
+    bl_description = "Creates Tiles From The Selected Faces"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        bl_obj = context.edit_object
+        bm = bmesh.from_edit_mesh(bl_obj.data)
+        faces_sel = [f for f in bm.faces if f.select]
+
+        if not faces_sel:
+            pdu.msg_box('', 'No Selection', 'ERROR')
+            bm.free()
+            return {'FINISHED'}
+
+        lib = bpy.data.collections
+        num = len(lib['Tiles'].objects) if 'Tiles' in lib else 0
+        tiles = []
+        for face in faces_sel:
+            bl_tile = bgu.tile_from_face(f'Tile_{num}', bl_obj, face)
+            tiles.append(bl_tile)
+            num += 1
+
+        # switch to object mode and select all the newly created tiles
+        bpy.ops.object.mode_set(mode="OBJECT")
+        bpy.ops.object.select_all(action='DESELECT')
+        for tile in tiles: tile.select_set(True)
+        pdu.set_active_obj(tiles[0])
+        bm.free()
+        return {'FINISHED'}
+
+
+class PDTOOLS_OT_TilesSelectSameRoom(Operator):
+    bl_idname = "pdtools.op_tiles_select_room"
+    bl_label = "PD: Select All From Room"
+    bl_description = "Select All Tiles From The Same Room"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        bl_obj = context.active_object
+        pd_tile = bl_obj.pd_tile
+
+        bpy.ops.object.select_all(action='DESELECT')
+        tiles = bpy.data.collections['Tiles'].objects
+        for bl_tile2 in tiles:
+            pd_tile2 = bl_tile2.pd_tile
+            if pd_tile2.roomnum == pd_tile.roomnum:
+                bl_tile2.select_set(True)
+
+        return {'FINISHED'}
+
+class PDTOOLS_OT_MessageBox(Operator):
     bl_idname = "pdtools.messagebox"
     bl_label = "Message Box"
-    # bl_options = {'REGISTER', 'INTERNAL'}
 
     msg: StringProperty(default='')
 
-    def execute(self, context):
+    def execute(self, _context):
         self.report({'INFO'}, self.msg)
-        print(f'OP: {self.msg}')
+        # print(f'OP: {self.msg}')
         return {'FINISHED'}
 
     def invoke(self, context, event):
@@ -274,18 +564,67 @@ classes = [
     PDTOOLS_OT_SelectDirectory,
     PDTOOLS_OT_PortalFindRooms,
     PDTOOLS_OT_RoomCreatePortalBetween,
+    PDTOOLS_OT_RoomSplitByPortal,
+    PDTOOLS_OT_RoomSelectAllBlocks,
     PDTOOLS_OT_TileApplyProps,
+    PDTOOLS_OT_PortalFromEdge,
+    PDTOOLS_OT_PortalFromFace,
+    PDTOOLS_OT_TilesFromFaces,
+    PDTOOLS_OT_TilesSelectSameRoom,
     PDTOOLS_OT_MessageBox,
 ]
+
+# this callback is to detect when the selected tool changed, and update the drawing
+# state of the PortalFromEdge tool
+def factory_callback(func):
+    def callback(*args, **kwargs):
+        idname = args[2]
+        if idname == PD_WSTOOL_PortalFromEdge.bl_idname:
+            PD_WSTOOL_PortalFromEdge.setup_draw_handler()
+            PD_WSTOOL_PortalFromEdge.update_geometry()
+        else:
+            PD_WSTOOL_PortalFromEdge.remove_draw_handler()
+
+        return func(*args, **kwargs)
+    return callback
+
+space_toolsystem_common.activate_by_id = factory_callback(
+    space_toolsystem_common.activate_by_id
+)
+
+def pd_editmode_menu(self, context):
+    self.layout.separator(factor=1.0)
+    self.layout.operator(PDTOOLS_OT_PortalFromFace.bl_idname)
+    self.layout.operator(PDTOOLS_OT_TilesFromFaces.bl_idname)
+
+def pd_editmode_ctxmenu(self, context):
+    if bpy.context.tool_settings.mesh_select_mode[2]:
+        self.layout.separator(factor=1.0)
+        self.layout.operator(PDTOOLS_OT_PortalFromFace.bl_idname)
+        self.layout.operator(PDTOOLS_OT_TilesFromFaces.bl_idname)
+
+def remove_menu():
+    bpy.types.VIEW3D_MT_edit_mesh_faces.remove(pd_editmode_menu)
+    bpy.types.VIEW3D_MT_edit_mesh_context_menu.remove(pd_editmode_ctxmenu)
 
 def register():
     for cl in classes:
         bpy.utils.register_class(cl)
 
 
+    bpy.utils.register_tool(PD_WSTOOL_PortalFromEdge,
+                            after={"builtin.scale_cage"}, separator=True, group=True)
+
+    bpy.types.VIEW3D_MT_edit_mesh_faces.append(pd_editmode_menu)  # for top menu
+    bpy.types.VIEW3D_MT_edit_mesh_context_menu.append(pd_editmode_ctxmenu)  # for context menu
+
+
 def unregister():
     for cl in classes:
         bpy.utils.unregister_class(cl)
+
+    bpy.utils.unregister_tool(PD_WSTOOL_PortalFromEdge)
+    PD_WSTOOL_PortalFromEdge.remove_draw_handler()
 
 
 if __name__ == '__main__':

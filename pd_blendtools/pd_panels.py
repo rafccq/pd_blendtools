@@ -6,6 +6,9 @@ from pd_blendprops import TILE_FLAGS
 from pd_import import MeshLayer
 import pd_addonprefs as pdp
 import pd_blendprops as pdprops
+import pd_utils as pdu
+import pd_ops as pdo
+
 
 class PDTOOLS_PT_PanelModel(Panel):
     bl_label = "Model"
@@ -66,22 +69,17 @@ class PDTOOLS_PT_RoomProps(Panel):
     bl_region_type = 'WINDOW'
     bl_context = "object"
 
-    # @classmethod
-    # def poll(cls, context):
-    #     obj = context.object
-    #     return obj and (obj.pd_obj.type & 0xff00) in [pdprops.PD_OBJTYPE_ROOM, pdprops.PD_OBJTYPE_ROOMBLOCK]
 
     def draw(self, context):
         obj = context.object
         layout = self.layout
-        type = obj.pd_obj.type & 0xff00
-        isroom = type == pdprops.PD_OBJTYPE_ROOM
+        isroom = pdu.pdtype(obj) == pdprops.PD_OBJTYPE_ROOM
 
         props_room = obj.pd_room
 
         box = layout.box()
-        name = 'Room' if type == pdprops.PD_OBJTYPE_ROOM else 'Block'
-        num = props_room.roomnum if type == pdprops.PD_OBJTYPE_ROOM else props_room.blocknum
+        name = 'Room' if isroom else 'Block'
+        num = props_room.roomnum if isroom else props_room.blocknum
 
         if isroom:
             box.label(text=f'{name} {num:02X}', icon='LOCKED')
@@ -110,11 +108,16 @@ class PDTOOLS_PT_Portal(Panel):
         props_portal = obj.pd_portal
 
         box = layout.box()
-        box.label(text=f'{obj.pd_obj.name}', icon='LOCKED')
+        box.label(text=f'{obj.pd_obj.name}', icon='OBJECT_DATA')
         box.prop(props_portal, 'room1', text='room 1')
         box.prop(props_portal, 'room2', text='room 2')
         box.operator("pdtools.portal_find_rooms", text = "Auto Find")
 
+
+def draw_row(props, label, name, layout, factor):
+    container = layout.split(factor=factor)
+    container.label(text=label)
+    container.prop(props, name, text='')
 
 class PDTOOLS_PT_Tile(Panel):
     bl_label = 'Tile'
@@ -143,13 +146,9 @@ class PDTOOLS_PT_Tile(Panel):
         column.label(text=txt, icon='OBJECT_DATA')
         column.separator(type='LINE')
 
-        container = column.split(factor=.35)
-        container.label(text=f'Floor Color')
-        container.prop(props_tile, 'floorcol', text='')
-
-        container = column.split(factor=.35)
-        container.label(text=f'Floor Type')
-        container.prop(props_tile, 'floortype', text='')
+        draw_row(props_tile, 'Room', 'room', column, .35)
+        draw_row(props_tile, 'Floor Color', 'floorcol', column, .35)
+        draw_row(props_tile, 'Floor Type', 'floortype', column, .35)
 
         box = column.box()
         box.label(text=f'Flags')
@@ -169,20 +168,11 @@ class PDTOOLS_PT_TileTools(Panel):
     bl_region_type = 'UI'
     bl_category = "PD Tools"
 
-    # @classmethod
-    # def poll(cls, context):
-    #     obj = context.object
-    #     return obj and (obj.pd_obj.type & 0xff00) == pdprops.PD_OBJTYPE_TILE
-
     def draw(self, context):
         scn = context.scene
         layout = self.layout
-        # tilehilight_mode = scn.pd_tilehilight_mode
-        # res, wco, flg, flc, flt = ['reset', 'wallfloor', 'flag', 'floorcol', 'floortype']
         box = layout.box()
         box.label(text='Highlight')
-        # box.separator(type='LINE')
-        # print('MODE', scn.pd_tile_hilightmode)
         box.prop(scn, 'pd_tile_hilightmode', text='Mode')
 
         if scn.pd_tile_hilightmode == 'flags':
@@ -191,7 +181,6 @@ class PDTOOLS_PT_TileTools(Panel):
                 container.prop(scn.pd_tile_hilight, 'flags', index=idx, text=flag, toggle=True)
         elif scn.pd_tile_hilightmode == 'room':
             container = box.row()
-            # container.label(text='Room')
             container.prop(scn.pd_tile_hilight, 'room', text='Room')
 
         row = layout.row()
@@ -200,7 +189,6 @@ class PDTOOLS_PT_TileTools(Panel):
         bl_tile = context.active_object
         nsel = len(context.selected_objects)
         row.enabled = bool(bl_tile) and pdu.pdtype(bl_tile) == pdprops.PD_OBJTYPE_TILE and nsel == 1
-        # col.operator('pdtools.room_split_by_portal', text='Split By Portal')
 
 
 class PDTOOLS_PT_RoomTools(Panel):
@@ -209,24 +197,30 @@ class PDTOOLS_PT_RoomTools(Panel):
     bl_region_type = 'UI'
     bl_category = "PD Tools"
 
-
     def draw(self, context):
         scn = context.scene
         layout = self.layout
 
-        # prop_room_goto = scn.pd_room_goto
         col = layout.column()
-        container = col.split(factor=.35)
+        container = col.split(factor=.5)
         container.label(text=f'Go To Room')
         container.prop(scn, 'pd_room_goto', text='')
 
         sel = context.selected_objects
-        n = len(sel)
-        isroom = lambda o: (o.pd_obj.type & 0xff00) == pdprops.PD_OBJTYPE_ROOMBLOCK
-        en = n == 2 and isroom(sel[0]) and isroom(sel[1])
-        # en = n == 2 and all([isroom(sel[i]) for i in range(2)])
-        col.operator('pdtools.room_create_portal_between', text='Create Portal Between Rooms')
-        col.enabled = en
+        nsel = len(sel)
+        isroom = lambda o: pdu.pdtype(o) == pdprops.PD_OBJTYPE_ROOMBLOCK
+
+        row = col.row()
+        row = row.split(factor=0.5)
+        col = row.column()
+        col.operator(pdo.PDTOOLS_OT_RoomSplitByPortal.bl_idname, text='Split By Portal')
+        portalselected = context.scene.pd_portal is not None
+        col.enabled = isroom(context.active_object) and portalselected
+        row.prop(scn, 'pd_portal', text='')
+
+        row = layout.column()
+        row.operator(pdo.PDTOOLS_OT_RoomSelectAllBlocks.bl_idname, text='Select All Blocks In Room')
+        row.enabled = nsel == 1 and isroom(context.active_object)
 
 
 class PDTOOLS_PT_Scene(Panel):
@@ -235,13 +229,7 @@ class PDTOOLS_PT_Scene(Panel):
     bl_region_type = 'UI'
     bl_category = "PD Tools"
 
-    @classmethod
-    def poll(cls, context):
-        obj = context.object
-        return obj
-
     def draw(self, context):
-        # obj = context.object
         togg = False
 
         layout = self.layout
