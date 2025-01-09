@@ -9,6 +9,7 @@ import struct
 import bpy
 import bmesh
 from mathutils import Vector
+from bl_ui.space_toolsystem_common import ToolSelectPanelHelper
 
 import mtxpalette as mtxp
 from gbi import GDLcodes
@@ -446,7 +447,7 @@ def redraw_ui() -> None:
 
 def msg_box(title, message, icon = 'INFO'):
     def draw(self, _context):
-        self.layout.label(text=message)
+        self.layout.label(text=message, icon=icon)
     bpy.context.window_manager.popup_menu(draw, title = title, icon = icon)
 
 def new_obj(name, parent=None, dsize=50, link=True):
@@ -499,3 +500,44 @@ def add_to_collection(obj, col_name):
     collection.objects.link(obj)
     for child in obj.children:
         collection.objects.link(child)
+
+def verts_median(verts):
+    return points_median([v.co for v in verts])
+
+def points_median(points):
+    center = Vector((0,0,0))
+    for p in points:
+        center += p
+    center /= len(points)
+    return center
+
+
+def pdtype(bl_obj):
+    return bl_obj.pd_obj.type & 0xff00 if bl_obj else 0
+
+def unregister_tool(idname, space_type, context_mode):
+    cls = ToolSelectPanelHelper._tool_class_from_space_type(space_type)
+    tools = cls._tools[context_mode]
+
+    for i, tool_group in enumerate(tools):
+        if isinstance(tool_group, tuple):
+            for t in tool_group:
+                if 'ToolDef' in str(type(t)) and t.idname == idname:
+                    if len(tools[i]) == 1:
+                        # it's a group with a single item, just remove it from the tools list.
+                        tools.pop(i)
+                    else:
+                        tools[i] = tuple(x for x in tool_group if x.idname != idname)
+                    break
+        elif tool_group is not None:
+            if tool_group.idname == idname:
+                tools.pop(i)
+                break
+
+    # cleanup any doubled up separators left over after removing a tool
+    for i, p in enumerate(reversed(tools)):
+        if i < len(tools) - 2 and tools[i] is None and tools[i + 1] is None:
+            tools.pop(i)
+
+def set_active_obj(bl_obj):
+    bpy.context.view_layer.objects.active = bl_obj
