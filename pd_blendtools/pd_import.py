@@ -38,9 +38,6 @@ def create_mesh(mesh, tex_configs, meshidx, sub_idx):
 
     obj = bpy.data.objects.new(name, mesh_data)
 
-    # collection = pdu.active_collection()
-    # collection.objects.link(obj)
-
     logger.debug(f'[CREATEMESH {meshidx:02X}] {name}')
 
     normals = []

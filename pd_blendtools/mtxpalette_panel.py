@@ -4,6 +4,8 @@ import bpy
 import bpy.utils.previews
 
 import mtxpalette as mtxp
+import pd_blendprops as pdprops
+import pd_utils as pdu
 
 
 class PDTOOLS_PT_MtxPalettePanel(bpy.types.Panel):
@@ -59,10 +61,11 @@ class PDTOOLS_PT_MtxPalettePanel(bpy.types.Panel):
 
     @classmethod
     def poll(cls, context):
-        return context.mode in ['PAINT_VERTEX', 'EDIT_MESH']
+        ismodel = pdu.pdtype(context.active_object) == pdprops.PD_OBJTYPE_MODEL
+        return ismodel and context.mode in ['PAINT_VERTEX', 'EDIT_MESH']
 
 
-def on_update_mtx(self, context):
+def on_update_mtx(self, _context):
     if self.active:
         for c in self.id_data.color_collection:
             if c.name != self.name: c.active = False

@@ -515,6 +515,7 @@ def points_median(points):
 def pdtype(bl_obj):
     return bl_obj.pd_obj.type & 0xff00 if bl_obj else 0
 
+# thanks to 'testure' from the blenderartists forum for this code :)
 def unregister_tool(idname, space_type, context_mode):
     cls = ToolSelectPanelHelper._tool_class_from_space_type(space_type)
     tools = cls._tools[context_mode]
