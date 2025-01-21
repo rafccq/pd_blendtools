@@ -299,7 +299,7 @@ class PD_PadsFile:
         normal = Vec3(0,0,0)
 
         idx = padidx + 1
-        if (flags & PADFLAG_INTPOS):
+        if flags & PADFLAG_INTPOS:
             if fields & PADFIELD_POS:
                 pos = Vec3(*[s16(self.paddata[i][1]) for i in range(idx, idx+3)])
             idx += 4
@@ -362,21 +362,38 @@ class PD_PadsFile:
         flags = header[1] >> 14
         return flags & PADFLAG_HASBBOXDATA
 
-    @staticmethod
-    def pad_center(pad):
-        x = pad.pos.x + (
-                (pad.bbox.xmin + pad.bbox.xmax) * pad.normal.x +
-                (pad.bbox.ymin + pad.bbox.ymax) * pad.up.x +
-                (pad.bbox.zmin + pad.bbox.zmax) * pad.look.x) * 0.5
+def pad_center(pad):
+    x = pad.pos.x + (
+            (pad.bbox.xmin + pad.bbox.xmax) * pad.normal.x +
+            (pad.bbox.ymin + pad.bbox.ymax) * pad.up.x +
+            (pad.bbox.zmin + pad.bbox.zmax) * pad.look.x) * 0.5
 
-        y = pad.pos.y + (
-                (pad.bbox.xmin + pad.bbox.xmax) * pad.normal.y +
-                (pad.bbox.ymin + pad.bbox.ymax) * pad.up.y +
-                (pad.bbox.zmin + pad.bbox.zmax) * pad.look.y) * 0.5
+    y = pad.pos.y + (
+            (pad.bbox.xmin + pad.bbox.xmax) * pad.normal.y +
+            (pad.bbox.ymin + pad.bbox.ymax) * pad.up.y +
+            (pad.bbox.zmin + pad.bbox.zmax) * pad.look.y) * 0.5
 
-        z = pad.pos.z + (
-                (pad.bbox.xmin + pad.bbox.xmax) * pad.normal.z +
-                (pad.bbox.ymin + pad.bbox.ymax) * pad.up.z +
-                (pad.bbox.zmin + pad.bbox.zmax) * pad.look.z) * 0.5
+    z = pad.pos.z + (
+            (pad.bbox.xmin + pad.bbox.xmax) * pad.normal.z +
+            (pad.bbox.ymin + pad.bbox.ymax) * pad.up.z +
+            (pad.bbox.zmin + pad.bbox.zmax) * pad.look.z) * 0.5
 
-        return Vec3(x, y, z)
+    return Vec3(x, y, z)
+
+def pad_pos(center, bbox, look, up, normal):
+    px = center.x - (
+            (bbox.xmin + bbox.xmax) * normal.x +
+            (bbox.ymin + bbox.ymax) * up.x +
+            (bbox.zmin + bbox.zmax) * look.x) * 0.5
+
+    py = center.y - (
+            (bbox.xmin + bbox.xmax) * normal.y +
+            (bbox.ymin + bbox.ymax) * up.y +
+            (bbox.zmin + bbox.zmax) * look.y) * 0.5
+
+    pz = center.z - (
+            (bbox.xmin + bbox.xmax) * normal.z +
+            (bbox.ymin + bbox.ymax) * up.z +
+            (bbox.zmin + bbox.zmax) * look.z) * 0.5
+
+    return Vec3(px, py, pz)
