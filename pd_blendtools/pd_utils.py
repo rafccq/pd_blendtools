@@ -271,7 +271,8 @@ def mesh_from_verts(verts, name = '', triangulate = True):
 
     return mesh
 
-def clear_collection(collection):
+def clear_collection(collname):
+    collection = bpy.data.collections[collname]
     meshes = set()
     for obj in collection.objects:
         if obj.type == 'MESH':
@@ -281,9 +282,6 @@ def clear_collection(collection):
 
     for mesh in meshes:
         bpy.data.meshes.remove(mesh)
-
-    for group in bpy.data.node_groups:
-        bpy.data.node_groups.remove(group)
 
 def new_collection(name):
     lib = bpy.data.collections
@@ -298,7 +296,11 @@ def new_collection(name):
     return coll
 
 def clear_scene():
-    clear_collection(active_collection())
+    for coll in ['Rooms', 'Portals', 'Tiles', 'Intro', 'Props']:
+        clear_collection(coll)
+
+    for group in bpy.data.node_groups:
+        bpy.data.node_groups.remove(group)
 
 def new_empty_obj(name, parent=None, dsize = 0, dtype='PLAIN_AXES', link=True):
     obj = bpy.data.objects.new(name, None)
@@ -456,10 +458,6 @@ def new_obj(name, parent=None, dsize=50, link=True):
     if parent:
         obj.parent = parent
 
-    if link:
-        collection = active_collection()
-        collection.objects.link(obj)
-
     return obj
 
 def s8(value):
@@ -467,6 +465,9 @@ def s8(value):
 
 def s16(value):
     return struct.unpack('h', value.to_bytes(2, 'little'))[0]
+
+def s32(value):
+    return struct.unpack('i', value.to_bytes(4, 'little'))[0]
 
 def f32(value):
     return struct.unpack('f', value.to_bytes(4, 'little'))[0]
@@ -515,6 +516,9 @@ def points_median(points):
 def pdtype(bl_obj):
     return bl_obj.pd_obj.type & 0xff00 if bl_obj else 0
 
+def pdsubtype(bl_obj):
+    return bl_obj.pd_obj.type & 0xff if bl_obj else 0
+
 # thanks to 'testure' from the blenderartists forum for this code :)
 def unregister_tool(idname, space_type, context_mode):
     cls = ToolSelectPanelHelper._tool_class_from_space_type(space_type)
@@ -542,3 +546,10 @@ def unregister_tool(idname, space_type, context_mode):
 
 def set_active_obj(bl_obj):
     bpy.context.view_layer.objects.active = bl_obj
+
+def flags_pack(flaglist, flagvalues):
+    packed = 0
+    for idx, flag in enumerate(flaglist):
+        packed |= flagvalues[idx] if flag else 0
+
+    return packed
