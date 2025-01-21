@@ -628,7 +628,7 @@ class PDTOOLS_OT_SetupInterlinkRemove(Operator):
 class PDTOOLS_OT_SetupDoorSelectSibling(Operator):
     bl_idname = "pdtools.door_select_sibling"
     bl_label = "Select Sibling"
-    # bl_options = {'REGISTER', 'INTERNAL'}
+    bl_options = {'REGISTER', 'INTERNAL'}
 
     def execute(self, context):
         bl_door = context.active_object
