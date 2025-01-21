@@ -1,5 +1,4 @@
 import os
-import math
 import traceback
 
 import bpy
@@ -10,6 +9,8 @@ from gpu_extras.batch import batch_for_shader
 from bpy_extras.io_utils import ImportHelper, ExportHelper
 from bpy.props import IntProperty, FloatProperty, StringProperty, BoolProperty
 from bl_ui import space_toolsystem_common
+from mathutils import Vector
+import aud
 
 
 import romdata as rom
@@ -539,6 +540,132 @@ class PDTOOLS_OT_TilesSelectSameRoom(Operator):
 
         return {'FINISHED'}
 
+class PDTOOLS_OT_SetupLiftCreateStop(Operator):
+    bl_idname = "pdtools.op_setup_lift_create_stop"
+    bl_label = "PD: Create Stop"
+    bl_description = "Create Lift Stop"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    index: IntProperty(name='index', default=0, options={'LIBRARY_EDITABLE'})
+
+    def execute(self, context):
+        bl_obj = context.active_object
+        pd_lift = bl_obj.pd_lift
+
+        name = f'{bl_obj.name} stop{self.index+1}'
+        bl_stop = pdu.new_empty_obj(name, bl_obj, dsize=50, dtype='CIRCLE')
+        bl_stop.pd_obj.type = pdprops.PD_PROP_LIFT_STOP
+        bl_stop.scale = Vector([1/sc for sc in bl_obj.scale])
+
+        if self.index == 0:
+            pd_lift.stop1 = bl_stop
+        elif self.index == 1:
+            pd_lift.stop2 = bl_stop
+        elif self.index == 2:
+            pd_lift.stop3 = bl_stop
+        elif self.index == 3:
+            pd_lift.stop4 = bl_stop
+
+        return {'FINISHED'}
+
+
+class PDTOOLS_OT_SetupLiftRemoveStop(Operator):
+    bl_idname = "pdtools.op_setup_lift_remove_stop"
+    bl_label = "PD: Remove Stop"
+    bl_description = "Remove Lift Stop"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    index: IntProperty(name='index', default=0, options={'LIBRARY_EDITABLE'})
+
+    def execute(self, context):
+        bl_obj = context.active_object
+        pd_lift = bl_obj.pd_lift
+        stops = [pd_lift.stop1, pd_lift.stop2, pd_lift.stop3, pd_lift.stop4]
+        stop = stops[self.index]
+
+        print(self.index, stop)
+
+        bpy.data.objects.remove(stop, do_unlink=True)
+
+        return {'FINISHED'}
+
+
+class PDTOOLS_OT_SetupInterlinkCreate(Operator):
+    bl_idname = "pdtools.op_setup_interlink_create"
+    bl_label = "PD: Create Interlink Object"
+    bl_description = "Create Interlink Object"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        bl_obj = context.active_object
+        pd_lift = bl_obj.pd_lift
+        pd_interlinks = pd_lift.interlinks
+
+        interlink = pd_interlinks.add()
+        interlink.name = f'{bl_obj.name} Interlink {len(pd_interlinks)}'
+        interlink.controlled = bl_obj
+        return {'FINISHED'}
+
+
+class PDTOOLS_OT_SetupInterlinkRemove(Operator):
+    bl_idname = "pdtools.op_setup_interlink_remove"
+    bl_label = "PD: Remove Interlink Object"
+    bl_description = "Remove Interlink Object"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        bl_obj = context.active_object
+        pd_lift = bl_obj.pd_lift
+        pd_interlinks = pd_lift.interlinks
+
+        if len(pd_interlinks) == 0: return {'FINISHED'}
+
+        pd_interlinks.remove(pd_lift.active_interlink_idx)
+
+        return {'FINISHED'}
+
+
+class PDTOOLS_OT_SetupDoorSelectSibling(Operator):
+    bl_idname = "pdtools.door_select_sibling"
+    bl_label = "Select Sibling"
+    # bl_options = {'REGISTER', 'INTERNAL'}
+
+    def execute(self, context):
+        bl_door = context.active_object
+        bl_sibling = bl_door.pd_door.sibling
+        bpy.ops.object.select_all(action='DESELECT')
+        bpy.context.view_layer.objects.active = bl_sibling
+        bl_sibling.select_set(True)
+        return {'FINISHED'}
+
+    def invoke(self, context, event):
+        return self.execute(context)
+
+
+class PDTOOLS_OT_SetupDoorPlaySound(Operator):
+    bl_idname = "pdtools.door_play_sound"
+    bl_label = ""
+
+    open: BoolProperty(name='open', default=True, options={'LIBRARY_EDITABLE'})
+    soundnum: StringProperty(name='soundnum', options={'LIBRARY_EDITABLE'})
+
+    @classmethod
+    def description(cls, context, _properties):
+        close = hasattr(context, 'doorclose')
+        return 'Play: Door Close' if close else 'Play: Door Open'
+
+    def execute(self, _context):
+        blend_dir = os.path.dirname(bpy.data.filepath) # TODO propertly get the sound dir
+        device = aud.Device()
+        device.stopAll()
+        openclose = 'OPEN' if self.open else 'CLOSE'
+        name = f'{self.soundnum}{openclose}'
+        sound = aud.Sound(f'{blend_dir}/sounds/{name}.ogg')
+        sound_buffered = aud.Sound.cache(sound)
+        device.play(sound_buffered)
+        return {'FINISHED'}
+
+
 class PDTOOLS_OT_MessageBox(Operator):
     bl_idname = "pdtools.messagebox"
     bl_label = "Message Box"
@@ -571,6 +698,12 @@ classes = [
     PDTOOLS_OT_PortalFromFace,
     PDTOOLS_OT_TilesFromFaces,
     PDTOOLS_OT_TilesSelectSameRoom,
+    PDTOOLS_OT_SetupLiftCreateStop,
+    PDTOOLS_OT_SetupLiftRemoveStop,
+    PDTOOLS_OT_SetupInterlinkCreate,
+    PDTOOLS_OT_SetupInterlinkRemove,
+    PDTOOLS_OT_SetupDoorSelectSibling,
+    PDTOOLS_OT_SetupDoorPlaySound,
     PDTOOLS_OT_MessageBox,
 ]
 
