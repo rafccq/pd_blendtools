@@ -7,7 +7,7 @@ def make_id(name):
         name = name.replace(c, '')
     return name.lower()
 
-def make_prop(name, config, default, callback_update) -> EnumProperty:
+def make_prop(name, config, default, callback_update=None) -> EnumProperty:
     items = config[name]
     return EnumProperty(
         items=[(make_id(name), name, desc, '', val) for (name, desc, val) in items],

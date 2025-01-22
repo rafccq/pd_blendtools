@@ -1,9 +1,6 @@
 import bpy
 from bpy.types import PropertyGroup, Object, Panel, Scene
-from bpy.props import (
-    StringProperty, IntProperty, PointerProperty, FloatVectorProperty,
-    BoolVectorProperty, FloatProperty, CollectionProperty
-)
+from bpy.props import *
 from bpy.utils import register_class, unregister_class
 from mathutils import Euler, Vector, Matrix
 
@@ -177,11 +174,148 @@ def update_pad_bbox(self, _context):
 
     obj.scale = (sx, sy, sz)
 
+flags1 = [
+    (['Fall'],                  0x00000001),
+    (['In Air Rotated 90 Deg Upside-Down'], 0x00000002), # Editor: "In Air Rotated 90 Deg Upside-Down"
+    (['Upside Down'],           0x00000004),
+    (['In Air'],                0x00000008), # Editor: "In Air"
+    (['Scale to Pad Bounds'],   0x00000010), # Editor: "Scale to Pad Bounds"
+    (['X To Pad Bounds'],       0x00000020),
+    (['Y To Pad Bounds'],       0x00000040),
+    (['Z To Pad Bounds'],       0x00000080),
+    (['Force Collisions ?'],  0x00000100), # G5 mines, Air Base brown door, AF1 grate and escape door, Defense shuttle, Ruins mines, MBR lift door. Editor suggests "Force Collisions" but this seems wrong
+    (['Orthogonal'],            0x00000200),
+    (['Ignore Floor Colour'],   0x00000400),
+    (['Path Blocker'],          0x00000800), # Glass and explodable scenery which may be blocking a path segment
+    (['Ignore Room Colour'],    0x00001000), # Editor: "Absolute Position"
+    (['AI Undroppable'],        0x00002000), # AI cannot drop item
+    (['Assigned To Chr'],       0x00004000),
+    (['Inside Another Obj'],    0x00008000), # Eg. gun inside a crate or suitcase inside a dumpster
+    (['Force Mortal'],          0x00010000),
+    (['Invincible'],            0x00020000),
+    (['Collectable'],           0x00040000),
+    (['Thrown Laptop'],         0x00080000),
+    (['Uncollectable'],         0x00100000),
+    (['Bounce If Shot'],        0x00200000), # Bounce or explode
+    (['Force No Bounce'],       0x00400000), # Override the above
+    (['Held Rocket'],           0x00800000), # Rocket obj that's currently in an equipped rocket launcher
+    (['Embedded Object'],       0x01000000), # Editor: "Embedded Object"
+    (['Cannot Activate'],       0x02000000), # Makes it do nothing if player presses B on object. Used mostly for doors.
+    (['AI See Through'],        0x04000000), # Glass, glass doors, small objects such as plant pots
+    (['Auto Gun 3D Range'],     0x08000000), # Autogun uses 3 dimensions when checking if target is in range
+    (['Deactivated', 'Ammo Crate Explode Now', 'Door Has Portal', 'Glass Has Portal', 'Weapon Left Handed', 'Esc Step Z Aligned'], 0x10000000),
+    (['Auto Gun Seen Target', 'Camera Disabled', 'Chopper Init', 'Door Open To Front', 'Hover Car Init', 'Hover Prop 20000000', 'Lift Lateral Movement', 'Monitor 20000000', 'Weapon AI Cannot Use'], 0x20000000),
+    (['Auto Gun Damaged', 'Camera Bond In View', 'Door Keep Open', 'Hover Bike Moving While Empty', 'Hover Car 40000000', 'Lift Trigger Disable', 'Monitor Render Post BG', 'Weapon No Ammo'], 0x40000000),
+    (['80000000', 'Chopper Inactive', 'Door Two Way', 'Hover Car Is Hover Bot', 'Lift Check Ceiling', 'Weapon Can Mix Dual'], 0x80000000),
+]
+
+flags2 = [
+    (['Immune To Anti'],          0x00000001), # Counter-op cannot damage this object
+    (['00000002'],                0x00000002), # Ruins spikes
+    (['Skip Door Locked Msg'],    0x00000004),
+    (['Dont load in Multiplayer'],0x00000008), # Editor: "Don't load in Multiplayer"
+    (['Exclude A'],               0x00000010),
+    (['Exclude SA'],              0x00000020),
+    (['Exclude PA'],              0x00000040),
+    (['Exclude PD'],              0x00000080),
+    (['Immobile'],                0x00000100), # Editor: "Immobile"
+    (['Mines'],                   0x00000200), # Editor: "Mines"
+    (['Linked To Safe'],          0x00000400), # Applied to safe door and item
+    (['Interact Check LOS'],      0x00000800), # Check line of sight when attempting to interact with object
+    (['Pickup Without LOS'],      0x00001000), # Object can be picked up without having line of sight
+    (['Remove When Destroyed'],   0x00002000),
+    (['Immune To Gunfire'],       0x00004000),
+    (['Shoot Through'],           0x00008000),
+    (['Draw On Top'],             0x00010000),
+    (['00020000'],                0x00020000), # G5 mine, Air Base mine
+    (['00040000'],                0x00040000), # Only used in CI training
+    (['Invisible'],               0x00080000),
+    (['Bulletproof'],             0x00100000), # Only magnum and FarSight can shoot through it
+    (['Immune to Explosions'],    0x00200000), # Editor: "Immune to Explosions" (Ruins spikes)
+    (['Exclude 2P'],              0x00400000),
+    (['Exclude 3P'],              0x00800000),
+    (['Exclude 4P'],              0x01000000),
+    (['Throw Through'],           0x02000000), # Rockets/mines/grenades etc pass through object
+    (['Gravity ?'],             0x04000000), # Used quite a lot - gravity?
+    (['Locked Front'],            0x08000000), # One-way door lock
+    (['Locked Back'],             0x10000000), # One-way door lock
+    (['AI Cannot Use', 'Auto Gun Malfunctioning 2'], 0x20000000),
+    (['Airlock Door', 'Auto Gun 40000000'], 0x40000000),
+    (['Attack Ship Glass', 'Auto Gun Malfunctioning 1', 'Weapon Huge Exp'], 0x80000000),
+]
+
+flags3 = [
+    (['Grabbable'],             0x00000002),
+    (['Door Sticky'],           0x00000004), # eg. Skedar Ruins
+    (['00000008'],              0x00000008), # Not used in scripts
+    (['00000010'],              0x00000010), # Used heaps
+    (['Auto Cutscene Sounds'],  0x00000020), # For doors and objs - play default open/close noises
+    (['R Tracked Yellow'],      0x00000040),
+    (['Can Hard Free'],         0x00000080), # Can free prop while on screen (MP weapons only)
+    (['Hard Freeing'],          0x00000100),
+    (['00000200'],              0x00000200), # Not used in scripts
+    (['Walk Through'],          0x00000400),
+    (['R Tracked Blue'],        0x00000800),
+    (['Show Shield'],           0x00001000), # Show shield effect around object (always)
+    (['HTM Terminal'],          0x00002000), # Terminal for Hacker Central scenario (HTM = Hack That Mac)
+    (['Is Fetch Target'],       0x00004000), # AI bot is fetching this obj
+    (['React To Sight'],        0x00008000), # Turn sight blue or red when targeted with R
+    (['Interactable'],          0x00010000),
+    (['Shield Hit'],            0x00020000), # Turns off when shield no longer visible
+    (['Render Post BG'],        0x00040000),
+    (['Draw On Top'],           0x00080000),
+    (['Hover Bed Shield'],      0x00100000),
+    (['Interact Short Range'],  0x00200000),
+    (['Player Undroppable'],    0x00400000), # Player does not drop item when dead
+    (['Long Push Range'],       0x00800000), # Not used in scripts
+    (['Push Freely'],           0x01000000), # Not used in scripts
+    (['Geo Cyl'],               0x02000000), # Use cylinder geometry rather than block
+    (['04000000'],              0x04000000), # Not used in scripts
+    (['08000000'],              0x08000000), # Not used in scripts
+    (['Keep Collisions After Fully Destroyed'], 0x10000000), # Editor: "Keep Collisions After Fully Destroyed"
+    (['On Shelf'],              0x20000000), # Obj is on a shelf - use bigger pickup range for Small Jo and Play as Elvis cheats and skip line of sight checks
+    (['Infrared'],              0x40000000), # Obj is highlighted on IR scanner
+    (['80000000'],              0x80000000), # Not used in scripts
+]
 
 class PDObject_SetupBaseObject(PropertyGroup):
+    def update_flag(self, prop, propname, flags):
+        flagsval = 0
+        for i, f in enumerate(prop): flagsval |= flags[i][1] if f else 0
+        self[f'{propname}_packed'] = f'{flagsval:08X}'
+
+    def update_flag1(self, context):
+        self.update_flag(self.flags1, 'flags1', flags1)
+
+    def update_flag2(self, context):
+        self.update_flag(self.flags2, 'flags2', flags2)
+
+    def update_flag3(self, context):
+        self.update_flag(self.flags3, 'flags3', flags3)
+
+    def update_flagpacked(self, context):
+        def update_array(array, flags):
+            f = int(f'0x{flags}', 16)
+            n = len(array)
+            for i in range(n):
+                array[i] = f & 1
+                f >>= 1
+
+        update_array(self.flags1, self.flags1_packed)
+        update_array(self.flags2, self.flags2_packed)
+        update_array(self.flags3, self.flags3_packed)
+
     extrascale: IntProperty(name='extrascale', default=0, options={'LIBRARY_EDITABLE'})
-    health: IntProperty(name='health', default=0, options={'LIBRARY_EDITABLE'})
-    flags: IntProperty(name='flags', default=0, options={'LIBRARY_EDITABLE'})
+    maxdamage: IntProperty(name='maxdamage', default=0, options={'LIBRARY_EDITABLE'})
+
+    flags1: BoolVectorProperty(name="Flags1", size=len(flags1), default=(False,) * len(flags1), update=update_flag1)
+    flags2: BoolVectorProperty(name="Flags2", size=len(flags2), default=(False,) * len(flags2), update=update_flag2)
+    flags3: BoolVectorProperty(name="Flags3", size=len(flags3), default=(False,) * len(flags3), update=update_flag3)
+
+    flags1_packed: StringProperty(name="Flags1_packed", update=update_flagpacked)
+    flags2_packed: StringProperty(name="Flags2_packed", update=update_flagpacked)
+    flags3_packed: StringProperty(name="Flags3_packed", update=update_flagpacked)
+
     padnum: IntProperty(name='padnum', default=0, options={'LIBRARY_EDITABLE'})
     pad_pos: FloatVectorProperty(name='pad_pos', default=(0,0,0), size=3, options={'LIBRARY_EDITABLE'})
     # we need to save the "previous" (before it was changed) bbox, in order to derive
@@ -397,6 +531,9 @@ def register():
     Scene.pd_tile_hilightmode = ndu.make_prop('pd_tile_hilightmode', {'pd_tile_hilightmode': TILE_HIGHLIGHT_MODE}, 'floorcolor', update_scene_tilehighlight)
     Scene.pd_room_goto = bpy.props.PointerProperty(type=bpy.types.Object, update=update_scene_roomgoto, poll=check_isroom)
     Scene.pd_portal = bpy.props.PointerProperty(type=bpy.types.Object, poll=check_isportal)
+    Scene.flags_filter = StringProperty(name="Flags Filter", default='', options={'TEXTEDIT_UPDATE'})
+    Scene.flags_toggle = BoolProperty(name="Flags Toggle", default=False, description='Show Flags As Toggle/Checkbox')
+
 
 def unregister():
     del Object.pd_tile

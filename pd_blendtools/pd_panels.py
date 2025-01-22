@@ -420,7 +420,7 @@ class PDTOOLS_PT_SetupLift(Panel):
 
         column = layout.column()
 
-        props_prop = obj.pd_prop
+        props_obj = obj.pd_prop
         props_lift = obj.pd_lift
         txt = 'Multiple Selected' if multiple else f'{obj.name}'
         column.label(text=txt, icon='OBJECT_DATA')
@@ -432,8 +432,11 @@ class PDTOOLS_PT_SetupLift(Panel):
             lmin = labels[idx][0]
             lmax = labels[idx][1]
             row = column.row()
-            row.prop(props_prop, 'pad_bbox', index=2*idx, text=lmin)
-            row.prop(props_prop, 'pad_bbox', index=2*idx+1, text=lmax)
+            row.prop(props_obj, 'pad_bbox', index=2*idx, text=lmin)
+            row.prop(props_obj, 'pad_bbox', index=2*idx+1, text=lmax)
+
+        column.separator(type='LINE')
+        column.operator('pdtools.setupobj_editflags')
 
         column.separator(type='LINE')
         column.label(text='Lift Doors')

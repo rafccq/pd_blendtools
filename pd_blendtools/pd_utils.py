@@ -553,3 +553,8 @@ def flags_pack(flaglist, flagvalues):
         packed |= flagvalues[idx] if flag else 0
 
     return packed
+
+def flags_unpack(flaglist, valuepacked, flagvalues):
+    n = len(flaglist)
+    for idx in range(n):
+        flaglist[idx] = bool(flagvalues[idx] & valuepacked)

@@ -642,6 +642,68 @@ class PDTOOLS_OT_SetupDoorSelectSibling(Operator):
         return self.execute(context)
 
 
+def grid(obj, layout, propname, array, flagsfilter, flagstoggle):
+    layout.scale_y = .8
+    items = [e[0][0] if len(e[0]) < 2 else f'{e[0][0]} (+)' for e in array]
+    for idx, item in enumerate(items):
+        if len(flagsfilter) == 0 or flagsfilter in item.lower():
+            layout.prop(obj, propname, index=idx, text=item, toggle=flagstoggle)
+
+class PDTOOLS_OT_SetupObjEditFlags(bpy.types.Operator):
+    bl_label = "Flags"
+    bl_idname = "pdtools.setupobj_editflags"
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_category = ""
+
+    def invoke(self, context, event):
+        return context.window_manager.invoke_popup(self, width=650)
+
+    def execute(self, context):
+        return {'FINISHED'}
+
+    def draw(self, context):
+        bl_obj = context.active_object
+        pd_obj = bl_obj.pd_prop
+
+        layout = self.layout
+        layout.template_texture_user()
+        scn = context.scene
+
+        row = layout.row().split(factor=0.07)
+        row.label(text='Filter:')
+        row = row.row().split(factor=0.2)
+        row.prop(scn, "flags_filter", text='', expand=True)
+
+        row = row.row().split(factor=0.05)
+        row.prop(scn, "flags_toggle", text='', icon='OPTIONS')
+
+        row = layout.row().split(factor=0.07)
+        row.label(text='Values:')
+        row = row.row().split(factor=0.825)
+        row = row.row()
+        row.prop(pd_obj, "flags1_packed", text='')
+
+        row = row.row()
+        row.prop(pd_obj, "flags2_packed", text='')
+
+        row = row.row()
+        row.prop(pd_obj, "flags3_packed", text='')
+
+        row = row.row()
+        row.context_pointer_set(name='flags_op', data=self)
+
+        row = layout.row()
+        col = row.column()
+        grid(pd_obj, col, 'flags1', pdprops.flags1, scn.flags_filter, scn.flags_toggle)
+
+        col = row.column()
+        grid(pd_obj, col, 'flags2', pdprops.flags2, scn.flags_filter, scn.flags_toggle)
+
+        col = row.column()
+        grid(pd_obj, col, 'flags3', pdprops.flags3, scn.flags_filter, scn.flags_toggle)
+
+
 class PDTOOLS_OT_SetupDoorPlaySound(Operator):
     bl_idname = "pdtools.door_play_sound"
     bl_label = ""
@@ -698,6 +760,7 @@ classes = [
     PDTOOLS_OT_PortalFromFace,
     PDTOOLS_OT_TilesFromFaces,
     PDTOOLS_OT_TilesSelectSameRoom,
+    PDTOOLS_OT_SetupObjEditFlags,
     PDTOOLS_OT_SetupLiftCreateStop,
     PDTOOLS_OT_SetupLiftRemoveStop,
     PDTOOLS_OT_SetupInterlinkCreate,

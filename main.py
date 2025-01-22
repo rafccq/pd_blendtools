@@ -93,8 +93,12 @@ def loadmodel(name):
     obj.matrix_world = rot_mat @ obj.matrix_world
 
 
+def cl_setup():
+    pdu.clear_collection('Props')
+    pdu.clear_collection('Intro')
 
 #clear()
+#cl_setup()
 register()
 
 #loadmodel('ProofgunZ')
@@ -122,6 +126,7 @@ register()
 
 # ------------------ SETUPS ------------------
 #setup.setup_import('bg_mp15', True)
+#setup.setup_import('bg_mp11', True)
 #setup.setup_import('bg_mp4', True)
 #setup.setup_import('bg_dish')
 #setup.setup_import('bg_ame')

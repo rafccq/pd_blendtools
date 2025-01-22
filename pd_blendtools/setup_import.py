@@ -333,9 +333,19 @@ def import_objects(romdata, setupdata, paddata):
             objtype = pdprops.PD_OBJTYPE_PROP | proptype
             bl_prop.pd_obj.type = objtype
             if proptype == OBJTYPE_LIFT:
+                # TODO setup obj common props
+                pd_prop = bl_prop.pd_prop
+                pdu.flags_unpack(pd_prop.flags1, obj['flags'], [e[1] for e in pdprops.flags1])
+                pdu.flags_unpack(pd_prop.flags2, obj['flags2'], [e[1] for e in pdprops.flags2])
+                pdu.flags_unpack(pd_prop.flags3, obj['flags3'], [e[1] for e in pdprops.flags3])
+
+                pd_prop.flags1_packed = f"{obj['flags']:08X}"
+                pd_prop.flags2_packed = f"{obj['flags2']:08X}"
+                pd_prop.flags3_packed = f"{obj['flags3']:08X}"
+
                 bl_prop.pd_lift.accel = prop['accel'] / 0x10000
                 bl_prop.pd_lift.maxspeed = prop['maxspeed'] / 0x10000
-                bl_prop.pd_prop.padnum = prop['base']['pad']
+                bl_prop.pd_prop.padnum = obj['pad']
                 # ## Create lift stops
                 for idxpad, pad_stop in enumerate(prop['pads']):
                     padnum = pdu.s16(pad_stop)
