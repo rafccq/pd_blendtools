@@ -452,6 +452,9 @@ class PDTOOLS_PT_WaypointTools(Panel):
 
         layout.separator(type='LINE')
         row = layout.row()
+        op_props = row.operator('pdtools.op_setup_waypoint_create', text='Create Waypoint')
+
+        row = layout.row()
         row.operator('pdtools.op_setup_waypoint_createfrommesh', text='Create From Mesh')
         row.enabled = sel_obj is not None
 

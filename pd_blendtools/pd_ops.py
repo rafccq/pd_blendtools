@@ -689,6 +689,46 @@ class PDTOOLS_OT_SetupWaypointRemoveNeighbour(Operator):
         return {'FINISHED'}
 
 
+class PDTOOLS_OT_SetupWaypointCreate(Operator):
+    bl_idname = "pdtools.op_setup_waypoint_create"
+    bl_label = "PD: Create Waypoint"
+    bl_description = "Create a new waypoint"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    group_enum: EnumProperty(name="group_enum", description="Waypoint Group", items=pdprops.get_groupitems)
+
+    def invoke(self, context, event):
+        wm = context.window_manager
+        return wm.invoke_props_dialog(self)
+
+    def draw(self, _context):
+        layout = self.layout
+        layout.prop(self, 'group_enum', text='')
+
+    def execute(self, context):
+        groupname = self.group_enum
+        if groupname == pdprops.NEWGROUP:
+            groupnum, bl_group = pdu.waypoint_newgroup()
+            groupname = bl_group.name
+        else:
+            bl_group = bpy.data.objects[groupname]
+            groups = [g[0] for g in pdprops.get_groupitems(context.scene, context)]
+            groupnum = groups.index(self.group_enum)
+
+        wp_coll = bpy.data.collections['Waypoints']
+        padnum = 1 + max([wp.pd_waypoint.padnum for wp in wp_coll.objects])
+
+        pos = pdu.get_view_location()
+        bl_waypoint = stpi.create_waypoint(padnum, pos, bl_group, False)
+        pd_waypoint = bl_waypoint.pd_waypoint
+        pd_waypoint.padnum = padnum
+        pd_waypoint.groupnum = groupnum
+        pd_waypoint.group_enum = groupname
+
+        pdu.select_obj(bl_waypoint)
+        return {'FINISHED'}
+
+
 class PDTOOLS_OT_SetupWaypointCreateFromMesh(Operator):
     bl_idname = "pdtools.op_setup_waypoint_createfrommesh"
     bl_label = "Create Waypoint From Mesh"
@@ -798,6 +838,7 @@ class PDTOOLS_OT_SetupWaypointCreateNeighbours(Operator):
             pd_neighbour.group_enum = groupname
 
             pdu.add_neighbour(bl_waypoint, bl_neighbour)
+            pdu.add_neighbour(bl_neighbour, bl_waypoint)
 
             angle += 2*math.pi / self.num
             padnum += 1
@@ -1009,6 +1050,7 @@ classes = [
     PDTOOLS_OT_SetupWaypointRemoveNeighbour,
     PDTOOLS_OT_SetupWaypointCreateFromMesh,
     PDTOOLS_OT_SetupWaypointCreateNeighbours,
+    PDTOOLS_OT_SetupWaypointCreate,
     PDTOOLS_OT_MessageBox,
 ]
 

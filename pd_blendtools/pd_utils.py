@@ -605,3 +605,9 @@ def enum_value(bl_obj, enum_name, propval):
     prop = bl_obj.bl_rna.properties[enum_name]
     items = prop.enum_items
     return items.get(propval).value
+
+def get_view_location():
+    area = next(area for area in bpy.context.screen.areas if area.type == 'VIEW_3D')
+    space = next(space for space in area.spaces if space.type == 'VIEW_3D')
+    region = space.region_3d
+    return region.view_location
