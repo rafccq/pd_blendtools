@@ -106,7 +106,7 @@ class PDTOOLS_OT_ImportModelFromFile(Operator, ImportHelper):
 class PDTOOLS_OT_AssignMtxToVerts(Operator):
     bl_idname = "pdtools.assign_mtx_verts"
     bl_label = "Assign To Selected"
-    bl_description = "Assign Matrix to Selected Vertices"
+    bl_description = "Assign matrix to selected vertices"
 
     mtx: IntProperty()
 
@@ -120,7 +120,7 @@ class PDTOOLS_OT_AssignMtxToVerts(Operator):
 class PDTOOLS_OT_SelectVertsUnassignedMtxs(Operator):
     bl_idname = "pdtools.select_vtx_unassigned_mtxs"
     bl_label = "Select Unassigned"
-    bl_description = "Select Vertices With No Assigned Matrix"
+    bl_description = "Select vertices with no assigned matrix"
 
     def execute(self, context):
         nverts = pdu.select_vtx_unassigned_mtxs()
@@ -150,7 +150,7 @@ class PDTOOLS_OT_PortalFindRooms(Operator):
 class PDTOOLS_OT_TileApplyProps(Operator):
     bl_idname = "pdtools.tile_apply_props"
     bl_label = "Apply Tile Props"
-    bl_description = "Apply Props to Selected Tiles"
+    bl_description = "Apply props to selected tiles"
 
     def execute(self, context):
         prop = context.pd_tile
@@ -166,7 +166,7 @@ class PDTOOLS_OT_TileApplyProps(Operator):
 class PDTOOLS_OT_RoomCreatePortalBetween(Operator):
     bl_idname = "pdtools.room_create_portal_between"
     bl_label = "Create Portal"
-    bl_description = "Create Portal Between Rooms"
+    bl_description = "Create portal between rooms"
 
     @classmethod
     def poll(cls, context):
@@ -483,7 +483,7 @@ class PD_WSTOOL_PortalFromEdge(WorkSpaceTool):
 class PDTOOLS_OT_PortalFromFace(Operator):
     bl_idname = "pdtools.op_portal_from_face"
     bl_label = "PD: Portal From Face"
-    bl_description = "Creates A Portal From The Selected Face"
+    bl_description = "Creates a portal from the selected face"
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
@@ -495,7 +495,7 @@ class PDTOOLS_OT_PortalFromFace(Operator):
 class PDTOOLS_OT_TilesFromFaces(Operator):
     bl_idname = "pdtools.op_tiles_from_faces"
     bl_label = "PD: Tiles From Faces"
-    bl_description = "Creates Tiles From The Selected Faces"
+    bl_description = "Creates tiles from the selected faces"
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
@@ -528,7 +528,7 @@ class PDTOOLS_OT_TilesFromFaces(Operator):
 class PDTOOLS_OT_TilesSelectSameRoom(Operator):
     bl_idname = "pdtools.op_tiles_select_room"
     bl_label = "PD: Select All From Room"
-    bl_description = "Select All Tiles From The Same Room"
+    bl_description = "Select all tiles from the same room"
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
@@ -547,7 +547,7 @@ class PDTOOLS_OT_TilesSelectSameRoom(Operator):
 class PDTOOLS_OT_SetupLiftCreateStop(Operator):
     bl_idname = "pdtools.op_setup_lift_create_stop"
     bl_label = "PD: Create Stop"
-    bl_description = "Create Lift Stop"
+    bl_description = "Create a lift stop"
     bl_options = {'REGISTER', 'UNDO'}
 
     index: IntProperty(name='index', default=0, options={'LIBRARY_EDITABLE'})
@@ -577,7 +577,7 @@ class PDTOOLS_OT_SetupLiftCreateStop(Operator):
 class PDTOOLS_OT_SetupWaypointAddNeighbour(Operator):
     bl_idname = "pdtools.op_setup_waypoint_addneighbour"
     bl_label = 'Add Neighbour'
-    bl_description = 'Click on waypoints to add a neighbor. right click or esc to exit'
+    bl_description = 'Click on waypoints to add a neighbor. Right click or esc to exit'
 
     @staticmethod
     def raycast(context, event):
@@ -692,7 +692,7 @@ class PDTOOLS_OT_SetupWaypointRemoveNeighbour(Operator):
 class PDTOOLS_OT_SetupWaypointCreateFromMesh(Operator):
     bl_idname = "pdtools.op_setup_waypoint_createfrommesh"
     bl_label = "Create Waypoint From Mesh"
-    bl_description = "Creates Waypoints From The Mesh Vertices and Edges"
+    bl_description = "Creates waypoints from the mesh vertices and edges"
     bl_options = {'REGISTER', 'UNDO'}
 
     group_enum: EnumProperty(name="group_enum", description="Waypoint Group", items=pdprops.get_groupitems)
@@ -762,7 +762,7 @@ class PDTOOLS_OT_SetupWaypointCreateFromMesh(Operator):
 class PDTOOLS_OT_SetupWaypointCreateNeighbours(Operator):
     bl_idname = "pdtools.op_setup_waypoint_createneighbours"
     bl_label = "Create Neighbours"
-    bl_description = "Create Waypoint Neighbours Around This Waypoint"
+    bl_description = "Create waypoint neighbours around this waypoint"
     bl_options = {'REGISTER', 'UNDO'}
 
     num: IntProperty(name="num", default=1, min=0, description="Number Of Neighbours")
@@ -812,7 +812,7 @@ class PDTOOLS_OT_SetupWaypointCreateNeighbours(Operator):
 class PDTOOLS_OT_SetupLiftRemoveStop(Operator):
     bl_idname = "pdtools.op_setup_lift_remove_stop"
     bl_label = "PD: Remove Stop"
-    bl_description = "Remove Lift Stop"
+    bl_description = "Remove the selected lift stop"
     bl_options = {'REGISTER', 'UNDO'}
 
     index: IntProperty(name='index', default=0, options={'LIBRARY_EDITABLE'})
@@ -831,7 +831,7 @@ class PDTOOLS_OT_SetupLiftRemoveStop(Operator):
 class PDTOOLS_OT_SetupInterlinkCreate(Operator):
     bl_idname = "pdtools.op_setup_interlink_create"
     bl_label = "PD: Create Interlink Object"
-    bl_description = "Create Interlink Object"
+    bl_description = "Create interlink object"
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
@@ -848,7 +848,7 @@ class PDTOOLS_OT_SetupInterlinkCreate(Operator):
 class PDTOOLS_OT_SetupInterlinkRemove(Operator):
     bl_idname = "pdtools.op_setup_interlink_remove"
     bl_label = "PD: Remove Interlink Object"
-    bl_description = "Remove Interlink Object"
+    bl_description = "Remove the selected interlink object"
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
