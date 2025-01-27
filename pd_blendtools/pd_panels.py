@@ -100,7 +100,7 @@ class PDTOOLS_PT_Portal(Panel):
     @classmethod
     def poll(cls, context):
         obj = context.object
-        return obj and (obj.pd_obj.type & 0xff00) == pdprops.PD_OBJTYPE_PORTAL
+        return pdu.pdtype(obj) == pdprops.PD_OBJTYPE_PORTAL
 
     def draw(self, context):
         obj = context.object
@@ -382,6 +382,80 @@ class PDTOOLS_PT_SetupTintedGlass(Panel):
         column.prop(props_glass, 'opadist', text='Opa Dist')
 
 
+class PDTOOLS_PT_SetupWaypoint(Panel):
+    bl_label = 'PD Waypoint'
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_category = "PD Tools"
+
+    @classmethod
+    def poll(cls, context):
+        obj = context.object
+        return pdu.pdtype(obj) == pdprops.PD_OBJTYPE_WAYPOINT
+
+    def draw(self, context):
+        obj = context.object
+        layout = self.layout
+
+        props_waypoint = obj.pd_waypoint
+        pd_neighbours_coll = props_waypoint.neighbours_coll
+        index = props_waypoint.active_neighbour_idx
+
+        box = layout.box()
+        box.label(text=f'{obj.pd_obj.name}', icon='OBJECT_DATA')
+        row = box.row().split(factor=0.4)
+        row.label(text=f'Pad Number: {props_waypoint.padnum:02X}')
+        box.separator(type='LINE')
+        row.prop(props_waypoint, 'group_enum', text='')
+        # box.prop(props_waypoint, 'neighbours', text='Neighbours')
+        row = box.row()
+        row.label(text=f'Neighbours ({len(props_waypoint.neighbours_coll)}):')
+        row = box.row()
+        row.template_list("PD_SETUPWAYPOINT_UL_neighbours", "", props_waypoint, "neighbours_coll", props_waypoint, "active_neighbour_idx", rows=4)
+        col = row.column(align=True)
+        col.operator('pdtools.op_setup_waypoint_addneighbour', icon='ADD', text='')
+        col = col.column()
+        col.operator('pdtools.op_setup_waypoint_removeneighbour', icon='REMOVE', text='')
+        col.enabled = len(pd_neighbours_coll) > 0
+
+        if len(pd_neighbours_coll) > 0:
+            pd_neighbour = pd_neighbours_coll[index]
+            row = box.row().split(factor=0.35)
+            # row.label(text=f'{pd_neighbour.name} ({pd_neighbour.groupnum:02X})')
+            row.label(text=f'{pd_neighbour.name}')
+            row.prop(pd_neighbour, 'edgetype', text='')
+
+        box.separator(type='LINE')
+        row = box.row()
+        # col = row.column()
+        # col.operator('pdtools.op_setup_waypoint_addneighbour', text='Add Neighbours')
+        # col = row.column()
+        # col.operator('pdtools.op_setup_waypoint_removeneighbour', text='Remove Neighbour')
+        # row = box.row()
+        row.operator('pdtools.op_setup_waypoint_createneighbours', text='Create Neighbours')
+
+
+class PDTOOLS_PT_WaypointTools(Panel):
+    bl_label = 'Waypoints Tools'
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_category = "PD Tools"
+
+    def draw(self, context):
+        sel_obj = context.active_object
+        scn = context.scene
+        layout = self.layout
+
+        row = layout.row().split(factor=.35)
+        row.label(text='Visibility:')
+        row.prop(scn, 'pd_waypoint_vis', text='')
+
+        layout.separator(type='LINE')
+        row = layout.row()
+        row.operator('pdtools.op_setup_waypoint_createfrommesh', text='Create From Mesh')
+        row.enabled = sel_obj is not None
+
+
 class PD_SETUPLIFT_UL_interlinks(UIList):
     def draw_item(self, _context, layout, _data, item, icon, _active_data, _active_propname, _index):
         interlink = item
@@ -396,6 +470,27 @@ class PD_SETUPLIFT_UL_interlinks(UIList):
         elif self.layout_type == 'GRID':
             layout.alignment = 'CENTER'
             layout.label(text='', icon_value=icon)
+
+
+class PD_SETUPWAYPOINT_UL_neighbours(UIList):
+    def draw_item(self, context, layout, _data, item, icon, _active_data, _active_propname, _index):
+        waypoint = item
+
+        bl_obj = context.active_object
+        pd_waypoint = bl_obj.pd_waypoint
+
+        name = waypoint.name
+        edgetype = waypoint.edgetype
+        groupnum = waypoint.groupnum
+        icon = 'ARROW_LEFTRIGHT'
+        if edgetype == pdprops.WAYPOINT_EDGETYPES[1][0]:
+            icon = 'FORWARD'
+        elif edgetype == pdprops.WAYPOINT_EDGETYPES[2][0]:
+            icon = 'TRACKING_FORWARDS_SINGLE'
+
+        set_txt = '' if groupnum == pd_waypoint.groupnum else '*'
+        text = f'{name} ({groupnum:02X}){set_txt}'
+        layout.label(text=text, icon=icon)
 
 
 class PDTOOLS_PT_SetupLift(Panel):
@@ -502,7 +597,7 @@ class PDTOOLS_PT_Scene(Panel):
     bl_category = "PD Tools"
 
     def draw(self, context):
-        togg = False
+        togg = True
 
         layout = self.layout
         box = layout.box()
@@ -510,8 +605,6 @@ class PDTOOLS_PT_Scene(Panel):
         container = box.grid_flow(columns=3, align=True)
         for idx, name in enumerate(pdprops.PD_COLLECTIONS):
             container.prop(context.scene, 'collections_vis', index=idx, toggle=togg, text=name)
-
-        layout.separator(type='LINE')
 
         box = layout.box()
         box.label(text=f'Selection')
@@ -578,6 +671,7 @@ classes = [
     PDTOOLS_PT_Scene,
     PDTOOLS_PT_TileTools,
     PDTOOLS_PT_RoomTools,
+    PDTOOLS_PT_WaypointTools,
     PDTOOLS_UL_ModelList,
     PDTOOLS_PT_RoomProps,
     PDTOOLS_PT_Portal,
@@ -588,7 +682,9 @@ classes = [
     PDTOOLS_PT_SetupDoorSound,
     PDTOOLS_PT_SetupTintedGlass,
     PDTOOLS_PT_SetupLift,
+    PDTOOLS_PT_SetupWaypoint,
     PD_SETUPLIFT_UL_interlinks,
+    PD_SETUPWAYPOINT_UL_neighbours,
 ]
 
 def register():

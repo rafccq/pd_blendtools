@@ -213,7 +213,7 @@ def setup_create_obj(prop, romdata, paddata):
     padnum = prop['pad']
     if padnum == 0xffff:
         print(f"TMP: skipping obj with no pad {prop['modelnum']:04X}")
-        return
+        return None
 
     modelnum = prop['modelnum']
 
@@ -290,6 +290,7 @@ def setup_import(lvname, mp = False):
 
     import_objects(romdata, setupdata, paddata)
     import_intro(setupdata.introcmds, paddata)
+    import_waypoints(paddata)
 
 # these objects have a 'base' struct preceding the obj data
 obj_types1 = [
@@ -330,6 +331,9 @@ def import_objects(romdata, setupdata, paddata):
             obj = prop['base'] if type1 else prop
             #     print(f"OBJ1 p {b['pad']:04X} m {b['modelnum']:04X}")
             bl_prop = setup_create_obj(obj, romdata, paddata)
+            if not bl_prop:
+                all_props.append(None)
+                continue
             objtype = pdprops.PD_OBJTYPE_PROP | proptype
             bl_prop.pd_obj.type = objtype
             if proptype == OBJTYPE_LIFT:
@@ -352,10 +356,11 @@ def import_objects(romdata, setupdata, paddata):
                     if padnum < 0: continue
                     pad = paddata.pad_unpack(padnum, PADFIELD_POS | PADFIELD_BBOX)
                     name = f'{bl_prop.name} stop{idxpad} P-{padnum:02X}'
-                    bl_stop = pdu.new_empty_obj(name, bl_prop, dsize=50, dtype='CIRCLE')
-                    bl_stop.matrix_world.translation = pad.pos
-                    blender_align(bl_stop)
+                    bl_stop = pdu.new_empty_obj(name, bl_prop, dsize=50, dtype='CIRCLE', link=False)
                     bl_stop.pd_obj.type = pdprops.PD_PROP_LIFT_STOP
+                    bl_stop.matrix_world.translation = pad.pos
+                    pdu.add_to_collection(bl_stop, 'Props')
+                    blender_align(bl_stop)
                     if idxpad == 0:
                         bl_prop.pd_lift.stop1 = bl_stop
                     elif idxpad == 1:
@@ -434,24 +439,24 @@ def import_intro(introcmds, paddata):
             padnum = cmd['params'][0]
             print('SPAWN', f"pad: {padnum:02X}")
             pad = paddata.pad_unpack(padnum, PADFIELD_POS | PADFIELD_LOOK | PADFIELD_UP)
-            intro_obj('Spawn', pad, padnum)
+            create_intro_obj('Spawn', pad, padnum)
         elif cmd['cmd'] == INTROCMD_HILL:
             padnum = cmd['params'][0]
             print('HILL', f"pad: {padnum:02X}")
             pad = paddata.pad_unpack(padnum, PADFIELD_POS | PADFIELD_LOOK | PADFIELD_UP)
-            intro_obj('Hill', pad, padnum, 20)
+            create_intro_obj('Hill', pad, padnum, 20)
         elif cmd['cmd'] == INTROCMD_CASE:
             padnum = cmd['params'][1]
             print('CASE', f"pad: {padnum:02X}")
             pad = paddata.pad_unpack(padnum, PADFIELD_POS | PADFIELD_LOOK | PADFIELD_UP)
-            intro_obj('Case', pad, padnum)
+            create_intro_obj('Case', pad, padnum)
         elif cmd['cmd'] == INTROCMD_CASERESPAWN:
             padnum = cmd['params'][1]
             print('CASERESPAWN', f"pad: {padnum:02X}")
             pad = paddata.pad_unpack(padnum, PADFIELD_POS | PADFIELD_LOOK | PADFIELD_UP)
-            intro_obj('CaseRespawn', pad, padnum)
+            create_intro_obj('CaseRespawn', pad, padnum)
 
-def intro_obj(name, pad, padnum, sc=16):
+def create_intro_obj(name, pad, padnum, sc=16):
     meshname = name.lower()
     name = f'{name}_{padnum:02X}'
     spawn_obj = tmesh.create_mesh(name, meshname)
@@ -462,3 +467,74 @@ def intro_obj(name, pad, padnum, sc=16):
     blender_align(spawn_obj)
     spawn_obj.rotation_euler[0] -= pi/2
     spawn_obj.rotation_euler[2] -= pi/2
+
+
+def import_waypoints(paddata):
+    scn = bpy.context.scene
+
+    waypoints = paddata.waypoints
+
+    scn['waypoints'] = {}
+    groups = []
+    for i, wp in enumerate(waypoints):
+        padnum = wp['padnum']
+        if padnum == 0xffffffff: break
+
+        groupnum = wp['groupnum']
+
+        groupname = pdu.group_name(groupnum)
+        if groupnum not in groups:
+            bl_group = pdu.new_empty_obj(groupname, dsize=0, link=False)
+            pdu.add_to_collection(bl_group, 'Waypoints')
+            groups.append(groupnum)
+        else:
+            bl_group = bpy.data.objects[groupname]
+
+        pad = paddata.pad_unpack(padnum, PADFIELD_POS)
+        bl_waypoint = create_waypoint(padnum, pad.pos, bl_group)
+
+        pd_waypoint = bl_waypoint.pd_waypoint
+        pd_waypoint.padnum = padnum
+        pd_waypoint.groupnum = groupnum
+        pd_waypoint.group_enum = groupname
+        pd_neighbours = pd_waypoint.neighbours_coll
+        for idx, block in enumerate(wp['neighbours_list']):
+            neighbour = block['value']
+            if neighbour == 0xffffffff: break
+
+            neighbour_wp = waypoints[neighbour&0xff]
+            neighbour_item = pd_neighbours.add()
+            neighbour_item.name = pdu.waypoint_name(neighbour_wp['padnum'])
+            neighbour_item.groupnum = neighbour_wp['groupnum']
+            neighbour_item.padnum = neighbour_wp['padnum']
+
+            idxs = { 0: 0, 0x4000: 1, 0x8000: 2, }
+            edgeidx = idxs[neighbour & 0xff00]
+            edge = pdprops.WAYPOINT_EDGETYPES[edgeidx][0]
+            neighbour_item.edgetype = edge
+
+def create_waypoint(padnum, pos, bl_group, rotate=True):
+    objname = pdu.waypoint_name(padnum)
+    bl_waypoint = tmesh.create_mesh(objname, 'cube')
+    bl_waypoint.parent = bl_group
+
+    bl_waypoint.color = (0.0, 0.8, 0.0, 1.0)
+    if len(bl_waypoint.data.materials) == 0:
+        wp_material = pdm.waypoint_material()
+        bl_waypoint.data.materials.append(wp_material)
+
+    bl_waypoint.pd_obj.type = pdprops.PD_OBJTYPE_WAYPOINT
+    bl_waypoint.pd_obj.name = objname
+    pdu.add_to_collection(bl_waypoint, 'Waypoints')
+
+    bl_waypoint.matrix_world.translation = pos
+
+    if rotate:
+        blender_align(bl_waypoint)
+
+    bl_waypoint.scale = (7, 7, 7)
+
+    scn = bpy.context.scene
+    waypoints = scn['waypoints']
+    waypoints[str(padnum)] = bl_waypoint
+    return bl_waypoint

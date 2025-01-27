@@ -377,28 +377,38 @@ def material_cmds(mat, geobits):
     return cmds, geobits
 
 PORTAL_MAT = 'PD_PortalMat'
+WAYPOINT_MAT = 'PD_WaypointMat'
 
-def portal_material():
-    if PORTAL_MAT in bpy.data.materials:
-        return bpy.data.materials[PORTAL_MAT]
+def create_basic_material(name, color = None, alpha = 0):
+    if name in bpy.data.materials:
+        return bpy.data.materials[name]
 
-    portal_mat = bpy.data.materials.new(PORTAL_MAT)
-    portal_mat.use_nodes = True
-    portal_mat.use_fake_user = True
-    nodes = portal_mat.node_tree.nodes
+    newmat = bpy.data.materials.new(name)
+    newmat.use_nodes = True
+    newmat.use_fake_user = True
+    nodes = newmat.node_tree.nodes
 
     for node in nodes:
         nodes.remove(node)
 
-    links = portal_mat.node_tree.links
+    links = newmat.node_tree.links
 
     # create the basic material nodes
     node_output = nodes.new(type='ShaderNodeOutputMaterial')
     node_output.location.x += 200
     node_pbsdf = nodes.new(type='ShaderNodeBsdfPrincipled')
     node_pbsdf.location = 0, 0
-    node_pbsdf.inputs['Alpha'].default_value = 0
+    node_pbsdf.inputs['Alpha'].default_value = alpha
+
+    if color:
+        node_pbsdf.inputs['Base Color'].default_value = color
 
     links.new(node_pbsdf.outputs['BSDF'], node_output.inputs['Surface'])
-    portal_mat.surface_render_method = 'BLENDED'
-    return portal_mat
+    # newmat.surface_render_method = 'BLENDED'
+    return newmat
+
+def portal_material():
+    return create_basic_material(PORTAL_MAT)
+
+def waypoint_material():
+    return create_basic_material(WAYPOINT_MAT, (0.0, 0.8, 0.0, 1.0), 1.0)

@@ -1,5 +1,6 @@
 import os
 import traceback
+import math
 
 import bpy
 from bpy.types import Operator, WorkSpaceTool
@@ -7,7 +8,7 @@ import gpu
 import bmesh
 from gpu_extras.batch import batch_for_shader
 from bpy_extras.io_utils import ImportHelper, ExportHelper
-from bpy.props import IntProperty, FloatProperty, StringProperty, BoolProperty
+from bpy.props import IntProperty, FloatProperty, StringProperty, BoolProperty, EnumProperty
 from bl_ui import space_toolsystem_common
 from mathutils import Vector
 import aud
@@ -22,6 +23,9 @@ import pd_blendprops as pdprops
 import bg_utils as bgu
 import tiles_import as tiles
 from mtxpalette_panel import gen_icons
+from bpy_extras import view3d_utils
+import setup_import as stpi
+
 
 class PDTOOLS_OT_LoadRom(Operator, ImportHelper):
     bl_idname = "pdtools.load_rom"
@@ -569,6 +573,242 @@ class PDTOOLS_OT_SetupLiftCreateStop(Operator):
         return {'FINISHED'}
 
 
+
+class PDTOOLS_OT_SetupWaypointAddNeighbour(Operator):
+    bl_idname = "pdtools.op_setup_waypoint_addneighbour"
+    bl_label = 'Add Neighbour'
+    bl_description = 'Click on waypoints to add a neighbor. right click or esc to exit'
+
+    @staticmethod
+    def raycast(context, event):
+        scn = context.scene
+        region = context.region
+        rv3d = context.region_data
+        coord = event.mouse_region_x, event.mouse_region_y
+
+        # get the ray from the viewport and mouse
+        view_vector = view3d_utils.region_2d_to_vector_3d(region, rv3d, coord)
+        ray_origin = view3d_utils.region_2d_to_origin_3d(region, rv3d, coord)
+
+        ray_target = ray_origin + view_vector
+
+        def obj_ray_cast(obj, matrix):
+            # get the ray relative to the object
+            matrix_inv = matrix.inverted()
+            ray_origin_obj = matrix_inv @ ray_origin
+            ray_target_obj = matrix_inv @ ray_target
+            ray_direction_obj = ray_target_obj - ray_origin_obj
+
+            # cast the ray
+            success, location, normal, face_index = obj.ray_cast(ray_origin_obj, ray_direction_obj)
+
+            if success:
+                return location, normal, face_index
+            else:
+                return None, None, None
+
+        # cast rays and find the closest object
+        best_length_squared = -1.0
+        picked_obj = None
+
+        coll = bpy.data.collections['Waypoints']
+        for obj in coll.objects:
+            if obj.pd_obj.type != pdprops.PD_OBJTYPE_WAYPOINT: continue
+
+            M = obj.matrix_world
+            hit, normal, face_index = obj_ray_cast(obj, M)
+
+            if hit is None: continue
+
+            hit_world = M @ hit
+            scn.cursor.location = hit_world
+            length_squared = (hit_world - ray_origin).length_squared
+            if picked_obj is None or length_squared < best_length_squared:
+                best_length_squared = length_squared
+                picked_obj = obj
+
+        if picked_obj is not None:
+            sel_obj = context.active_object
+            # user clicked on the waypoint already selected: skip
+            if sel_obj == picked_obj:
+                return
+
+            neighbour_wp = picked_obj.pd_waypoint
+
+            pd_waypoint = sel_obj.pd_waypoint
+            pd_neighbours_coll = pd_waypoint.neighbours_coll
+
+            # check if the neighbour already exists
+            for neighbour in pd_neighbours_coll:
+                if neighbour.padnum == neighbour_wp.padnum:
+                    return
+
+            # add to the neighbours collection
+            neighbour_item = pd_neighbours_coll.add()
+            neighbour_item.name = picked_obj.name
+            neighbour_item.groupnum = neighbour_wp.groupnum
+            neighbour_item.padnum = neighbour_wp.padnum
+            edge = pdprops.WAYPOINT_EDGETYPES[0][0]
+            neighbour_item.edgetype = edge
+
+    def modal(self, context, event):
+        if event.type in {'MIDDLEMOUSE', 'WHEELUPMOUSE', 'WHEELDOWNMOUSE'}:
+            return {'PASS_THROUGH'}
+        elif event.type == 'LEFTMOUSE' and event.value == 'PRESS':
+            self.raycast(context, event)
+            return {'RUNNING_MODAL'}
+        elif event.type in {'RIGHTMOUSE', 'ESC'}:
+            return {'CANCELLED'}
+
+        return {'RUNNING_MODAL'}
+
+    def invoke(self, context, event):
+        if context.space_data.type == 'VIEW_3D':
+            context.window_manager.modal_handler_add(self)
+            return {'RUNNING_MODAL'}
+        else:
+            self.report({'WARNING'}, "Active space must be a View3d")
+            return {'CANCELLED'}
+
+
+class PDTOOLS_OT_SetupWaypointRemoveNeighbour(Operator):
+    bl_idname = "pdtools.op_setup_waypoint_removeneighbour"
+    bl_label = "PD: Remove Neighbour"
+    bl_description = "Remove the selected neighbour"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        bl_obj = context.active_object
+        pd_waypoint = bl_obj.pd_waypoint
+
+        pd_neighbours_coll = pd_waypoint.neighbours_coll
+        index = pd_waypoint.active_neighbour_idx
+        pd_neighbours_coll.remove(index)
+
+        pdu.redraw_ui()
+        return {'FINISHED'}
+
+
+class PDTOOLS_OT_SetupWaypointCreateFromMesh(Operator):
+    bl_idname = "pdtools.op_setup_waypoint_createfrommesh"
+    bl_label = "Create Waypoint From Mesh"
+    bl_description = "Creates Waypoints From The Mesh Vertices and Edges"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    group_enum: EnumProperty(name="group_enum", description="Waypoint Group", items=pdprops.get_groupitems)
+    keep_mesh: BoolProperty(name="keep_mesh", default=True, description="Do Not Delete The Mesh")
+
+    def draw(self, context):
+        layout = self.layout
+        row = layout.row().split(factor=0.4)
+        row.prop(self, 'group_enum', text='')
+        row.prop(self, 'keep_mesh', text='Keep The Mesh')
+
+    def invoke(self, context, event):
+        wm = context.window_manager
+        return wm.invoke_props_dialog(self)
+
+    def create(self, context):
+        bl_obj = context.active_object
+        bm = bmesh.new()
+        bm.from_mesh(bl_obj.data)
+
+        pos = bl_obj.matrix_world.translation
+
+        wp_coll = bpy.data.collections['Waypoints']
+        padnum = 1 + max([wp.pd_waypoint.padnum for wp in wp_coll.objects])
+
+        groupname = self.group_enum
+        if groupname == pdprops.NEWGROUP:
+            groupnum, bl_group = pdu.waypoint_newgroup()
+            groupname = bl_group.name
+        else:
+            bl_group = bpy.data.objects[groupname]
+            groups = [g[0] for g in pdprops.get_groupitems(context.scene, context)]
+            groupnum = groups.index(self.group_enum)
+
+        waypoints = []
+        for v in bm.verts:
+            bl_waypoint = stpi.create_waypoint(padnum, pos + v.co, bl_group, False)
+            pd_waypoint = bl_waypoint.pd_waypoint
+            pd_waypoint.padnum = padnum
+            pd_waypoint.groupnum = groupnum
+            pd_waypoint.group_enum = groupname
+            waypoints.append(bl_waypoint)
+            padnum += 1
+
+        for e in bm.edges:
+            v0, v1 = e.verts
+            bl_waypoint0 = waypoints[v0.index]
+            bl_waypoint1 = waypoints[v1.index]
+
+            pdu.add_neighbour(bl_waypoint0, bl_waypoint1)
+            pdu.add_neighbour(bl_waypoint1, bl_waypoint0)
+
+        bm.free()
+
+        if not self.keep_mesh:
+            bpy.data.objects.remove(bl_obj)
+
+        if waypoints:
+            pdu.select_obj(waypoints[-1])
+
+    def execute(self, context):
+        self.create(context)
+        pdu.redraw_ui()
+        return {'FINISHED'}
+
+
+class PDTOOLS_OT_SetupWaypointCreateNeighbours(Operator):
+    bl_idname = "pdtools.op_setup_waypoint_createneighbours"
+    bl_label = "Create Neighbours"
+    bl_description = "Create Waypoint Neighbours Around This Waypoint"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    num: IntProperty(name="num", default=1, min=0, description="Number Of Neighbours")
+    distance: IntProperty(name="distance", default=100, min=0, description="Number Of Neighbours")
+
+    def draw(self, _context):
+        layout = self.layout
+        col = layout.column()
+        col.prop(self, 'num', text='Number')
+        col.prop(self, 'distance', text='Distance')
+
+    def execute(self, context):
+        bl_waypoint = context.active_object
+        pd_waypoint = bl_waypoint.pd_waypoint
+        objpos = bl_waypoint.matrix_world.translation
+
+        wp_coll = bpy.data.collections['Waypoints']
+        padnum = 1 + max([wp.pd_waypoint.padnum for wp in wp_coll.objects])
+        groupnum = pd_waypoint.groupnum
+        groupname = pdu.group_name(groupnum)
+        bl_group = bpy.data.objects[groupname]
+
+        angle = 0
+        for i in range(self.num):
+            r = self.distance
+            p = (r * math.cos(angle), r * math.sin(angle), 0)
+            pos = objpos + Vector(p)
+
+            bl_neighbour = stpi.create_waypoint(padnum, pos, bl_group, False)
+            pd_neighbour = bl_neighbour.pd_waypoint
+            pd_neighbour.padnum = padnum
+            pd_neighbour.groupnum = groupnum
+            pd_neighbour.group_enum = groupname
+
+            pdu.add_neighbour(bl_waypoint, bl_neighbour)
+
+            angle += 2*math.pi / self.num
+            padnum += 1
+
+        return {'FINISHED'}
+
+    def invoke(self, context, _event):
+        wm = context.window_manager
+        return wm.invoke_props_dialog(self, width=150)
+
+
 class PDTOOLS_OT_SetupLiftRemoveStop(Operator):
     bl_idname = "pdtools.op_setup_lift_remove_stop"
     bl_label = "PD: Remove Stop"
@@ -582,8 +822,6 @@ class PDTOOLS_OT_SetupLiftRemoveStop(Operator):
         pd_lift = bl_obj.pd_lift
         stops = [pd_lift.stop1, pd_lift.stop2, pd_lift.stop3, pd_lift.stop4]
         stop = stops[self.index]
-
-        print(self.index, stop)
 
         bpy.data.objects.remove(stop, do_unlink=True)
 
@@ -667,7 +905,7 @@ class PDTOOLS_OT_SetupObjEditFlags(bpy.types.Operator):
         pd_obj = bl_obj.pd_prop
 
         layout = self.layout
-        layout.template_texture_user()
+        # layout.template_texture_user()
         scn = context.scene
 
         row = layout.row().split(factor=0.07)
@@ -767,6 +1005,10 @@ classes = [
     PDTOOLS_OT_SetupInterlinkRemove,
     PDTOOLS_OT_SetupDoorSelectSibling,
     PDTOOLS_OT_SetupDoorPlaySound,
+    PDTOOLS_OT_SetupWaypointAddNeighbour,
+    PDTOOLS_OT_SetupWaypointRemoveNeighbour,
+    PDTOOLS_OT_SetupWaypointCreateFromMesh,
+    PDTOOLS_OT_SetupWaypointCreateNeighbours,
     PDTOOLS_OT_MessageBox,
 ]
 

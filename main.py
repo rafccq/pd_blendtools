@@ -26,7 +26,11 @@ for dir in modules_dirs:
     if dir not in sys.path:
         print('added to path: ', dir)
         sys.path.append(dir)
-        
+
+import pd_blendprops as pdprops
+#pdprops.remove_drawhandler()
+
+
 # try to unregister
 import nodes.pd_shadernodes as pdn
 #try:
@@ -96,9 +100,10 @@ def loadmodel(name):
 def cl_setup():
     pdu.clear_collection('Props')
     pdu.clear_collection('Intro')
+    pdu.clear_collection('Waypoints')
 
 #clear()
-#cl_setup()
+cl_setup()
 register()
 
 #loadmodel('ProofgunZ')
@@ -119,13 +124,13 @@ register()
 #bgi.bg_import('bg_azt') # Crash Site
 #bgi.bg_import('bg_rit') # Air Force One
 
-#bgi.bg_import('bg_mp15') # Grid
+bgi.bg_import('bg_mp15') # Grid
 #bgi.bg_import('bg_mp11') # Felicity
 #bgi.bg_import('bg_mp4') # Warehouse
 #bgi.bg_import('bg_mp12') # Fortress
 
 # ------------------ SETUPS ------------------
-#setup.setup_import('bg_mp15', True)
+setup.setup_import('bg_mp15', True)
 #setup.setup_import('bg_mp11', True)
 #setup.setup_import('bg_mp4', True)
 #setup.setup_import('bg_dish')

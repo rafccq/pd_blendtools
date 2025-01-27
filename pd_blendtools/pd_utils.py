@@ -13,6 +13,7 @@ from bl_ui.space_toolsystem_common import ToolSelectPanelHelper
 
 import mtxpalette as mtxp
 from gbi import GDLcodes
+import pd_blendprops as pdprops
 
 MAX_GDL_CMDS = 512
 
@@ -296,7 +297,7 @@ def new_collection(name):
     return coll
 
 def clear_scene():
-    for coll in ['Rooms', 'Portals', 'Tiles', 'Intro', 'Props']:
+    for coll in pdprops.PD_COLLECTIONS:
         clear_collection(coll)
 
     for group in bpy.data.node_groups:
@@ -344,6 +345,13 @@ def select(item, idx):
         bm.faces[idx].select = True
     else:
         print('invalid item:', item)
+
+def select_obj(bl_obj, clear_selection=True):
+    if clear_selection:
+        bpy.ops.object.select_all(action='DESELECT')
+
+    bpy.context.view_layer.objects.active = bl_obj
+    bl_obj.select_set(True)
 
 def show_normals():
     mesh = active_mesh()
@@ -558,3 +566,42 @@ def flags_unpack(flaglist, valuepacked, flagvalues):
     n = len(flaglist)
     for idx in range(n):
         flaglist[idx] = bool(flagvalues[idx] & valuepacked)
+
+def waypoint_name(padnum): return f'waypoint_{padnum:02X}'
+def group_name(num): return f'Set {num:02X}'
+
+def add_neighbour(bl_waypoint, bl_neighbour):
+    pd_waypoint = bl_waypoint.pd_waypoint
+    pd_neighbour_wp = bl_neighbour.pd_waypoint
+
+    pd_neighbours = pd_waypoint.neighbours_coll
+
+    neighbour_item = pd_neighbours.add()
+    neighbour_item.name = waypoint_name(pd_neighbour_wp.padnum)
+    neighbour_item.groupnum = pd_waypoint.groupnum
+    neighbour_item.padnum = pd_neighbour_wp.padnum
+
+    edge = pdprops.WAYPOINT_EDGETYPES[0][0]
+    neighbour_item.edgetype = edge
+
+def waypoint_newgroup():
+    groupnum = waypoint_maxgroup()
+    groupname = group_name(groupnum)
+    bl_group = new_empty_obj(groupname, dsize=0, link=False)
+    add_to_collection(bl_group, 'Waypoints')
+
+    return groupnum, bl_group
+
+def waypoint_maxgroup():
+    n = 0
+    wp_coll = bpy.data.collections['Waypoints']
+    for group in wp_coll.objects:
+        if group.parent is not None: continue
+        n += 1
+
+    return n
+
+def enum_value(bl_obj, enum_name, propval):
+    prop = bl_obj.bl_rna.properties[enum_name]
+    items = prop.enum_items
+    return items.get(propval).value

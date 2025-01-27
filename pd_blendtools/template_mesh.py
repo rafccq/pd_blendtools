@@ -121,6 +121,19 @@ Mesh_CaseRespawn = MeshData('caserespawn',
   ]
 )
 
+Nesh_Cube = MeshData('cube',
+  [
+    (-1.0000, -1.0000, -1.0000), (-1.0000, -1.0000, 1.0000),
+    (-1.0000, 1.0000, -1.0000), (-1.0000, 1.0000, 1.0000),
+    (1.0000, -1.0000, -1.0000), (1.0000, -1.0000, 1.0000),
+    (1.0000, 1.0000, -1.0000),(1.0000, 1.0000, 1.0000)
+  ],
+  [
+    (0, 1, 3, 2), (2, 3, 7, 6), (6, 7, 5, 4),
+    (4, 5, 1, 0), (2, 6, 4, 0), (7, 3, 1, 5)
+  ]
+)
+
 
 TemplateMeshes = {
     m.name: m for m in [
@@ -128,18 +141,19 @@ TemplateMeshes = {
         Mesh_Hill,
         Mesh_Case,
         Mesh_CaseRespawn,
+        Nesh_Cube,
     ]
 }
 
-def create_mesh(objname, meshname):
+def create_mesh(objname, meshname, copy=False):
     if meshname not in TemplateMeshes.keys():
         raise RuntimeError(f'Invalid mesh type: {meshname}')
 
     m = TemplateMeshes[meshname]
     meshname = f'meshdata_{meshname}'
 
-    # only create a new mesh if it's not already in the library
-    if meshname not in bpy.data.meshes:
+    # only create a new mesh if it's not already in the library (or user chose to copy)
+    if copy or meshname not in bpy.data.meshes:
         verts, faces = m.verts, m.faces
         mesh = bpy.data.meshes.new(meshname)
         mesh.from_pydata(verts, [], faces)

@@ -1,8 +1,12 @@
+import math
+
 import bpy
-from bpy.types import PropertyGroup, Object, Panel, Scene
+from bpy.types import PropertyGroup, Object, Panel, Scene, SpaceView3D
 from bpy.props import *
 from bpy.utils import register_class, unregister_class
 from mathutils import Euler, Vector, Matrix
+import gpu
+from gpu_extras.batch import batch_for_shader
 
 import nodes.nodeutils as ndu
 import pd_utils as pdu
@@ -23,11 +27,20 @@ PD_OBJTYPE_TILE         = 0x0600
 #### Setup
 PD_OBJTYPE_PROP         = 0x0700
 PD_OBJTYPE_INTRO        = 0x0800
+PD_OBJTYPE_WAYPOINT     = 0x0900
 
 PD_PROP_DOOR            = PD_OBJTYPE_PROP | 0x01
 PD_PROP_TINTED_GLASS    = PD_OBJTYPE_PROP | 0x2f
 PD_PROP_LIFT            = PD_OBJTYPE_PROP | 0x30
 PD_PROP_LIFT_STOP       = PD_OBJTYPE_PROP | 0xf0
+
+
+WAYPOINTS_VISIBILITY = [
+    ('All Sets', 'All Sets', 0),
+    ('Selected Set', 'Show Only Links From The Selected Set', 1),
+    ('Isolated Sets', 'Hide Links Connecting Different Sets', 2),
+    ('Selected Waypoint', 'Show Only Links From The Selected Waypoint', 3),
+]
 
 
 class PDObject(PropertyGroup):
@@ -154,7 +167,8 @@ def update_pad_bbox(self, _context):
         pad_bbox = pdp.Bbox(*self.pad_bbox)
         model_bbox = pdp.Bbox(*self.model_bbox)
         modelscale = pd_prop.modelscale * pd_prop.extrascale / (256 * 4096)
-        sx, sy, sz = stpi.obj_getscale(modelscale, pad_bbox, model_bbox, pd_prop.flags)
+        flags = pdu.flags_pack(pd_prop.flags1, [e[1] for e in flags1])
+        sx, sy, sz = stpi.obj_getscale(modelscale, pad_bbox, model_bbox, flags)
 
     bbox_p = pdp.Bbox(*self.pad_bbox_p)
     bbox = pdp.Bbox(*self.pad_bbox)
@@ -440,7 +454,61 @@ class PDObject_SetupInterlinkObject(PropertyGroup):
     name: StringProperty(name='name', options={'LIBRARY_EDITABLE'})
     controller: PointerProperty(name='controller', type=bpy.types.Object, options={'LIBRARY_EDITABLE'})
     controlled: PointerProperty(name='controlled', type=bpy.types.Object, options={'LIBRARY_EDITABLE'})
-    stopnum: IntProperty(name='lift_stop', default=0, min=1, max=4, options={'LIBRARY_EDITABLE'})
+    stopnum: IntProperty(name='stopnum', default=0, min=1, max=4, options={'LIBRARY_EDITABLE'})
+
+
+WAYPOINT_EDGETYPES = [
+    ('STD', 'Standard',        'Normal bidirectional connection between waypoints', 'ARROW_LEFTRIGHT',           0x0),
+    ('OWF', 'One Way Forward', 'Can only go from this waypoint to the neighbour',   'FORWARD',                   0x40),
+    ('OWB', 'One Way Blocked', 'Cant go away from this waypoint to the neighbour',  'TRACKING_FORWARDS_SINGLE',  0x80),
+]
+
+WAYPOINT_EDGEVALUES = {
+    item[0]: item[-1] for item in WAYPOINT_EDGETYPES
+}
+
+class PDObject_SetupWaypointNeighbour(PropertyGroup):
+    name: StringProperty(name='name', default='', options={'LIBRARY_EDITABLE'})
+    edgetype: EnumProperty(items=WAYPOINT_EDGETYPES, default="STD")
+    groupnum: IntProperty(name='groupnum', default=0, min=0, max=128, options={'LIBRARY_EDITABLE'})
+    padnum: IntProperty(name='padnum', default=0, min=0, max=255, options={'LIBRARY_EDITABLE'})
+
+
+group_items = []
+NEWGROUP = '[New Set]'
+
+def get_groupitems(scene, context):
+    group_items.clear()
+    for wp_set in bpy.data.collections['Waypoints'].objects:
+        if wp_set.parent: continue
+        e = wp_set.name
+        group_items.append((e, e, e))
+
+    group_items.append((NEWGROUP, NEWGROUP, 'Create A New Set'))
+    return group_items
+
+
+class PDObject_SetupWaypoint(PropertyGroup):
+    def update_group(self, context):
+        groupname = self.group_enum
+        if groupname == NEWGROUP:
+            groupnum, bl_group = pdu.waypoint_newgroup()
+            groupname = bl_group.name
+        else:
+            bl_group = bpy.data.objects[groupname]
+            groups = [g[0] for g in get_groupitems(context.scene, context)]
+            groupnum = groups.index(self.group_enum)
+
+        self.groupnum = groupnum
+
+        bl_waypoint = self.id_data
+        bl_waypoint.parent = bl_group
+
+    groupnum: IntProperty(name='groupnum', default=0, min=0, max=128, options={'LIBRARY_EDITABLE'})
+    padnum: IntProperty(name='padnum', default=0, min=0, max=255, options={'LIBRARY_EDITABLE'})
+    group_enum: EnumProperty(name="group_enum", description="Waypoint Group", items=get_groupitems, update=update_group)
+    neighbours_coll: CollectionProperty(name='neighbours_coll', type=PDObject_SetupWaypointNeighbour)
+    active_neighbour_idx: IntProperty(name='active_neighbour_idx', default=0, options={'LIBRARY_EDITABLE'})
 
 
 def check_is_elevstop(_scene, obj):
@@ -474,6 +542,8 @@ classes = [
     PDObject_SetupTintedGlass,
     PDObject_SetupInterlinkObject,
     PDObject_SetupLift,
+    PDObject_SetupWaypointNeighbour,
+    PDObject_SetupWaypoint,
 ]
 
 PD_COLLECTIONS = [
@@ -482,6 +552,7 @@ PD_COLLECTIONS = [
     'Tiles',
     'Props',
     'Intro',
+    'Waypoints',
 ]
 
 def update_scene_vis(self, context):
@@ -499,6 +570,9 @@ def update_scene_tilehighlight(_self, context):
     bpy.ops.pdtools.messagebox(msg=f'{n} Tiles Affected')
     # pd_utils.msg_box(f'{n} Tiles Affected')
 
+def update_scene_wp_vis(_self, context):
+    scn = context.scene
+
 def update_scene_roomgoto(self, _context):
     area = next(area for area in bpy.context.screen.areas if area.type == 'VIEW_3D')
     space = next(space for space in area.spaces if space.type == 'VIEW_3D')
@@ -508,7 +582,144 @@ def update_scene_roomgoto(self, _context):
     look = Vector([V[2][i] for i in range(3)])
     region.view_location = room.location - look * region.view_distance
 
+
+vp_shader = gpu.shader.from_builtin('SMOOTH_COLOR')
+
+def collection_vis(coll_name):
+    scn = bpy.context.scene
+    return scn.collections_vis[PD_COLLECTIONS.index(coll_name)]
+
+def offset_to_face(p0, p1, d, z):
+    dir = (p1 - p0).normalized()
+    dirY = Vector((0,1,0))
+    dot = Vector.dot(dir, dirY)
+
+    x0, y0, _ = dirY
+    x1, y1, _ = dir
+
+    dot = x0*x1 + y0*y1
+    det = x0*y1 - y0*x1
+    angle = math.atan2(det, dot)*180/math.pi
+
+    ofs = [0,0,0]
+    if -45 <= angle <= 45: # +Y
+        ofs = (0, d, z) #+Y
+    elif 45 <= angle <= 135: # -X
+        ofs = (-d, 0, z)
+    elif -135 <= angle <= -45: # +X
+        ofs = (d, 0, z)
+    elif 135 <= angle or angle <= -135: # -Y
+        ofs = (0, -d, z)
+
+    return Vector(ofs)
+
+c = 0.6
+group_colors = {
+    0: (1, 1, 1),
+    1: (c, 0, 0),
+    2: (0, c, 0),
+    3: (0, 0, c),
+    4: (0, c, c),
+    5: (c, 0, c),
+    6: (c, c, 0),
+}
+
+def draw_waypoints():
+    bl_obj = bpy.context.active_object
+
+    scn = bpy.context.scene
+    if 'waypoints' not in scn or not collection_vis('Waypoints'):
+        return
+
+    VIS_SELECTEDSET = ndu.make_id(WAYPOINTS_VISIBILITY[1][0])
+    VIS_ISOLATEDSETS = ndu.make_id(WAYPOINTS_VISIBILITY[2][0])
+    VIS_SELECTEDWP = ndu.make_id(WAYPOINTS_VISIBILITY[3][0])
+
+    sel_group = bl_obj.pd_waypoint.groupnum if pdu.pdtype(bl_obj) == PD_OBJTYPE_WAYPOINT else -1
+    color_sel = (0.6, 0.6, 0.0)
+
+    waypoints = scn['waypoints']
+    verts = []
+    colors = []
+
+    # for the selected neighbours
+    verts_sel = []
+    colors_sel = []
+
+    wp_vis = bpy.context.scene.pd_waypoint_vis
+    for idx, bl_waypoint in enumerate(waypoints.values()):
+        if not bl_waypoint: continue
+
+        pd_waypoint = bl_waypoint.pd_waypoint
+
+        for idx, neighbour in enumerate(pd_waypoint.neighbours_coll):
+            bl_neighbour = waypoints[str(neighbour.padnum)]
+
+            col = (0.0, 0.6, 0.0)
+            neighbour_group = bl_neighbour.pd_waypoint.groupnum
+            if neighbour_group != pd_waypoint.groupnum:
+                col = (0.6, 0.0, 0.6)
+
+            if bl_waypoint.pd_waypoint.groupnum == sel_group and neighbour_group == sel_group:
+                col = color_sel
+
+            edge_type = pdu.enum_value(neighbour, 'edgetype', neighbour.edgetype)
+            s = bl_waypoint.scale.x
+            dz = 0
+
+            if edge_type != 0:
+                col = (0.0, 0.0, 0.6)
+                dz = s if edge_type == 0x80 else -s
+
+            p_src = bl_waypoint.matrix_world.translation
+            p_dst = bl_neighbour.matrix_world.translation
+
+            ofs_src = offset_to_face(p_src, p_dst, s, 0)
+            ofs_dst = offset_to_face(p_dst, p_src, s, dz)
+
+            list_neighbour_idx = pd_waypoint.active_neighbour_idx
+            if sel_group > 0 and bl_waypoint == bl_obj and idx == list_neighbour_idx:
+                verts_sel.append(p_src + ofs_src)
+                verts_sel.append(p_dst + ofs_dst)
+                colors_sel.append(col)
+                colors_sel.append(col)
+
+            if wp_vis == VIS_SELECTEDSET and pd_waypoint.groupnum != sel_group: continue
+            if wp_vis == VIS_SELECTEDWP and bl_waypoint != bl_obj: continue
+            if wp_vis == VIS_ISOLATEDSETS:
+                ncol = len(group_colors)
+                col = group_colors[pd_waypoint.groupnum % ncol]
+                if neighbour_group != pd_waypoint.groupnum: continue
+
+            verts.append(p_src + ofs_src)
+            verts.append(p_dst + ofs_dst)
+            colors.append(col)
+            colors.append(col)
+
+
+    drawlines(verts, colors, 1.45)
+    if verts_sel:
+        drawlines(verts_sel, colors_sel, 3)
+
+def drawlines(verts, colors, w):
+    batch = batch_for_shader(
+        vp_shader, 'LINES', {'pos': verts, 'color': colors}
+    )
+    gpu.state.depth_test_set('LESS_EQUAL')
+    gpu.state.line_width_set(w)
+    vp_shader.bind()
+    batch.draw(vp_shader)
+
+def remove_drawhandler():
+    try:
+        if vp_drawhandler:
+            SpaceView3D.draw_handler_remove(vp_drawhandler, 'WINDOW')
+    except Exception as err:
+        print(err)
+
 def register():
+    global vp_drawhandler
+
     for cls in classes:
         register_class(cls)
 
@@ -523,6 +734,7 @@ def register():
     Object.pd_door = bpy.props.PointerProperty(type=PDObject_SetupDoor)
     Object.pd_tintedglass = bpy.props.PointerProperty(type=PDObject_SetupTintedGlass)
     Object.pd_lift = bpy.props.PointerProperty(type=PDObject_SetupLift)
+    Object.pd_waypoint = bpy.props.PointerProperty(type=PDObject_SetupWaypoint)
 
     n_coll = len(PD_COLLECTIONS)
     Scene.collections_vis = BoolVectorProperty(name='collections_vis', size=n_coll, default=[1]*n_coll, update=update_scene_vis, options={'LIBRARY_EDITABLE'})
@@ -533,7 +745,9 @@ def register():
     Scene.pd_portal = bpy.props.PointerProperty(type=bpy.types.Object, poll=check_isportal)
     Scene.flags_filter = StringProperty(name="Flags Filter", default='', options={'TEXTEDIT_UPDATE'})
     Scene.flags_toggle = BoolProperty(name="Flags Toggle", default=False, description='Show Flags As Toggle/Checkbox')
+    Scene.pd_waypoint_vis = ndu.make_prop('pd_waypoint_vis', {'pd_waypoint_vis': WAYPOINTS_VISIBILITY}, 'allsets', update_scene_wp_vis)
 
+    vp_drawhandler = SpaceView3D.draw_handler_add(draw_waypoints, (), 'WINDOW', 'POST_VIEW')
 
 def unregister():
     del Object.pd_tile
@@ -554,3 +768,5 @@ def unregister():
 
     for cls in reversed(classes):
         unregister_class(cls)
+
+    bpy.types.SpaceView3D.draw_handler_remove(vp_drawhandler)
