@@ -433,6 +433,8 @@ class PDTOOLS_PT_SetupWaypoint(Panel):
         # col.operator('pdtools.op_setup_waypoint_removeneighbour', text='Remove Neighbour')
         # row = box.row()
         row.operator('pdtools.op_setup_waypoint_createneighbours', text='Create Neighbours')
+        row = box.row()
+        row.operator('pdtools.op_setup_waypoint_delete', text='Delete Waypoint')
 
 
 class PDTOOLS_PT_WaypointTools(Panel):

@@ -658,7 +658,7 @@ def draw_waypoints():
             col = (0.0, 0.6, 0.0)
             neighbour_group = bl_neighbour.pd_waypoint.groupnum
             if neighbour_group != pd_waypoint.groupnum:
-                col = (0.6, 0.0, 0.6)
+                col = (0.0, 0.6, 0.6)
 
             if bl_waypoint.pd_waypoint.groupnum == sel_group and neighbour_group == sel_group:
                 col = color_sel
@@ -668,8 +668,9 @@ def draw_waypoints():
             dz = 0
 
             if edge_type != 0:
-                col = (0.0, 0.0, 0.6)
+                col = (0.6, 0.0, 0.0)
                 dz = s if edge_type == 0x80 else -s
+                col = col if edge_type == 0x80 else (0.0, 0.0, 0.6)
 
             p_src = bl_waypoint.matrix_world.translation
             p_dst = bl_neighbour.matrix_world.translation

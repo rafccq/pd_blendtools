@@ -629,27 +629,12 @@ class PDTOOLS_OT_SetupWaypointAddNeighbour(Operator):
 
         if picked_obj is not None:
             sel_obj = context.active_object
-            # user clicked on the waypoint already selected: skip
+            # clicked on the waypoint already selected: skip
             if sel_obj == picked_obj:
                 return
 
-            neighbour_wp = picked_obj.pd_waypoint
-
-            pd_waypoint = sel_obj.pd_waypoint
-            pd_neighbours_coll = pd_waypoint.neighbours_coll
-
-            # check if the neighbour already exists
-            for neighbour in pd_neighbours_coll:
-                if neighbour.padnum == neighbour_wp.padnum:
-                    return
-
-            # add to the neighbours collection
-            neighbour_item = pd_neighbours_coll.add()
-            neighbour_item.name = picked_obj.name
-            neighbour_item.groupnum = neighbour_wp.groupnum
-            neighbour_item.padnum = neighbour_wp.padnum
-            edge = pdprops.WAYPOINT_EDGETYPES[0][0]
-            neighbour_item.edgetype = edge
+            pdu.add_neighbour(sel_obj, picked_obj)
+            pdu.add_neighbour(picked_obj, sel_obj)
 
     def modal(self, context, event):
         if event.type in {'MIDDLEMOUSE', 'WHEELUPMOUSE', 'WHEELDOWNMOUSE'}:
@@ -674,7 +659,7 @@ class PDTOOLS_OT_SetupWaypointAddNeighbour(Operator):
 class PDTOOLS_OT_SetupWaypointRemoveNeighbour(Operator):
     bl_idname = "pdtools.op_setup_waypoint_removeneighbour"
     bl_label = "PD: Remove Neighbour"
-    bl_description = "Remove the selected neighbour"
+    bl_description = "Remove the selected neighbour (will remove from both waypoints)"
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
@@ -683,7 +668,13 @@ class PDTOOLS_OT_SetupWaypointRemoveNeighbour(Operator):
 
         pd_neighbours_coll = pd_waypoint.neighbours_coll
         index = pd_waypoint.active_neighbour_idx
+        pd_neighbour = pd_neighbours_coll[index]
+        padnum = pd_neighbour.padnum
         pd_neighbours_coll.remove(index)
+
+        bl_neighbour = context.scene['waypoints'][str(padnum)]
+        pd_neighbour = bl_neighbour.pd_waypoint
+        pdu.waypoint_remove_neighbour(pd_neighbour, pd_waypoint.padnum)
 
         pdu.redraw_ui()
         return {'FINISHED'}
@@ -691,7 +682,7 @@ class PDTOOLS_OT_SetupWaypointRemoveNeighbour(Operator):
 
 class PDTOOLS_OT_SetupWaypointCreate(Operator):
     bl_idname = "pdtools.op_setup_waypoint_create"
-    bl_label = "PD: Create Waypoint"
+    bl_label = "Create Waypoint"
     bl_description = "Create a new waypoint"
     bl_options = {'REGISTER', 'UNDO'}
 
@@ -699,7 +690,7 @@ class PDTOOLS_OT_SetupWaypointCreate(Operator):
 
     def invoke(self, context, event):
         wm = context.window_manager
-        return wm.invoke_props_dialog(self)
+        return wm.invoke_props_dialog(self, width=150)
 
     def draw(self, _context):
         layout = self.layout
@@ -726,6 +717,31 @@ class PDTOOLS_OT_SetupWaypointCreate(Operator):
         pd_waypoint.group_enum = groupname
 
         pdu.select_obj(bl_waypoint)
+        return {'FINISHED'}
+
+
+class PDTOOLS_OT_SetupWaypointDelete(Operator):
+    bl_idname = "pdtools.op_setup_waypoint_delete"
+    bl_label = "PD: Delete Waypoint"
+    bl_description = "Delete this waypoint"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        scn = context.scene
+        waypoints = scn['waypoints']
+
+        bl_waypoint = context.active_object
+        pd_waypoint = bl_waypoint.pd_waypoint
+        padnum = pd_waypoint.padnum
+
+        neighbours_coll = pd_waypoint.neighbours_coll
+        for neighbour in neighbours_coll:
+            bl_neighbour = waypoints[str(neighbour.padnum)]
+            pd_neighbour = bl_neighbour.pd_waypoint
+            pdu.waypoint_remove_neighbour(pd_neighbour, padnum)
+
+        del waypoints[str(padnum)]
+        bpy.data.objects.remove(bl_waypoint)
         return {'FINISHED'}
 
 
@@ -1051,6 +1067,7 @@ classes = [
     PDTOOLS_OT_SetupWaypointCreateFromMesh,
     PDTOOLS_OT_SetupWaypointCreateNeighbours,
     PDTOOLS_OT_SetupWaypointCreate,
+    PDTOOLS_OT_SetupWaypointDelete,
     PDTOOLS_OT_MessageBox,
 ]
 

@@ -576,6 +576,11 @@ def add_neighbour(bl_waypoint, bl_neighbour):
 
     pd_neighbours = pd_waypoint.neighbours_coll
 
+    # check if the neighbour already exists
+    for neighbour in pd_neighbours:
+        if neighbour.padnum == pd_waypoint.padnum:
+            return
+
     neighbour_item = pd_neighbours.add()
     neighbour_item.name = waypoint_name(pd_neighbour_wp.padnum)
     neighbour_item.groupnum = pd_waypoint.groupnum
@@ -600,6 +605,13 @@ def waypoint_maxgroup():
         n += 1
 
     return n
+
+def waypoint_remove_neighbour(pd_waypoint, padnum):
+    neighbours_coll = pd_waypoint.neighbours_coll
+    for idx, neighbour in enumerate(neighbours_coll):
+        if neighbour.padnum == padnum:
+            neighbours_coll.remove(idx)
+            return
 
 def enum_value(bl_obj, enum_name, propval):
     prop = bl_obj.bl_rna.properties[enum_name]
