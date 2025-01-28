@@ -28,7 +28,7 @@ for dir in modules_dirs:
         sys.path.append(dir)
 
 import pd_blendprops as pdprops
-#pdprops.remove_drawhandler()
+pdprops.remove_drawhandler()
 
 
 # try to unregister
@@ -62,7 +62,7 @@ for modinfo in pkgutil.iter_modules(pdnodes.__path__):
 
 #print('PATH', pdbt.nodes.__path__)
 
-pdi = submodules['pd_import']
+mdi = submodules['model_import']
 tiles = submodules['tiles_import']
 setup = submodules['setup_import']
 bgi = submodules['bg_import']
@@ -84,14 +84,14 @@ def register():
 
 
 def clear():
-    pdi.clear_materials()
+    mdi.clear_materials()
     pdu.clear_scene()
 
 def loadmodel(name):
     pdu.ini_file.cache_clear()
     rompath = pdp.pref_get('rompath')
     romdata = rom.Romdata(rompath)
-    obj, _ = pdi.import_model(romdata, name, link=False)
+    obj, _ = mdi.import_model(romdata, name, link=False)
     pdu.add_to_collection(obj, 'Props')
     rot_mat = Euler((pi/2, 0, pi/2)).to_matrix().to_4x4()
     obj.matrix_world = rot_mat @ obj.matrix_world
@@ -140,13 +140,3 @@ setup.setup_import('bg_mp15', True)
 #setup.setup_import('bg_ear')
 #setup.setup_import('bg_rit')
 #setup.setup_import('bg_lue')
-
-
-#pdu.tiles_from_obj(bpy.data.objects['Plane'])
-
-#tiles.bg_loadtiles('bg_mp15')
-
-#pdi.bg_loadroom(0x02)
-#pdm.portal_material()
-#pdi.bg_portals_hide()
-#pdi._bg_loadlights()

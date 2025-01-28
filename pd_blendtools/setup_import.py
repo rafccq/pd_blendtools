@@ -11,7 +11,7 @@ from decl_setupfile import *
 from decl_padsfile import *
 from typeinfo import TypeInfo
 import pd_utils as pdu
-import pd_import as pdi
+import model_import as mdi
 import romdata as rom
 from filenums import ModelStates
 import template_mesh as tmesh
@@ -24,7 +24,7 @@ M_BADPI = 3.141092641
 def register():
     TypeInfo.register_all(setupfile_decls)
     TypeInfo.register_all(padsfile_decls)
-    pdi.register()
+    mdi.register()
 
 def obj_setup_mtx(obj, look, up, pos, rotation=None, scale=None, flags=None, bbox=None):
     side = up.cross(look).normalized()
@@ -70,7 +70,7 @@ def obj_load_model(romdata, modelnum):
 
     modelname = romdata.filenames[filenum]
     # print(f'loadmodel {modelname}')
-    return pdi.import_model(romdata, modelname, link=False)
+    return mdi.import_model(romdata, modelname, link=False)
 
 def blender_align(obj):
     rot_mat = Euler((pi/2, 0, pi/2)).to_matrix().to_4x4()
@@ -229,12 +229,11 @@ def setup_create_obj(prop, romdata, paddata):
 
     proptype = prop['type']
     name = OBJNAMES[proptype] if proptype in OBJNAMES else 'object'
-    if prop['type'] in [OBJTYPE_TINTEDGLASS, OBJTYPE_GLASS]:
-        for child in bl_obj.children:
-            for mat in child.data.materials:
-                pdm.mat_remove_links(mat, 'p_bsdf', ['Base Color', 'Alpha'])
-                s = .12
-                pdm.mat_set_basecolor(mat, (s, s, s, 1))
+    if proptype in [OBJTYPE_TINTEDGLASS, OBJTYPE_GLASS]:
+        for mat in bl_obj.data.materials:
+            pdm.mat_remove_links(mat, 'p_bsdf', ['Base Color', 'Alpha'])
+            s = .12
+            pdm.mat_set_basecolor(mat, (s, s, s, 1))
 
     bl_obj.name = f'{name} {padnum:02X}'
     bl_obj['modelnum'] = f'{modelnum:04X}'

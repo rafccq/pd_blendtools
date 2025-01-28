@@ -9,7 +9,7 @@ from decl_bgfile import bgfile_decls
 from typeinfo import TypeInfo
 import pd_utils as pdu
 import bg_utils as bgu
-import pd_import as pdi
+import model_import as mdi
 import pd_materials as pdm
 import tiles_import as tiles
 import romdata as rom
@@ -50,7 +50,7 @@ def bg_load(lvname, loadimgs = True):
     print('load images')
 
     if loadimgs:
-        pdi.loadimages(romdata, bgdata.textures)
+        mdi.loadimages(romdata, bgdata.textures)
     # for texnum in sorted(bgdata.textures):
     #     print(f'{texnum: 04X}')
     # print('done')
@@ -183,7 +183,7 @@ def bg_create_roomblock(room, block, rootobj, tex_configs, layer, idx):
 
     # print(f"block_{idx} vstart {vtxstart:08X} colstart {colstart:08X} {room['id'] + block.addr:08X} gdl {block['gdl|child']:08X}")
 
-    meshdata = pdi.PDMeshData(
+    meshdata = mdi.PDMeshData(
         gdldata,
         None,  # xlu_gdl
         None,  # ptr_vtx
@@ -193,9 +193,9 @@ def bg_create_roomblock(room, block, rootobj, tex_configs, layer, idx):
         None
     )
 
-    mesh, _ = pdi.collect_sub_meshes(meshdata, idx, False)
+    mesh, _ = mdi.collect_sub_meshes(meshdata, idx, False)
 
-    bl_roomblock = pdi.create_mesh(mesh[0], tex_configs, roomnum, idx)
+    bl_roomblock = mdi.create_mesh(mesh[0], tex_configs, roomnum, idx)
     bl_roomblock.name = f'block {idx} ({layer}) R{roomnum:02X}'
     bl_roomblock.parent = rootobj
     bl_roomblock.color = (0,0,0,1)

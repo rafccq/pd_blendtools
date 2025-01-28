@@ -3,7 +3,7 @@ from bpy.types import PropertyGroup, Panel, UIList, UI_UL_list, Scene, Context
 from bpy.props import IntProperty, StringProperty, BoolProperty, CollectionProperty, BoolVectorProperty
 
 from pd_blendprops import TILE_FLAGS
-from pd_import import MeshLayer
+from model_import import MeshLayer
 import pd_addonprefs as pdp
 import pd_blendprops as pdprops
 import pd_utils as pdu

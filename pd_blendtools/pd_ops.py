@@ -15,7 +15,7 @@ import aud
 
 
 import romdata as rom
-import pd_import as pdi
+import model_import as mdi
 import pd_export as pde
 import pd_utils as pdu
 import pd_addonprefs as pdp
@@ -212,7 +212,7 @@ class PDTOOLS_OT_SelectDirectory(Operator):
 def load_model(_context, name):
     rompath = pdp.pref_get(pdp.PD_PREF_ROMPATH)
     romdata = rom.Romdata(rompath)
-    pdi.import_model(romdata, name)
+    mdi.import_model(romdata, name)
 
 
 class PDTOOLS_OT_ImportModelFromROM(Operator):
