@@ -48,7 +48,7 @@ submodules = [
 class PDModelPropertyGroup(PropertyGroup):
     name: StringProperty(name='name', default='', options={'LIBRARY_EDITABLE'})
     idx: IntProperty(name='idx', default=0, options={'LIBRARY_EDITABLE'})
-    layer: IntProperty(name='layer', default=0, options={'LIBRARY_EDITABLE'})
+    layer: IntProperty(name='layer', default=-1, options={'LIBRARY_EDITABLE'})
 
 
 def register_types():
@@ -63,7 +63,7 @@ def register():
         pass
 
     bpy.utils.register_class(PDModelPropertyGroup)
-    Object.pdmodel_props = bpy.props.PointerProperty(type=PDModelPropertyGroup)
+    Object.pd_model = bpy.props.PointerProperty(type=PDModelPropertyGroup)
     register_types()
 
     for m in submodules:
@@ -75,7 +75,7 @@ def unregister():
     for m in reversed(submodules):
         m.unregister()
 
-    del Object.pdmodel_props
+    del Object.pd_model
     bpy.utils.unregister_class(PDModelPropertyGroup)
     bpy.utils.unregister_class(PD_AddonPreferences)
 

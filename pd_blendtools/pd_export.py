@@ -316,8 +316,8 @@ def build_meshmap(obj):
     for obj in obj.children:
         if obj.type != 'MESH': continue
 
-        idx = obj.pdmodel_props.idx
-        layer = obj.pdmodel_props.layer
+        idx = obj.pd_model.idx
+        layer = obj.pd_model.layer
 
         if idx not in meshmap: meshmap[idx] = []
 
@@ -401,12 +401,12 @@ def export_model(model_obj, filename):
     log.log_clear(log.LOG_FILE_EXPORT)
 
     objmap = build_meshmap(model_obj)
-    modelname = model_obj.pdmodel_props.name
+    modelname = model_obj.pd_model.name
     logger.debug(f'export model: {modelname}')
 
     romdata = rom.load()
     model = loadmodel(romdata, modelname)
-    apply_mtx = model_obj.pdmodel_props.name[0] != 'P'
+    apply_mtx = model_obj.pd_model.name[0] != 'P'
 
     # objmap: idx -> list of meshes
     for idx, meshes in objmap.items():

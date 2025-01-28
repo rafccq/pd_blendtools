@@ -178,6 +178,7 @@ def setup_create_door(prop, romdata, paddata):
     padnum = prop['base']['pad']
     print(f"{padnum:02X} {prop['base']['modelnum']:04X}")
     bl_door, model = obj_load_model(romdata, prop['base']['modelnum'])
+    bl_door.name = f'door {padnum:02X}'
 
     pdu.add_to_collection(bl_door, 'Props')
     padnum = prop['base']['pad']
@@ -216,9 +217,18 @@ def setup_create_obj(prop, romdata, paddata):
         return None
 
     modelnum = prop['modelnum']
+    OBJNAMES = {
+        0x01: 'door',
+        0x14: 'multi ammo crate',
+        0x2a: 'glass',
+        0x2f: 'tinted glass',
+        0x30: 'lift',
+    }
 
     bl_obj, model = obj_load_model(romdata, modelnum)
 
+    proptype = prop['type']
+    name = OBJNAMES[proptype] if proptype in OBJNAMES else 'object'
     if prop['type'] in [OBJTYPE_TINTEDGLASS, OBJTYPE_GLASS]:
         for child in bl_obj.children:
             for mat in child.data.materials:
@@ -226,6 +236,7 @@ def setup_create_obj(prop, romdata, paddata):
                 s = .12
                 pdm.mat_set_basecolor(mat, (s, s, s, 1))
 
+    bl_obj.name = f'{name} {padnum:02X}'
     bl_obj['modelnum'] = f'{modelnum:04X}'
     bl_obj['pad'] = f'{padnum:04X}'
     pd_prop = bl_obj.pd_prop

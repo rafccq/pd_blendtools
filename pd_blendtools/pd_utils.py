@@ -409,7 +409,7 @@ def index_where(array, condition, default = -1):
 
 def get_model_obj(obj):
     while obj:
-        name = obj.pdmodel_props.name
+        name = obj.pd_model.name
         if name and name[0] in ['P', 'C', 'G']: return obj
         obj = obj.parent
 

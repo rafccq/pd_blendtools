@@ -37,6 +37,7 @@ def create_mesh(mesh, tex_configs, meshidx, sub_idx):
     name = f'{meshidx:02X}.Mesh{suffix}'
 
     obj = bpy.data.objects.new(name, mesh_data)
+    obj.pd_model.layer = mesh.layer
 
     logger.debug(f'[CREATEMESH {meshidx:02X}] {name}')
 
@@ -353,25 +354,29 @@ def collect_sub_meshes(pdmeshdata, idx, apply_mtx):
 
     return meshes, model_mtxs
 
-def create_model_mesh(idx, model, meshdata, sc, tex_configs, parent_obj, apply_mtx):
+def create_model_mesh(idx, meshdata, sc, tex_configs, apply_mtx):
     subMeshes, model_mtxs = collect_sub_meshes(meshdata, idx, apply_mtx)
     n_submeshes = len(subMeshes)
+    mesh_objs = []
     for sub_idx, meshdata in enumerate(subMeshes):
+        if len(meshdata.verts) == 0: continue
+
         sub_idx = sub_idx if n_submeshes > 1 else -1
         mesh_obj = create_mesh(meshdata, tex_configs, idx, sub_idx)
-        mesh_obj.parent = parent_obj
         mesh_obj.data['matrices'] = list(model_mtxs)
+        mesh_objs.append(mesh_obj)
         logger.debug(f'ntri {len(meshdata.tris)} nverts {len(meshdata.verts)}')
 
-    return model_mtxs
+    return mesh_objs
 
-def create_model_meshes(model, sc, model_obj):
+def create_model_meshes(model, sc, apply_mtx):
     tex_configs = {}
     for tc in model.texconfigs:
         texnum = tc['texturenum']
         tex_configs[texnum] = tc
 
     idx = 0
+    mesh_objs = []
     for ro in model.rodatas:
         nodetype = ro['_node_type_']
         typeDL1 = nodetype in [0x4, 0x18]
@@ -398,32 +403,36 @@ def create_model_meshes(model, sc, model_obj):
                 model.matrices
             )
 
-            props_with_mtx = ['ProofgunZ', 'PgroundgunZ']
-            name = model_obj.pdmodel_props.name
-            apply_mtx = name[0] != 'P' or name in props_with_mtx
-            create_model_mesh(idx, model, meshdata, sc, tex_configs, model_obj, apply_mtx)
+            mesh_obj = create_model_mesh(idx, meshdata, sc, tex_configs, apply_mtx)
+            mesh_objs += mesh_obj
         idx += 1
+
+    return mesh_objs
 
 def import_model(romdata, model_name, link=True):
     logger.debug(f'import model {model_name}')
     model = loadmodel(romdata, model_name)
 
-    model_obj = pdu.new_empty_obj(model_name, link=link)
-
-    model_obj.pdmodel_props.name = model_name
-    model_obj.pdmodel_props.idx = -1
-    model_obj.pdmodel_props.layer = -1
-
-    sc = 0.01
     sc = 1
 
     # create joints
     # joints_obj = pdu.new_empty_obj('Joints', model_obj)
     # model.traverse(create_joint, root_obj=joints_obj)
 
-    create_model_meshes(model, sc, model_obj)
-    # model_obj.rotation_euler[0] = math.radians(90)
-    # model_obj.rotation_euler[2] = math.radians(90)
+    props_with_mtx = ['ProofgunZ', 'PgroundgunZ']
+    name = model_name
+    apply_mtx = name[0] != 'P' or name in props_with_mtx
+    meshes = create_model_meshes(model, sc, apply_mtx)
+
+    if len(meshes) > 1:
+        model_obj = pdu.new_empty_obj(model_name, link=link)
+        for mesh in meshes:
+            mesh.parent = model_obj
+    else:
+        model_obj = meshes[0]
+        model_obj.name = model_name
+
+    model_obj.pd_model.name = model_name
 
     return model_obj, model
 

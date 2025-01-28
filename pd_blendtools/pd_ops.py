@@ -80,7 +80,7 @@ class PDTOOLS_OT_ExportModel(Operator, ExportHelper):
 
     def invoke(self, context, _event):
         obj = pdu.get_model_obj(context.object)
-        props = obj.pdmodel_props
+        props = obj.pd_model
 
         blend_filepath = context.blend_data.filepath
         self.filepath = os.path.join(blend_filepath, props.name)

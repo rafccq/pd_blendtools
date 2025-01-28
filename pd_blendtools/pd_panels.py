@@ -51,7 +51,7 @@ class PDTOOLS_PT_ModelProps(Panel):
 
     def draw(self, context):
         layout = self.layout
-        props = context.object.pdmodel_props
+        props = context.object.pd_model
 
         box = layout.box()
         box.prop(props, 'name', icon='LOCKED', text='')
