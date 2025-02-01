@@ -135,6 +135,7 @@ def loadroom(bgdata, roomnum, tex_configs):
     bl_room.pd_obj.name = bl_room.name
     bl_room.pd_obj.type = pdprops.PD_OBJTYPE_ROOM
     bl_room.pd_room.roomnum = roomnum
+    bl_room.pd_room.room = bl_room
 
     pdu.add_to_collection(bl_room, 'Rooms')
     bl_room.matrix_world.translation = get_vec3(room['pos'])
@@ -143,8 +144,8 @@ def loadroom(bgdata, roomnum, tex_configs):
     R = Euler((pi / 2, 0, pi / 2)).to_matrix().to_4x4()
     bl_room.matrix_world = R @ bl_room.matrix_world
 
-    bg_create_roomblocks(room, gfxdata['opablocks'], bl_room, tex_configs, 'opa', 0)
-    bg_create_roomblocks(room, gfxdata['xlublocks'], bl_room, tex_configs, 'xlu', 0)
+    idx = bg_create_roomblocks(room, gfxdata['opablocks'], bl_room, bl_room, tex_configs, 'opa', 0)
+    bg_create_roomblocks(room, gfxdata['xlublocks'], bl_room, bl_room, tex_configs, 'xlu', idx)
 
     bpy.context.scene['rooms'][str(roomnum)] = bl_room
 
@@ -154,19 +155,7 @@ def get_vec3(pos):
     z = pdu.f32(pos['z'])
     return x, y, z
 
-def roomblock_set_props(bl_roomblock, blocknum, layer, blocktype, bsp_pos=None, bsp_norm=None):
-    bl_roomblock.pd_obj.name = f'block {blocknum}'
-    bl_roomblock.pd_obj.type = pdprops.PD_OBJTYPE_ROOMBLOCK
-
-    bl_roomblock.pd_room.blocknum = blocknum
-    bl_roomblock.pd_room.layer = layer
-    bl_roomblock.pd_room.blocktype = blocktype
-
-    if bsp_pos:
-        bl_roomblock.pd_room.bsp_position = bsp_pos
-        bl_roomblock.pd_room.bsp_normal = bsp_norm
-
-def bg_create_roomblock(room, block, rootobj, tex_configs, layer, idx):
+def bg_create_roomblockDL(room, block, bl_room, rootobj, tex_configs, layer, idx):
     gfxdata = room['gfxdata']
     roomid = room['id']
     roomnum = room['roomnum']
@@ -196,17 +185,17 @@ def bg_create_roomblock(room, block, rootobj, tex_configs, layer, idx):
     mesh, _ = mdi.collect_sub_meshes(meshdata, idx, False)
 
     bl_roomblock = mdi.create_mesh(mesh[0], tex_configs, roomnum, idx)
-    bl_roomblock.name = f'block {idx} ({layer}) R{roomnum:02X}'
+    bl_roomblock.name = bgu.blockname(roomnum, idx, 'Display List', layer)
     bl_roomblock.parent = rootobj
     bl_roomblock.color = (0,0,0,1)
     pdu.add_to_collection(bl_roomblock, 'Rooms')
-    roomblock_set_props(bl_roomblock, idx, layer, 'Display List')
+    bgu.roomblock_set_props(bl_roomblock, roomnum, bl_room, idx, layer, 'Display List')
 
     for mat in bl_roomblock.data.materials:
         if mat['has_envmap']:
             pdm.mat_show_vtxcolors(mat)
 
-def bg_create_roomblocks(room, rootaddr, rootobj, tex_configs, layer, idx):
+def bg_create_roomblocks(room, rootaddr, bl_room, rootobj, tex_configs, layer, idx):
     if rootaddr == 0: return idx
 
     roomblocks = room['roomblocks']
@@ -219,14 +208,17 @@ def bg_create_roomblocks(room, rootaddr, rootobj, tex_configs, layer, idx):
     while block:
         blocktype = block['type']
         if blocktype == ROOMBLOCKTYPE_LEAF:
-            bg_create_roomblock(room, block, rootobj, tex_configs, layer, idx)
+            bg_create_roomblockDL(room, block, bl_room, rootobj, tex_configs, layer, idx)
             block = next_block(block['next'])
         elif blocktype == ROOMBLOCKTYPE_PARENT:
-            name = f'block {idx} ({layer}) (BSP) R{roomnum:02X}'
+            name = bgu.blockname(roomnum, idx, 'BSP', layer)
             bl_rootblock = pdu.new_obj(name, rootobj, link=False, dsize=0.0001)
+            bsp_pos = pdu.read_coord(block['coord_0'])
+            bsp_normal = pdu.read_coord(block['coord_1'])
             pdu.add_to_collection(bl_rootblock, 'Rooms')
-            roomblock_set_props(bl_rootblock, idx, layer, 'BSP') # TODO BSP pos/normal
-            idx = bg_create_roomblocks(room, block['gdl|child'], bl_rootblock, tex_configs, layer, idx + 1)
+            bgu.roomblock_set_props(bl_rootblock, roomnum, bl_room, idx, layer, pdprops.BLOCKTYPE_BSP, bsp_pos, bsp_normal)
+
+            idx = bg_create_roomblocks(room, block['gdl|child'], bl_room, bl_rootblock, tex_configs, layer, idx + 1)
             block = next_block(block['next'])
 
         idx += 1

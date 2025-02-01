@@ -295,7 +295,75 @@ class PDTOOLS_OT_RoomSelectAllBlocks(Operator):
 
         return {'FINISHED'}
 
-# class PDTOOLS_OT_RoomSplitByPortal(bpy.types.Operator):
+
+class PDTOOLS_OT_RoomSelectRoom(Operator):
+    bl_idname = "pdtools.op_room_select_room"
+    bl_label = "Select Room"
+    bl_description = "Select Room"
+    bl_options = {'REGISTER', 'INTERNAL'}
+
+    def execute(self, context):
+        bl_roomblock = context.active_object
+        bl_room = bgu.parent_room(bl_roomblock)
+        pdu.select_obj(bl_room)
+        return {'FINISHED'}
+
+
+BLOCKTYPES = [
+    (e, e, e) for e in [pdprops.BLOCKTYPE_DL, pdprops.BLOCKTYPE_BSP]
+]
+class PDTOOLS_OT_RoomCreateBlock(Operator):
+    bl_idname = "pdtools.op_room_create_block"
+    bl_label = "Create Block"
+    bl_description = "Create a new block in this room"
+    bl_options = {'REGISTER', 'INTERNAL'}
+
+    layer: EnumProperty(name="layer", description="Room Layer", items=pdprops.BLOCK_LAYER)
+    blocktype: EnumProperty(name='blocktype', default=BLOCKTYPES[0][0], items=BLOCKTYPES, options={'LIBRARY_EDITABLE'})
+
+    def invoke(self, context, event):
+        bl_room = context.active_object
+
+        if pdu.pdtype(bl_room) == pdprops.PD_OBJTYPE_ROOM:
+            wm = context.window_manager
+            return wm.invoke_props_dialog(self, width=150)
+
+        return self.execute(context)
+
+    def draw(self, context):
+        bl_room = context.active_object
+
+        if pdu.pdtype(bl_room) != pdprops.PD_OBJTYPE_ROOM:
+            return
+
+        layout = self.layout
+        col = layout.column()
+        col.prop(self, 'layer', text='Layer')
+        col.prop(self, 'blocktype', text='Type')
+
+    def execute(self, context):
+        bl_room = context.active_object
+
+        blocks = [b for b in bl_room.children]
+        for block in blocks: blocks += [b for b in block.children]
+        blocknum = 1 + max([block.pd_room.blocknum for block in blocks])
+
+        pd_room = bl_room.pd_room
+        roomnum = pd_room.roomnum
+        layer = self.layer
+        name = bgu.blockname(roomnum, blocknum, self.blocktype, layer)
+
+        bl_roomblock = bpy.data.objects.new(name, None)
+        bl_roomblock.parent = bl_room
+        bl_roomblock.pd_room.parent_enum = bl_room.name
+
+        pdu.add_to_collection(bl_roomblock, 'Rooms')
+        bgu.roomblock_set_props(bl_roomblock, roomnum, pd_room.room, blocknum, layer, self.blocktype)
+
+        pdu.select_obj(bl_roomblock)
+        return {'FINISHED'}
+
+
 class PDTOOLS_OT_PortalFromEdge(Operator):
     bl_idname = "pdtools.op_portal_from_edge"
     bl_label = "Portal From Edge"
@@ -1050,6 +1118,8 @@ classes = [
     PDTOOLS_OT_RoomCreatePortalBetween,
     PDTOOLS_OT_RoomSplitByPortal,
     PDTOOLS_OT_RoomSelectAllBlocks,
+    PDTOOLS_OT_RoomSelectRoom,
+    PDTOOLS_OT_RoomCreateBlock,
     PDTOOLS_OT_TileApplyProps,
     PDTOOLS_OT_PortalFromEdge,
     PDTOOLS_OT_PortalFromFace,

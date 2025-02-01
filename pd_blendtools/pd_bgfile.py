@@ -358,7 +358,7 @@ class PatchBGFile:
         xlu = gfxdata['xlublocks']
 
         self.offset = roomid
-        gdls, blockcoords = self.read_roomblocks(verts_addr, roomnum)
+        gdls = self.read_roomblocks(verts_addr, roomnum, roomid)
 
         vtxs = self.read_vertices(verts_addr - roomid, colors_addr - roomid)
 
@@ -369,26 +369,6 @@ class PatchBGFile:
 
         room['vtx'] = vtxs
         room['colors'] = colors
-
-        n = len(blockcoords)
-        s = f'ROOM {roomnum:04X} numcoords: {len(blockcoords)}' if n > 0 else ''
-        log(s)
-        coords = []
-        for idx, c in enumerate(blockcoords):
-            log(f'coord_{idx:2d} [{c-roomid:08X}]')
-            # rd.print(c, 'u8*', f'coord_{idx}', pad=15, numspaces=4)
-            rd.set_cursor(c - roomid)
-            coord0 = rd.read_block('coord')
-            coord1 = rd.read_block('coord')
-
-            coords.append(coord0)
-            coords.append(coord1)
-
-            rd.print_dict(coord0, 'coord', showdec=True, pad=1, numspaces=4)
-            rd.print_dict(coord1, 'coord', showdec=True, pad=1, numspaces=4)
-
-        # log(f'  READ_blockcoords: {time.time() - t:2.5f}')
-        room['blockcoords'] = coords
 
         # read GDLs
         log(f'ROOM {roomnum:04X} GDLs')
@@ -414,7 +394,7 @@ class PatchBGFile:
 
         log(f'room {roomnum:02X} # GDLS: {ngdl}')
 
-    def read_roomblocks(self, end, roomnum):
+    def read_roomblocks(self, end, roomnum, roomid):
         rd = self.rd
 
         room = self.rooms[roomnum]
@@ -424,7 +404,6 @@ class PatchBGFile:
         end -= offset
         # log(f'>blocks [{self.cursor:08X}] (len={len(self.section):04X}, end={end:04X})')
 
-        blockcoords = []
         blocks = {}
 
         gdls = []
@@ -447,7 +426,16 @@ class PatchBGFile:
                 end = verts
 
             if type == ROOMBLOCKTYPE_PARENT:
-                blockcoords.append(roomblock['vertices|coord1'])
+                # blockcoords.append(roomblock['vertices|coord1'])
+                cu = rd.cursor
+                addr = roomblock['vertices|coord1']
+                rd.set_cursor(addr - roomid)
+                coord0 = rd.read_block('coord')
+                coord1 = rd.read_block('coord')
+                
+                roomblock['coord_0'] = coord0
+                roomblock['coord_1'] = coord1
+                rd.set_cursor(cu)
 
             if type == ROOMBLOCKTYPE_LEAF:
                 gdl = roomblock['gdl|child']
@@ -458,7 +446,7 @@ class PatchBGFile:
 
         room['roomblocks'] = blocks
         rd.ofs = 0
-        return gdls, blockcoords
+        return gdls
 
     # currently too slow
     def _read_vertices(self, start, end):

@@ -64,32 +64,67 @@ class PDTOOLS_PT_ModelProps(Panel):
             box.label(text=f'Layer: {txtlayer}', icon='LOCKED')
         box.enabled = False
 
-class PDTOOLS_PT_RoomProps(Panel):
-    bl_label = 'PD Room'
-    bl_space_type = 'PROPERTIES'
-    bl_region_type = 'WINDOW'
-    bl_context = "object"
+class PDTOOLS_PT_Room(Panel):
+    bl_label = 'Room'
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_category = "PD Tools"
+    # bl_context = "object"
 
+    @classmethod
+    def poll(cls, context):
+        obj = context.object
+        return pdu.pdtype(obj) in [pdprops.PD_OBJTYPE_ROOM, pdprops.PD_OBJTYPE_ROOMBLOCK]
 
     def draw(self, context):
-        obj = context.object
+        bl_obj = context.object
+        scn = context.scene
         layout = self.layout
-        isroom = pdu.pdtype(obj) == pdprops.PD_OBJTYPE_ROOM
 
-        props_room = obj.pd_room
+        isroom = pdu.pdtype(bl_obj) == pdprops.PD_OBJTYPE_ROOM
+
+        pd_room = bl_obj.pd_room
 
         box = layout.box()
         name = 'Room' if isroom else 'Block'
-        num = props_room.roomnum if isroom else props_room.blocknum
+        num = pd_room.roomnum if isroom else pd_room.blocknum
 
         if isroom:
-            box.label(text=f'{name} {num:02X}', icon='LOCKED')
+            box.label(text=f'{name} {num:02X}', icon='OBJECT_DATA')
+            row = box.row()
+            row.operator('pdtools.op_room_create_block', text=f'Create Block')
         else:
-            box.label(text=f'{name} {num}', icon='LOCKED')
-            box.label(text=f'Type: {props_room.blocktype}', icon='LOCKED')
-            box.label(text=f'Layer: {props_room.layer}')
+            row = box.row()
+            row.alignment = 'LEFT'
+            row.emboss = 'NONE'
+            row.label(text='', icon='OBJECT_DATA')
+            row.operator('pdtools.op_room_select_room', text=f'Room {pd_room.roomnum:02X}')
+            row.label(text='', icon='RIGHTARROW')
+            row.label(text=f'{name} {num}')
 
-        box.enabled = False
+            box.label(text=f'Type: {pd_room.blocktype}', icon='LOCKED')
+            row = box.row()
+            row.prop(pd_room, 'layer', text='Layer')
+            row.enabled = False
+            box.prop(pd_room, 'parent_enum', text='Parent')
+
+            if pd_room.blocktype == pdprops.BLOCKTYPE_BSP:
+                box.separator(type='LINE')
+                box.label(text='BSP Position:')
+                col = box.row()
+                for idx, t in enumerate(['X', 'Y', 'Z']):
+                    col.prop(pd_room, 'bsp_pos', index = idx, text=t)
+
+                box.label(text='BSP Normal:')
+                col = box.row()
+                for idx, t in enumerate(['X', 'Y', 'Z']):
+                    col.prop(pd_room, 'bsp_normal', index = idx, text=t)
+                # box.prop(pd_room, 'bsp_normal', text='BSP Normal')
+                row = box.row()
+                row.prop(scn, 'pd_bspwidth', text='Width (View Only)')
+                box.separator(type='LINE')
+                box.operator('pdtools.op_room_create_block', text=f'Create Block')
+
 
 class PDTOOLS_PT_Portal(Panel):
     bl_label = 'PD Portal'
@@ -209,19 +244,23 @@ class PDTOOLS_PT_RoomTools(Panel):
 
         sel = context.selected_objects
         nsel = len(sel)
+        objtype = lambda ob, types: pdu.pdtype(ob) in types
         isroom = lambda o: pdu.pdtype(o) == pdprops.PD_OBJTYPE_ROOMBLOCK
+
+        bl_obj = context.active_object
+        pdtype = pdu.pdtype(bl_obj)
 
         row = col.row()
         row = row.split(factor=0.5)
         col = row.column()
         col.operator(pdo.PDTOOLS_OT_RoomSplitByPortal.bl_idname, text='Split By Portal')
         portalselected = context.scene.pd_portal is not None
-        col.enabled = isroom(context.active_object) and portalselected
+        col.enabled = isroom(bl_obj) and portalselected
         row.prop(scn, 'pd_portal', text='')
 
         row = layout.column()
         row.operator(pdo.PDTOOLS_OT_RoomSelectAllBlocks.bl_idname, text='Select All Blocks In Room')
-        row.enabled = nsel == 1 and isroom(context.active_object)
+        row.enabled = nsel == 1 and pdtype in [pdprops.PD_OBJTYPE_ROOM, pdprops.PD_OBJTYPE_ROOMBLOCK]
 
 
 class PDTOOLS_PT_SetupDoorFlags(bpy.types.Panel):
@@ -678,7 +717,7 @@ classes = [
     PDTOOLS_PT_RoomTools,
     PDTOOLS_PT_WaypointTools,
     PDTOOLS_UL_ModelList,
-    PDTOOLS_PT_RoomProps,
+    PDTOOLS_PT_Room,
     PDTOOLS_PT_Portal,
     PDTOOLS_PT_Tile,
     PDModelListItem,

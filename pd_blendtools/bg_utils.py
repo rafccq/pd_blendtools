@@ -7,6 +7,7 @@ import bmesh
 import pd_utils as pdu
 import pd_materials as pdm
 import pd_blendprops as pdprops
+import pd_mtx as mtx
 
 
 def obj_get_child_meshes(obj):
@@ -372,3 +373,34 @@ def tile_from_face(name, bl_obj, face):
     pdu.add_to_collection(bl_tileobj, 'Tiles')
     bl_tileobj.pd_obj.type = pdprops.PD_OBJTYPE_TILE
     return bl_tileobj
+
+def blockname(roomnum, blockidx, blocktype, layer):
+    bsp = ' (BSP)' if blocktype == 'BSP' else ''
+    return f'block {blockidx} ({layer}){bsp} R{roomnum:02X}'
+
+def roomblock_set_props(bl_roomblock, roomnum, bl_room, blocknum, layer, blocktype, bsp_pos=None, bsp_norm=None):
+    bl_roomblock.pd_obj.name = f'block {blocknum}'
+    bl_roomblock.pd_obj.type = pdprops.PD_OBJTYPE_ROOMBLOCK
+
+    bl_roomblock.pd_room.blocknum = blocknum
+    bl_roomblock.pd_room.roomnum = roomnum
+    bl_roomblock.pd_room.room = bl_room
+    bl_roomblock.pd_room.layer = layer
+    bl_roomblock.pd_room.blocktype = blocktype
+
+    # we need to set the block as active so the function get_blockparent_items can grab it
+    bpy.context.view_layer.objects.active = bl_roomblock
+    bl_roomblock.pd_room.parent_enum = bl_roomblock.parent.name
+
+    if bsp_pos:
+        R = mtx.rot_blender()
+        bl_roomblock.pd_room.bsp_pos = R @ Vector(bsp_pos)
+        bl_roomblock.pd_room.bsp_normal = R @ Vector(bsp_norm)
+
+def roomblock_changelayer(bl_roomblock, layer):
+    bl_roomblock.pd_room.layer = layer
+
+    blocks = [b for b in bl_roomblock.children]
+    for block in blocks: blocks += [b for b in block.children]
+
+    for block in blocks: block.pd_room.layer = layer

@@ -15,6 +15,7 @@ import setup_import as stpi
 from decl_bgtiles import *
 import pd_padsfile as pdp
 import pd_mtx as mtx
+import bg_utils as bgu
 
 
 PD_OBJTYPE_MODEL        = 0x0100
@@ -53,15 +54,59 @@ class PDObject_Model(PropertyGroup):
     layer: IntProperty(name='layer', default=0, options={'LIBRARY_EDITABLE'})
 
 
+BLOCK_LAYER = [
+    ('opa', 'Primary',   'Primary Layer', 0),
+    ('xlu', 'Secondary', 'Secondary Layer (Translucent)', 1),
+]
+
+BLOCKTYPE_DL = 'Display List'
+BLOCKTYPE_BSP = 'BSP'
+
+blockparent_items = []
+
+def get_blockparent_items(scene, context):
+    bl_roomblock = context.active_object
+    pd_room = bl_roomblock.pd_room
+    bl_room = pd_room.room
+
+    blockparent_items.clear()
+    name = bl_room.name
+    blockparent_items.append((name, name, name))
+
+    bsp_blocks = lambda parent: [b for b in parent.children if b.pd_room.blocktype == BLOCKTYPE_BSP]
+
+    blocks = bsp_blocks(bl_room)
+    for block in blocks: blocks += bsp_blocks(block)
+
+    for block in blocks:
+        e = block.name
+        blockparent_items.append((e, e, e))
+
+    return blockparent_items
+
+
 # both room and roomblock objects will use this class
 class PDObject_RoomBlock(PropertyGroup):
+    def update_parent(self, _context):
+        bl_block = self.id_data
+        name = self.parent_enum
+        bl_parent = bpy.data.objects[name]
+        layer = bl_parent.pd_room.layer
+        bl_block.parent = bl_parent
+
+        if pdu.pdtype(bl_parent) == PD_OBJTYPE_ROOMBLOCK:
+            bgu.roomblock_changelayer(bl_block, layer)
+
     roomnum: IntProperty(name='roomnum', default=0, options={'LIBRARY_EDITABLE'})
 
     blocknum: IntProperty(name='blocknum', default=0, options={'LIBRARY_EDITABLE'})
-    layer: StringProperty(name='layer', default='', options={'LIBRARY_EDITABLE'})
+    layer: EnumProperty(name="layer", description="Room Layer", items=BLOCK_LAYER)
     blocktype: StringProperty(name='blocktype', default='', options={'LIBRARY_EDITABLE'})
-    bsp_position: FloatVectorProperty(name='bsp_position', default=(0,0,0), options={'LIBRARY_EDITABLE'})
+    bsp_pos: FloatVectorProperty(name='bsp_pos', default=(0,0,0), options={'LIBRARY_EDITABLE'})
     bsp_normal: FloatVectorProperty(name='bsp_normal', default=(1,0,0), options={'LIBRARY_EDITABLE'})
+    # parent: PointerProperty(name='parent', type=Object, options={'LIBRARY_EDITABLE'})
+    parent_enum: EnumProperty(name="parent_enum", description="Parent Block", items=get_blockparent_items, update=update_parent)
+    room: PointerProperty(name='room', type=Object, options={'LIBRARY_EDITABLE'})
 
 
 def check_isroom(_scene, obj):
@@ -624,8 +669,53 @@ group_colors = {
     6: (c, c, 0),
 }
 
+def draw_bsp(bl_obj):
+    scn = bpy.context.scene
+    pd_room = bl_obj.pd_room
+
+    if pdu.pdtype(bl_obj) != PD_OBJTYPE_ROOMBLOCK or pd_room.blocktype != BLOCKTYPE_BSP:
+        return
+
+    pos = Vector(pd_room.bsp_pos)
+    N = Vector(pd_room.bsp_normal).normalized()
+    # tangent vector
+    T = Vector((1,0,0)) if pdu.fzero(N.x) and pdu.fzero(N.y) else Vector((-N.y, N.x, 0)).normalized()
+    # up vector
+    U = N.cross(T)
+
+    w = scn.pd_bspwidth
+
+    p0 = pos - T*w*0.5 - U*w*0.5
+    p1 = p0 + T*w
+    p2 = p1 + U*w
+    p3 = p2 - T*w
+
+    vs = [p0, p1, p2, p3, p0]
+    verts = []
+    for i in range(len(vs)-1):
+        verts.append(vs[i])
+        verts.append(vs[i+1])
+
+    # diagonal edges inside the plane
+    verts += [p0, p2, p1, p3]
+
+    # normal vector line
+    n0 = pos
+    n1 = pos + N*w*0.2
+    verts += [n0, n1]
+
+    col = (0.6, 0.6, 0.0)
+    colors = [col for _ in verts]
+    colors[-1] = colors[-2] = (0.157, 0.380, 0.863)
+
+    drawlines(verts, colors, w=2, ontop=True)
+
 def draw_waypoints():
     bl_obj = bpy.context.active_object
+
+    if collection_vis('Rooms'):
+        draw_bsp(bl_obj)
+        return
 
     scn = bpy.context.scene
     if 'waypoints' not in scn or not collection_vis('Waypoints'):
@@ -647,7 +737,7 @@ def draw_waypoints():
     colors_sel = []
 
     wp_vis = bpy.context.scene.pd_waypoint_vis
-    for idx, bl_waypoint in enumerate(waypoints.values()):
+    for bl_waypoint in waypoints.values():
         if not bl_waypoint: continue
 
         pd_waypoint = bl_waypoint.pd_waypoint
@@ -702,11 +792,13 @@ def draw_waypoints():
     if verts_sel:
         drawlines(verts_sel, colors_sel, 3)
 
-def drawlines(verts, colors, w):
+def drawlines(verts, colors, w, ontop=False):
     batch = batch_for_shader(
         vp_shader, 'LINES', {'pos': verts, 'color': colors}
     )
-    gpu.state.depth_test_set('LESS_EQUAL')
+
+    if not ontop:
+        gpu.state.depth_test_set('LESS_EQUAL')
     gpu.state.line_width_set(w)
     vp_shader.bind()
     batch.draw(vp_shader)
@@ -717,6 +809,10 @@ def remove_drawhandler():
             SpaceView3D.draw_handler_remove(vp_drawhandler, 'WINDOW')
     except Exception as err:
         print(err)
+
+ENUM_DIRECTIONS = [
+    (e, e, e) for e in ['+X', '-X', '+Y', '-Y', '+Z', '-Z']
+]
 
 def register():
     global vp_drawhandler
@@ -729,6 +825,7 @@ def register():
     Object.pd_room = bpy.props.PointerProperty(type=PDObject_RoomBlock)
     Object.pd_portal = bpy.props.PointerProperty(type=PDObject_Portal)
     Object.pd_tile = bpy.props.PointerProperty(type=PDObject_Tile)
+    Object.pd_bspnormal = EnumProperty(name="pd_bspnormal", items=ENUM_DIRECTIONS, description="BSP Normal")
 
     # setup props
     Object.pd_prop = bpy.props.PointerProperty(type=PDObject_SetupBaseObject)
@@ -747,6 +844,7 @@ def register():
     Scene.flags_filter = StringProperty(name="Flags Filter", default='', options={'TEXTEDIT_UPDATE'})
     Scene.flags_toggle = BoolProperty(name="Flags Toggle", default=False, description='Show Flags As Toggle/Checkbox')
     Scene.pd_waypoint_vis = ndu.make_prop('pd_waypoint_vis', {'pd_waypoint_vis': WAYPOINTS_VISIBILITY}, 'allsets', update_scene_wp_vis)
+    Scene.pd_bspwidth = IntProperty(name="pd_bspwidth", default=1000, min=1, options={'TEXTEDIT_UPDATE'})
 
     vp_drawhandler = SpaceView3D.draw_handler_add(draw_waypoints, (), 'WINDOW', 'POST_VIEW')
 

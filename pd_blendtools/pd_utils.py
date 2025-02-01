@@ -623,3 +623,12 @@ def get_view_location():
     space = next(space for space in area.spaces if space.type == 'VIEW_3D')
     region = space.region_3d
     return region.view_location
+
+def read_coord(coord):
+    return [f32(coord[e]) for e in ['x', 'y', 'z']]
+
+def fcomp(fa, fb, epsilon=1e-5):
+    return abs(fa - fb) < epsilon
+
+def fzero(fa, epsilon=1e-5):
+    return fcomp(fa, 0, epsilon)
