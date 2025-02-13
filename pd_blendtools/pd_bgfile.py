@@ -426,7 +426,6 @@ class PatchBGFile:
                 end = verts
 
             if type == ROOMBLOCKTYPE_PARENT:
-                # blockcoords.append(roomblock['vertices|coord1'])
                 cu = rd.cursor
                 addr = roomblock['vertices|coord1']
                 rd.set_cursor(addr - roomid)

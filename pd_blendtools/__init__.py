@@ -75,7 +75,6 @@ def unregister():
     for m in reversed(submodules):
         m.unregister()
 
-    del Object.pd_model
     bpy.utils.unregister_class(PDModelPropertyGroup)
     bpy.utils.unregister_class(PD_AddonPreferences)
 

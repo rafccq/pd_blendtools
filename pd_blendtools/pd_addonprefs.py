@@ -33,7 +33,7 @@ def pref_get(key):
 
     name = pdu.addon_name()
     if name in bpy.context.preferences.addons:
-        prefs = bpy.context.preferences.addons[name]
+        prefs = bpy.context.preferences.addons[name].preferences
         return _pref_value(prefs, key)
 
     blend_dir = bpy.path.abspath('//')
@@ -46,7 +46,7 @@ def pref_save(key, value):
 
     name = pdu.addon_name()
     if name not in bpy.context.preferences.addons: return
-    prefs = bpy.context.preferences.addons[name]
+    prefs = bpy.context.preferences.addons[name].preferences
 
     if key == PD_PREF_ROMPATH:
         prefs.rompath = value
