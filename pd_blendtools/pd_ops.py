@@ -88,21 +88,6 @@ class PDTOOLS_OT_ExportModel(Operator, ExportHelper):
         return {'RUNNING_MODAL'}
 
 
-class PDTOOLS_OT_ImportModelFromFile(Operator, ImportHelper):
-    bl_idname = "pdtools.import_model_file"
-    bl_label = "Import From File"
-    bl_description = "Import a model from a file"
-
-    filter_glob: bpy.props.StringProperty(
-        default="*.*",
-        # options={'HIDDEN'},
-    )
-
-    def execute(self, context):
-        print('import model from file', self.filepath)
-        return {'FINISHED'}
-
-
 class PDTOOLS_OT_AssignMtxToVerts(Operator):
     bl_idname = "pdtools.assign_mtx_verts"
     bl_label = "Assign To Selected"
@@ -209,10 +194,43 @@ class PDTOOLS_OT_SelectDirectory(Operator):
         return {'RUNNING_MODAL'}
 
 
-def load_model(_context, name):
+def load_model(_context, modelname=None, filename=None):
     rompath = pdp.pref_get(pdp.PD_PREF_ROMPATH)
     romdata = rom.Romdata(rompath)
-    mdi.import_model(romdata, name)
+
+    if modelname:
+        model_obj, _ = mdi.import_model(romdata, modelname=modelname)
+    elif filename:
+        model_obj, _ = mdi.import_model(romdata, filename=filename)
+    else:
+        raise RuntimeError('load_model() called without modelname and filename params')
+
+    coll = pdu.active_collection()
+    pdu.add_to_collection(model_obj, coll=coll)
+    stpi.blender_align(model_obj)
+    pdu.select_obj(model_obj)
+
+
+class PDTOOLS_OT_ImportModelFromFile(Operator, ImportHelper):
+    bl_idname = "pdtools.import_model_file"
+    bl_label = "Import From File"
+    bl_description = "Import a model from a file"
+
+    filter_glob: bpy.props.StringProperty(
+        default="*.*",
+        # options={'HIDDEN'},
+    )
+
+    def execute(self, context):
+        scn = context.scene
+        # when the addon is first installed, the icons need to be generated
+        # because the load_post handler won't be called
+        if len(scn.color_collection) == 0:
+            gen_icons(context)
+
+        # print('import model from file', self.filepath)
+        load_model(context, filename=self.filepath)
+        return {'FINISHED'}
 
 
 class PDTOOLS_OT_ImportModelFromROM(Operator):
@@ -241,12 +259,12 @@ class PDTOOLS_OT_ImportModelFromROM(Operator):
         scn = context.scene
 
         # when the addon is first installed, the icons need to be generated
-        # because the lost_post handler won't be called
+        # because the load_post handler won't be called
         if len(scn.color_collection) == 0:
             gen_icons(context)
 
         item = scn.pdmodel_list[scn.pdmodel_listindex]
-        load_model(context, item.filename)
+        load_model(context, modelname=item.filename)
         return {'FINISHED'}
 
     def invoke(self, context, event):

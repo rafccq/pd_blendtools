@@ -182,9 +182,10 @@ def bg_create_roomblockDL(room, block, bl_room, rootobj, tex_configs, layer, idx
         None
     )
 
-    mesh, _ = mdi.collect_sub_meshes(meshdata, idx, False)
+    gdldata, _, _ = mdi.gdl_read_data(meshdata, idx, False)
 
-    bl_roomblock = mdi.create_mesh(mesh[0], tex_configs, roomnum, idx)
+    bl_roomblock = mdi.create_mesh(gdldata, tex_configs, roomnum, idx)
+    bl_roomblock['addr'] = f'{block.addr:08X}'
     bl_roomblock.name = bgu.blockname(roomnum, idx, 'Display List', layer)
     bl_roomblock.parent = rootobj
     bl_roomblock.color = (0,0,0,1)
@@ -213,6 +214,7 @@ def bg_create_roomblocks(room, rootaddr, bl_room, rootobj, tex_configs, layer, i
         elif blocktype == ROOMBLOCKTYPE_PARENT:
             name = bgu.blockname(roomnum, idx, 'BSP', layer)
             bl_rootblock = pdu.new_obj(name, rootobj, link=False, dsize=0.0001)
+            bl_rootblock['addr'] = f'{block.addr:08X}'
             bsp_pos = pdu.read_coord(block['coord_0'])
             bsp_normal = pdu.read_coord(block['coord_1'])
             pdu.add_to_collection(bl_rootblock, 'Rooms')

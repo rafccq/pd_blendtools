@@ -50,6 +50,7 @@ class PDObject(PropertyGroup):
 
 
 class PDObject_Model(PropertyGroup):
+    filename: StringProperty(name='filename', default='', options={'LIBRARY_EDITABLE'})
     idx: IntProperty(name='idx', default=0, options={'LIBRARY_EDITABLE'})
     layer: IntProperty(name='layer', default=0, options={'LIBRARY_EDITABLE'})
 
@@ -102,8 +103,8 @@ class PDObject_RoomBlock(PropertyGroup):
     blocknum: IntProperty(name='blocknum', default=0, options={'LIBRARY_EDITABLE'})
     layer: EnumProperty(name="layer", description="Room Layer", items=BLOCK_LAYER)
     blocktype: StringProperty(name='blocktype', default='', options={'LIBRARY_EDITABLE'})
-    bsp_pos: FloatVectorProperty(name='bsp_pos', default=(0,0,0), options={'LIBRARY_EDITABLE'})
-    bsp_normal: FloatVectorProperty(name='bsp_normal', default=(1,0,0), options={'LIBRARY_EDITABLE'})
+    bsp_pos: FloatVectorProperty(name='bsp_pos', default=(0,0,0), subtype='XYZ', options={'LIBRARY_EDITABLE'})
+    bsp_normal: FloatVectorProperty(name='bsp_normal', default=(1,0,0), subtype='DIRECTION', options={'LIBRARY_EDITABLE'})
     # parent: PointerProperty(name='parent', type=Object, options={'LIBRARY_EDITABLE'})
     parent_enum: EnumProperty(name="parent_enum", description="Parent Block", items=get_blockparent_items, update=update_parent)
     room: PointerProperty(name='room', type=Object, options={'LIBRARY_EDITABLE'})
@@ -671,11 +672,11 @@ group_colors = {
 
 def draw_bsp(bl_obj):
     scn = bpy.context.scene
-    pd_room = bl_obj.pd_room
 
-    if pdu.pdtype(bl_obj) != PD_OBJTYPE_ROOMBLOCK or pd_room.blocktype != BLOCKTYPE_BSP:
+    if pdu.pdtype(bl_obj) != PD_OBJTYPE_ROOMBLOCK or bl_obj.pd_room.blocktype != BLOCKTYPE_BSP:
         return
 
+    pd_room = bl_obj.pd_room
     pos = Vector(pd_room.bsp_pos)
     N = Vector(pd_room.bsp_normal).normalized()
     # tangent vector
@@ -861,11 +862,11 @@ def unregister():
 
     del Scene.pd_room_goto
     del Scene.pd_tile_hilightmode
-    del Scene.pd_tilehilight
+    del Scene.pd_tile_hilight
     del Scene.collections_sel
     del Scene.collections_vis
 
     for cls in reversed(classes):
         unregister_class(cls)
 
-    bpy.types.SpaceView3D.draw_handler_remove(vp_drawhandler)
+    bpy.types.SpaceView3D.draw_handler_remove(vp_drawhandler, 'WINDOW')

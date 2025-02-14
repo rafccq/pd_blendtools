@@ -17,23 +17,26 @@ class PDTOOLS_PT_PanelModel(Panel):
     bl_region_type = "UI"
     bl_category = "PD Tools"
 
-    @classmethod
-    def poll(cls, context):
-        return context.object
-
     def draw(self, context: Context) -> None:
         self.layout.operator_context = "INVOKE_DEFAULT"
         row = self.layout.row()
 
         rompath = pdp.pref_get(pdp.PD_PREF_ROMPATH)
         rom_exists = bool(rompath)
+
         row.enabled = rom_exists
         icon = 'NONE' if rompath else 'ERROR'
         row.operator("pdtools.import_model_rom", icon=icon)
 
+        row = self.layout.row()
+        row.operator("pdtools.import_model_file")
+        row.enabled = rom_exists
+
         obj = context.object
         row = self.layout.row()
-        ismodel = (obj.pd_obj.type & 0xff00) == pdprops.PD_OBJTYPE_MODEL
+        # ismodel = pdu.pdtype(obj) == pdprops.PD_OBJTYPE_MODEL
+        ismodel = obj is not None and (obj.pd_obj.type & 0xff00) == pdprops.PD_OBJTYPE_MODEL
+        # print(ismodel, obj.pd_obj.type if obj is not None else '-')
         row.enabled = rom_exists and ismodel
         row.operator("pdtools.export_model", text = "Export Model")
 
@@ -111,14 +114,16 @@ class PDTOOLS_PT_Room(Panel):
             if pd_room.blocktype == pdprops.BLOCKTYPE_BSP:
                 box.separator(type='LINE')
                 box.label(text='BSP Position:')
-                col = box.row()
-                for idx, t in enumerate(['X', 'Y', 'Z']):
-                    col.prop(pd_room, 'bsp_pos', index = idx, text=t)
+                box.prop(pd_room, 'bsp_pos', text='')
+                # col = box.row()
+                # for idx, t in enumerate(['X', 'Y', 'Z']):
+                #     col.prop(pd_room, 'bsp_pos', index = idx, text=t)
 
                 box.label(text='BSP Normal:')
-                col = box.row()
+                box.prop(pd_room, 'bsp_normal', text='')
+                row = box.row()
                 for idx, t in enumerate(['X', 'Y', 'Z']):
-                    col.prop(pd_room, 'bsp_normal', index = idx, text=t)
+                    row.prop(pd_room, 'bsp_normal', index = idx, text=t)
                 # box.prop(pd_room, 'bsp_normal', text='BSP Normal')
                 row = box.row()
                 row.prop(scn, 'pd_bspwidth', text='Width (View Only)')

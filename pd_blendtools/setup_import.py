@@ -70,7 +70,7 @@ def obj_load_model(romdata, modelnum):
 
     modelname = romdata.filenames[filenum]
     # print(f'loadmodel {modelname}')
-    return mdi.import_model(romdata, modelname, link=False)
+    return mdi.import_model(romdata, modelname=modelname)
 
 def blender_align(obj):
     rot_mat = Euler((pi/2, 0, pi/2)).to_matrix().to_4x4()

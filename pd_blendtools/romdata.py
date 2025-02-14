@@ -96,7 +96,7 @@ section_offsets = {
     'textures':      [0x1d65f40, 0x1d5ca20, 0x1d61f90, ],
 }
 
-def load(filename):
+def load(filename=None):
     if not filename:
         filename = pdp.pref_get(pdp.PD_PREF_ROMPATH)
     return Romdata(filename)

@@ -1,4 +1,5 @@
 import struct
+import os
 from collections import namedtuple
 
 import bpy
@@ -15,6 +16,7 @@ import mtxpalette as mtxp
 import log_util as log
 from decl_model import *
 from typeinfo import TypeInfo
+import pd_blendprops as pdprops
 
 logger = log.log_get(__name__)
 log.log_config(logger, log.LOG_FILE_IMPORT)
@@ -38,6 +40,7 @@ def create_mesh(mesh, tex_configs, meshidx, sub_idx):
 
     obj = bpy.data.objects.new(name, mesh_data)
     obj.pd_model.layer = mesh.layer
+    obj.pd_model.idx = meshidx
 
     logger.debug(f'[CREATEMESH {meshidx:02X}] {name}')
 
@@ -234,7 +237,7 @@ class VtxBufferEntry:
         self.meshes_loaded = []
         self.hasnormal = hasnormal
 
-def collect_sub_meshes(pdmeshdata, idx, apply_mtx):
+def gdl_read_data(pdmeshdata, idx, apply_mtx, layer=MeshLayer.OPA):
     ptr_vtx = pdmeshdata.ptr_vtx
     ptr_col = pdmeshdata.ptr_col
     vtxdata = pdmeshdata.vtxdata
@@ -251,8 +254,9 @@ def collect_sub_meshes(pdmeshdata, idx, apply_mtx):
     bo='big'
     dbg = 1
 
-    mesh = ImportMeshData(MeshLayer.OPA)
-    meshes = [mesh] # stores all meshes, from both opa and xlu layers
+    mesh_opa = ImportMeshData(layer)
+    mesh_xlu = None
+    mesh = mesh_opa
     mtxindex = -1
     model_mtxs = set()
 
@@ -289,10 +293,10 @@ def collect_sub_meshes(pdmeshdata, idx, apply_mtx):
                 gdlnum += 1
                 # meshes in the xlu layer may use vertices loaded for the opa layer...
                 vtxs = mesh.verts[-nverts:]
-                mesh = ImportMeshData(MeshLayer.XLU, has_mtx=mesh.has_mtx)
+                mesh_xlu = ImportMeshData(MeshLayer.XLU, has_mtx=mesh.has_mtx)
                 # ... so we need to copy them over to new xlu mesh
-                mesh.add_vertices(vtxs)
-                meshes.append(mesh)
+                mesh_xlu.add_vertices(vtxs)
+                mesh = mesh_xlu
                 trinum = 0
                 continue
             else:
@@ -352,20 +356,20 @@ def collect_sub_meshes(pdmeshdata, idx, apply_mtx):
 
         addr += 8
 
-    return meshes, model_mtxs
+    return mesh_opa, mesh_xlu, model_mtxs
 
 def create_model_mesh(idx, meshdata, sc, tex_configs, apply_mtx):
-    subMeshes, model_mtxs = collect_sub_meshes(meshdata, idx, apply_mtx)
-    n_submeshes = len(subMeshes)
+    *gdldatas, model_mtxs = gdl_read_data(meshdata, idx, apply_mtx)
+    n_submeshes = len(gdldatas)
     mesh_objs = []
-    for sub_idx, meshdata in enumerate(subMeshes):
-        if len(meshdata.verts) == 0: continue
+    for sub_idx, gdldata in enumerate(gdldatas):
+        if not gdldata: continue
 
         sub_idx = sub_idx if n_submeshes > 1 else -1
-        mesh_obj = create_mesh(meshdata, tex_configs, idx, sub_idx)
+        mesh_obj = create_mesh(gdldata, tex_configs, idx, sub_idx)
         mesh_obj.data['matrices'] = list(model_mtxs)
         mesh_objs.append(mesh_obj)
-        logger.debug(f'ntri {len(meshdata.tris)} nverts {len(meshdata.verts)}')
+        logger.debug(f'ntri {len(gdldata.tris)} nverts {len(gdldata.verts)}')
 
     return mesh_objs
 
@@ -409,9 +413,9 @@ def create_model_meshes(model, sc, apply_mtx):
 
     return mesh_objs
 
-def import_model(romdata, model_name, link=True):
-    logger.debug(f'import model {model_name}')
-    model = loadmodel(romdata, model_name)
+def import_model(romdata, modelname=None, filename=None):
+    logger.debug(f'import model {modelname}')
+    model = loadmodel(romdata, modelname=modelname, filename=filename)
 
     sc = 1
 
@@ -420,19 +424,21 @@ def import_model(romdata, model_name, link=True):
     # model.traverse(create_joint, root_obj=joints_obj)
 
     props_with_mtx = ['ProofgunZ', 'PgroundgunZ']
-    name = model_name
+    name = modelname if modelname else os.path.basename(filename)
     apply_mtx = name[0] != 'P' or name in props_with_mtx
     meshes = create_model_meshes(model, sc, apply_mtx)
 
     if len(meshes) > 1:
-        model_obj = pdu.new_empty_obj(model_name, link=link)
+        model_obj = pdu.new_empty_obj(name, link=False)
         for mesh in meshes:
             mesh.parent = model_obj
     else:
         model_obj = meshes[0]
-        model_obj.name = model_name
+        model_obj.name = name
 
-    model_obj.pd_model.name = model_name
+    model_obj.pd_obj.type = pdprops.PD_OBJTYPE_MODEL
+    model_obj.pd_model.name = name
+    model_obj.pd_model.filename = filename if filename else ''
 
     return model_obj, model
 
@@ -491,8 +497,8 @@ def loadimages(romdata, texnums):
                 'depth': teximg.depth,
             }
 
-def loadmodel(romdata, modelname):
-    modeldata = romdata.filedata(modelname)
+def loadmodel(romdata, modelname=None, filename=None):
+    modeldata = romdata.filedata(modelname) if modelname else pdu.read_file(filename)
     model = PDModel(modeldata)
 
     loadimages(romdata, [tc['texturenum'] for tc in model.texconfigs])
