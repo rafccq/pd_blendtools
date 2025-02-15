@@ -27,7 +27,7 @@ COMBINER_ITEMS_B = [
     ('Environment Color', 'Environment Color', 5),
     ('Chroma Key Center', 'Chroma Key Center', 6),
     ('YUV Convert K4', 'YUV Convert K4', 7),
-    ('0', '0', 8),
+    ('0', '0', 15),
 ]
 
 COMBINER_ITEMS_C = [
@@ -41,13 +41,13 @@ COMBINER_ITEMS_C = [
     ('Combined Color Alpha', 'Combined Color Alpha', 7),
     ('Texture 0 Alpha', 'Texture 0 Alpha', 8),
     ('Texture 1 Alpha', 'Texture 1 Alpha', 9),
-    ('Primitive Color Alpha', 'Primitive Color Alpha', 10),
-    ('Shade Color Alpha', 'Shade Color Alpha', 11),
-    ('Environment Color Alpha', 'Environment Color Alpha', 12),
-    ('LOD Fraction', 'LOD Fraction', 13),
-    ('Primitive LOD Fraction', 'Primitive LOD Fraction', 14),
-    ('YUV Convert K5', 'YUV Convert K5', 15),
-    ('0', '0', 16),
+    ('Primitive Color Alpha', 'Primitive Color Alpha', 0xa),
+    ('Shade Color Alpha', 'Shade Color Alpha', 0xb),
+    ('Environment Color Alpha', 'Environment Color Alpha', 0xc),
+    ('LOD Fraction', 'LOD Fraction', 0xd),
+    ('Primitive LOD Fraction', 'Primitive LOD Fraction', 0xe),
+    ('YUV Convert K5', 'YUV Convert K5', 0xf),
+    ('0', '0', 0x1f),
 ]
 
 COMBINER_ITEMS_D = [
@@ -79,7 +79,9 @@ COMBINER_ITEMS_B_ALPHA = [
     ('Primitive Color Alpha', 'Primitive Color Alpha', 3),
     ('Shade Color Alpha', 'Shade Color Alpha', 4),
     ('Environment Color Alpha', 'Environment Color Alpha', 5),
-    ('0', '0', 8),
+    ('1', '1', 6),
+    ('0', '0', 7),
+    ('Noise', 'Noise', 15),
 ]
 
 COMBINER_ITEMS_C_ALPHA = [

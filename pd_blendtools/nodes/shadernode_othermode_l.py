@@ -79,14 +79,14 @@ LOWER_RENDERMODECD_ITEMS = {
     'blend_p2': LOWER_RENDERMODECD_BLENDCOLOR,
 }
 
-MODE_ALPHACMP   = 'alphacompare'
-MODE_ZSRC       = 'zsourceselection'
-MODE_RENDERMODE = 'rendermode'
+MODE_ALPHACMP   = 0
+MODE_ZSRC       = 2
+MODE_RENDERMODE = 3
 
 LOWER_MODES = [
-    ('Alpha Compare',       'Alpha Compare',      0),
-    ('Z Source Selection',  'Z Source Selection', 2),
-    ('Render Mode',         'Render Mode',        3),
+    ('Alpha Compare',       'Alpha Compare',      MODE_ALPHACMP),
+    ('Z Source Selection',  'Z Source Selection', MODE_ZSRC),
+    ('Render Mode',         'Render Mode',        MODE_RENDERMODE),
 ]
 
 DESC_LOWER_AA_EN         = 'AA_EN description'
@@ -106,15 +106,12 @@ class PD_ShaderNodeSetOtherModeL(PD_ShaderNodeBase):
     min_width = 200
 
     def on_update(self, context):
-        # if not hasattr(context, 'enum'): print('NO ENUM')
-        mode = self.mode
+        mode = self.enum_value('mode')
 
         if mode in [MODE_ALPHACMP, MODE_ZSRC]:
             if not hasattr(context, 'enum'):
                 print(f'mode {mode} expected to have an enum pointer set')
                 return
-
-            modeval = self.enum_value('mode')
 
             ofs = 0 if mode == MODE_ALPHACMP else 2
             propname = 'g_mdsft_alphacompare' if mode == MODE_ALPHACMP else 'g_mdsft_zsrc'
@@ -122,10 +119,7 @@ class PD_ShaderNodeSetOtherModeL(PD_ShaderNodeBase):
 
             modebits = propval << ofs
             n = 2 if mode == MODE_ALPHACMP else 1
-            # print(f'MODE {mode} val {modeval} PROP {propname} val {propval}')
         else:
-            modeval = 3
-
             # cycle independent params
             cvg_dst = self.enum_value('cvg_dst')
             zmode = self.enum_value('zmode')
@@ -136,6 +130,7 @@ class PD_ShaderNodeSetOtherModeL(PD_ShaderNodeBase):
 
             modebits |= cvg_dst << 5
             modebits |= zmode << 7
+            modebits <<= 3
 
             # cycle dependent params
             f = self.enum_value
@@ -150,19 +145,18 @@ class PD_ShaderNodeSetOtherModeL(PD_ShaderNodeBase):
             pa = (p | a)
             mb = (m | b)
 
-            # print(f'p {p:02X} a {a:02} m {m:02X} b {b:02X} pa {pa:02X} mb {mb:02X}')
             modebits |= ((pa << 8) | mb) << 16
 
             n = 29
 
-        self.cmd = f'B900{modeval:02X}{n:02X}{modebits:08X}'
+        self.cmd = f'B900{mode:02X}{n:02X}{modebits:08X}'
 
     hide: BoolProperty(name='Hide fields', default=False, description='Hide fields (still accessible in the panel)')
 
     mode: EnumProperty(
         name='mode', default='alphacompare',
         # items = [(make_id('mode', id), name, name) for (id, name, _) in LOWER_MODES], update=on_update,
-        items = [(make_id(id), name, name) for (id, name, _) in LOWER_MODES], update=on_update,
+        items = [(make_id(id), name, '', '', value) for (id, name, value) in LOWER_MODES], update=on_update,
     )
 
     g_mdsft_alphacompare: make_prop('g_mdsft_alphacompare', {'g_mdsft_alphacompare': LOWER_ALPHACOMP}, 'none', on_update)
@@ -215,12 +209,12 @@ class PD_ShaderNodeSetOtherModeL(PD_ShaderNodeBase):
             propval = next(filter(lambda e: e[2] == modebits, items))[0]
             propname = 'g_mdsft_alphacompare' if mode == MODE_ALPHACMP else 'g_mdsft_zsrc'
             setattr(self, propname, make_id(propval))
-        else:
+        else: # RENDERMODE
             # cycle independent params
+            modebits = (cmd & 0xfff8) >> 3
             for flag, (_, bits) in LOWER_RENDERMODECI_FLAGS.items():
-                setattr(self, flag, bool(cmd & bits))
+                setattr(self, flag, bool(modebits & bits))
 
-            modebits = (cmd & 0xfff8) >> mode
             cvg_dst = (modebits & 0x60) >> 5
             propname = 'cvg_dst'
             propid = next(filter(lambda e: e[2] == cvg_dst, LOWER_RENDERMODECI_CVGDST))[0]
@@ -283,7 +277,8 @@ class PD_ShaderNodeSetOtherModeL(PD_ShaderNodeBase):
         # col.separator(type='LINE') #BL4.2
         col.separator()
 
-        mode = self.mode
+        mode = self.enum_value('mode')
+
         if mode == MODE_ALPHACMP:
             col.context_pointer_set('enum', self.bl_rna.properties['g_mdsft_alphacompare'])
             col.prop(self, 'g_mdsft_alphacompare', text='')
