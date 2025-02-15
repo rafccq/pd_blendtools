@@ -355,7 +355,8 @@ def material_texlod(mat):
 
     return lod
 
-def material_cmds(mat, geobits):
+def material_cmds(mat):
+    geobits = 0
     node = material_get_setup(mat)
     cmds = []
     while node:

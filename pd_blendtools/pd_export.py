@@ -1,13 +1,11 @@
 import bmesh
+from mathutils import Vector, Matrix
 
-import pd_utils as pdu
-from pdmodel import PDModel
-import mtxpalette as mtxp
-from pd_materials import *
 import log_util as log
-from gbi import *
+import mtxpalette as mtxp
 import romdata as rom
-
+from pd_materials import *
+from pdmodel import PDModel
 
 logger = log.log_get(__name__)
 log.log_config(logger, log.LOG_FILE_EXPORT)
@@ -191,15 +189,14 @@ class TriBatch:
         self.vtxdata = vtxdata
         self.color_indices = colorindices
 
-    def vtx_bytes(self, model, texsize, apply_mtx):
+    def vtx_bytes(self, texsize, matrices=None, bbox=None):
         if not self.colors: self.build_color_indices()
 
-        en = int(apply_mtx) # true/false to 1/0
         vtxdata = bytearray()
         for v, vdata in enumerate(self.vtxdata):
-            mtx = model.matrices[self.vtxmtxs[v]] if self.vtxmtxs else (0,0,0)
-            vpos = vdata[0]
-            vpos = (vpos[0] - mtx[0]*en, vpos[1] - mtx[1]*en, vpos[2] - mtx[2]*en)
+            mtx = matrices[self.vtxmtxs[v]] if self.vtxmtxs and matrices else (0,0,0)
+            mtx = Vector(mtx)
+            vpos = Vector(vdata[0]) - mtx
             uvcoord = vdata[2]
 
             # pos flag col_idx s t
@@ -208,6 +205,8 @@ class TriBatch:
             vtxbytes += [b'\x00'] # flag
             vtxbytes += [self.color_indices[v].to_bytes(1, 'big')]
             vtxbytes += uv_to_bytes(uvcoord, texsize)
+
+            if bbox: bbox.update(vpos)
 
             for b in vtxbytes: vtxdata += b
 
@@ -258,6 +257,11 @@ def create_tri_batches(mesh, bm, vtxdata):
         mat_changed = mat != prevmat and prevmat >= 0
 
         verts = [v.index for v in tri.verts]
+
+        if len(verts) > 3:
+            print(f'WARNING: invalid face: {face} {verts}')
+            raise RuntimeError('Invalid face')
+
         nverts = cur_batch.nverts()
         colnorms = tuple([vtxdata[v][1][face] for v in verts])
         uvs = tuple([vtxdata[v][2][face] for v in verts])
@@ -280,14 +284,14 @@ def create_tri_batches(mesh, bm, vtxdata):
     return tri_batches
 
 class ExportMeshData:
-    def __init__(self, name, idx, layer, meshdata):
+    def __init__(self, name, layer, meshdata, idx=-1):
         self.name = name
         self.idx = idx
         self.layer = layer
         self.meshdata = meshdata
         self.batches = []
 
-    def create_batches(self, model):
+    def create_batches(self, matrices=None):
         logger.debug(f'MESH {self.name}')
         mesh = self.meshdata
 
@@ -305,7 +309,7 @@ class ExportMeshData:
             batch.build_color_indices()
             batch.reorder_verts_by_mtx()
 
-        print_batches(mesh, batches, model)
+        print_batches(mesh, batches, matrices)
         bm.free()
 
         self.batches = batches
@@ -321,42 +325,55 @@ def build_meshmap(obj):
 
         if idx not in meshmap: meshmap[idx] = []
 
-        meshinfo = ExportMeshData(obj.name, idx, layer, obj.data)
+        meshinfo = ExportMeshData(obj.name, layer, obj.data, idx)
         meshmap[idx].append(meshinfo)
 
     return meshmap
 
-def meshes_to_gdl(meshes, vtx_start, nverts):
-    if not meshes: return None
+def mesh_to_gdl(mesh, vtx_start, nverts, segment_vtx, segment_col, env_enabled=False):
+    # print(f'meshes: {meshes} {len(meshes)}')
+    if not mesh: return None
 
-    color_start = pdu.align(vtx_start + nverts * 12, 8)
+    color_start = pdu.align(vtx_start + nverts * 12, 8) if vtx_start else  0
 
     gdlbytes = cmd_G_RDPPIPESYNC()
 
-    for mesh in meshes:
-        for batch in mesh.batches:
-            batch.vtx_start = vtx_start
-            batch.color_start = color_start
+    for batch in mesh.batches:
+        batch.vtx_start = vtx_start
+        batch.color_start = color_start
 
-        gdlbytes += create_gdl(mesh)
-
+    gdlbytes += create_gdl(mesh, segment_vtx, segment_col, env_enabled)
     gdlbytes += cmd_G_END()
+
     return gdlbytes
 
-def create_gdl(mesh: ExportMeshData):
+def create_gdl(mesh: ExportMeshData, segment_vtx, segment_col, env_enabled=False):
     gdlbytes = bytearray()
     materials = mesh.meshdata.materials
 
     geobits = 0
+    env_emitted = False
+    prevmat = -1
     for idx, batch in enumerate(mesh.batches):
-        mat = materials[batch.mat]
-        mat_cmds, geobits = material_cmds(mat, geobits)
+        if batch.mat < 0: continue
 
-        geobits |= geobits
-        for cmd in mat_cmds:
-            gdlbytes += bytearray.fromhex(cmd)
+        # don't emmit the material cmds if this batch material is the same as the previous
+        if batch.mat != prevmat:
+            mat = materials[batch.mat]
+            mat_cmds, mat_geobits = material_cmds(mat)
 
-        gdlbytes += cmd_G_COL(len(batch.colors), batch.color_start + batch.color_offset)
+            geobits |= mat_geobits
+            for cmd in mat_cmds:
+                gdlbytes += bytearray.fromhex(cmd)
+
+        prevmat = batch.mat
+
+        if env_enabled and not env_emitted:
+            gdlbytes += cmd_G_SETENVCOLOR(0xff)
+            env_emitted = True
+
+        colstart, colofs = batch.color_start, batch.color_offset
+        gdlbytes += cmd_G_COL(len(batch.colors), colstart + colofs, segment_col)
 
         vtx_ofs = batch.vtx_start + batch.vtx_offset
         vidx = 0
@@ -366,14 +383,14 @@ def create_gdl(mesh: ExportMeshData):
             nverts = batch.vtxbin_sizes[mtx]
 
             gdlbytes += cmd_G_MTX(mtx)
-            gdlbytes += cmd_G_VTX(nverts, vtx_ofs, vidx)
+            gdlbytes += cmd_G_VTX(nverts, vtx_ofs, segment_vtx, vidx)
 
             vtx_ofs += nverts * 12
             vidx += nverts
 
         # handle meshes with no matrix
         if not batch.mtxs:
-            gdlbytes += cmd_G_VTX(nverts, vtx_ofs, vidx)
+            gdlbytes += cmd_G_VTX(nverts, vtx_ofs, segment_vtx, vidx)
             vtx_ofs += nverts * 12
 
         # flush triangles
@@ -393,8 +410,8 @@ def create_gdl(mesh: ExportMeshData):
 
     return gdlbytes
 
-def loadmodel(romdata, modelname):
-    modeldata = romdata.filedata(modelname)
+def loadmodel(romdata, modelname=None, filename=None):
+    modeldata = romdata.filedata(modelname) if modelname else pdu.read_file(filename)
     return PDModel(modeldata)
 
 def export_model(model_obj, filename):
@@ -405,7 +422,11 @@ def export_model(model_obj, filename):
     logger.debug(f'export model: {modelname}')
 
     romdata = rom.load()
-    model = loadmodel(romdata, modelname)
+    md_filename = model_obj.pd_model.filename
+    if md_filename:
+        model = loadmodel(romdata, filename=md_filename)
+    else:
+        model = loadmodel(romdata, modelname=modelname)
     apply_mtx = model_obj.pd_model.name[0] != 'P'
 
     # objmap: idx -> list of meshes
@@ -414,7 +435,7 @@ def export_model(model_obj, filename):
         colordata = bytearray()
 
         # create batches for each mesh and sort them by material
-        for mesh in meshes: mesh.create_batches(model)
+        for mesh in meshes: mesh.create_batches(model.matrices)
         for mesh in meshes: mesh.batches.sort(key = lambda b: b.mat)
 
         # aggregate vtxdata from all batches
@@ -429,6 +450,8 @@ def export_model(model_obj, filename):
                 batch.vtx_offset = len(vtxdata)
                 batch.color_offset = len(colordata)
 
+                if batch.mat < 0: continue
+
                 mat = materials[batch.mat]
                 image = material_get_teximage(mat)
 
@@ -437,9 +460,11 @@ def export_model(model_obj, filename):
                 else:
                     print(f'WARNING: material has no texture. Mesh{mesh.name} mat {mat.name}')
 
-                vtxdata += batch.vtx_bytes(model, texsize, apply_mtx)
+                mtxs = model.matrices if apply_mtx else None
+                vtxdata += batch.vtx_bytes(texsize, mtxs)
                 colordata += batch.color_bytes()
 
+        # print(idx, vtxdata)
         model.replace_vtxdata(idx, vtxdata)
         model.replace_colordata(idx, colordata)
 
@@ -452,30 +477,33 @@ def export_model(model_obj, filename):
         nodetype = rodata['_node_type_']
 
         # split the list into 2 for opa and xlu layers
-        idx_xlu = pdu.index_where(meshes, lambda e: e.layer == 1, len(meshes)) # TODO Meshlayer enum
-        meshes_opa = meshes[:idx_xlu]
-        meshes_xlu = meshes[idx_xlu:]
+        multiple = len(meshes) > 1
+        if multiple: meshes.sort(key = lambda e: e.layer)
+        mesh_opa = meshes[0]
+        mesh_xlu = meshes[1] if multiple else None
 
         vtx_start = rodata['vertices']
 
         nverts = rodata['numvertices'] if nodetype in [0x04, 0x18] else rodata['unk00'] * 4
-        gdlbytes_opa = meshes_to_gdl(meshes_opa, vtx_start, nverts)
-        gdlbytes_xlu = meshes_to_gdl(meshes_xlu, vtx_start, nverts)
+        gdlbytes_opa = mesh_to_gdl(mesh_opa, vtx_start, nverts, 0x5, 0x5)
+        gdlbytes_xlu = mesh_to_gdl(mesh_xlu, vtx_start, nverts, 0x5, 0x5)
 
         opa = 'opagdl' if nodetype in [0x04, 0x18] else 'gdl'
         xlu = 'xlugdl'
         model.replace_gdl(modeldata, gdlbytes_opa, idx, opa)
         model.replace_gdl(modeldata, gdlbytes_xlu, idx, xlu)
 
+    # pdu.write_file(filename+'.bin', modeldata)
     modeldata = pdu.compress(modeldata)
     pdu.write_file(filename, modeldata)
 
-def print_batches(mesh, tri_batches, model):
+def print_batches(mesh, tri_batches, matrices=None):
     f = 0
     prevmat = -1
     # print(f'mesh {mesh.idx:02X} batches')
     for bidx, batch in enumerate(tri_batches):
         mat = batch.mat
+        if mat < 0: continue
 
         m = mesh.materials[mat]
         matname = m.name
@@ -486,7 +514,7 @@ def print_batches(mesh, tri_batches, model):
                      f'ncols {len(batch.colors)} {newmat}{txtnorm}')
 
         for v, vdata in enumerate(batch.vtxdata):
-            mtx = model.matrices[batch.vtxmtxs[v]] if batch.vtxmtxs else (0,0,0)
+            mtx = matrices[batch.vtxmtxs[v]] if batch.vtxmtxs and matrices else (0,0,0)
             p = vdata[0]
             x, y, z = p[0] - mtx[0], p[1] - mtx[1], p[2] - mtx[2]
             txtmtx = f'(MTX {batch.vtxmtxs[v]:02X})' if batch.vtxmtxs else ''

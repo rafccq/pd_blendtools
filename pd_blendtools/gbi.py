@@ -87,11 +87,11 @@ GDLcodes = {
 }
 
 
-def cmd_G_COL(count, offset):
-    offset |= 0x05000000
+def cmd_G_COL(count, offset, segment):
+    segment <<= 24
     cmd = bytearray([0x07, 0x00])
     cmd += count.to_bytes(2, 'big')
-    cmd += offset.to_bytes(4, 'big')
+    cmd += (offset | segment).to_bytes(4, 'big')
     return cmd
 
 def cmd_G_VTX_EXT(nverts, offset, idx = 0):
@@ -100,11 +100,12 @@ def cmd_G_VTX_EXT(nverts, offset, idx = 0):
     cmd += offset.to_bytes(4, 'big')
     return cmd
 
-def cmd_G_VTX(nverts, offset, idx = 0):
+def cmd_G_VTX(nverts, offset, segment, idx=0):
+    segment <<= 24
     ni = ((nverts - 1) << 4) | idx
     cmd = bytearray([0x04, ni])
     cmd += (nverts*12).to_bytes(2, 'big')
-    cmd += (offset | 0x05000000).to_bytes(4, 'big')
+    cmd += (offset | segment).to_bytes(4, 'big')
     return cmd
 
 def cmd_G_MTX(mtx):
@@ -149,3 +150,6 @@ def cmd_G_CLEARGEOMETRY(geobits):
     cmd = bytearray([0xb6, 0x00, 0x00, 0x00])
     cmd += bytearray(geobits.to_bytes(4, 'big'))
     return cmd
+
+def cmd_G_SETENVCOLOR(col):
+    return (0xfb00000000000000 | col).to_bytes(8, 'big')
