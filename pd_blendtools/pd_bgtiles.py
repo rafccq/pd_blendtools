@@ -1,4 +1,3 @@
-import numpy as np
 import warnings
 
 from bytereader import *
@@ -14,11 +13,6 @@ def log(*args):
     if enablelog:
         print(''.join(args))
 
-def skip(rd, n):
-    for i in range(n):
-        v = rd.read_primitive('u8')
-        # rd.print(v, 'u8', f'skip', pad=15, showdec=True, numspaces=4)
-
 geotypes = {
     GEOTYPE_TILE_I: 'GEOTYPE_TILE_I',
     GEOTYPE_TILE_F: 'GEOTYPE_TILE_F',
@@ -29,7 +23,7 @@ geotypes = {
 class PatchBGTiles:
     def __init__(self, tilesdata, srcBO = 'big', destBO = 'little'):
         self.tilesdata = tilesdata
-        rd = self.rd = ByteReader(tilesdata, srcBO, destBO)
+        self.rd = ByteReader(tilesdata, srcBO, destBO)
 
         self.tilerooms = []
         self.geos = []
@@ -57,7 +51,7 @@ class PatchBGTiles:
             geotype, numvtx = rd.peek('u8', 2)
 
             # log(f'  geo # {i:04X} t {geotype:02X} ({geotypes[geotype]}) n {numvtx:04d} R {room:02X} [{rd.cursor:04X}]')
-            if rd.cursor > self.tilerooms[room]:
+            if rd.cursor >= self.tilerooms[room]:
                 room += 1
             # log(f'  geo # {i:04X} t {geotype:02X} ({geotypes[geotype]}) n {numvtx:04d}')
 
@@ -78,9 +72,3 @@ class PatchBGTiles:
             geo['room'] = room-1
             self.geos.append(geo)
             i += 1
-
-    def patch(self):
-        rd = self.rd
-        dataout = bytearray()
-
-        return dataout

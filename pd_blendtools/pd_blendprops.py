@@ -157,6 +157,8 @@ TILE_FLAGS = [
     'Ladder Player Only',
 ]
 
+TILE_FLAGS_VALUES = [(1 << i) for i in range(len(TILE_FLAGS))]
+
 TILE_HIGHLIGHT_MODE = [
     ('Floor Color', 'Tile Floor Color',                      0),
     ('Floor Type',  'Highlight Tiles Based On Floor Type',   1),

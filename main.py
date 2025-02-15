@@ -72,6 +72,8 @@ pdu = submodules['pd_utils']
 pdp = submodules['pd_addonprefs']
 rom = submodules['romdata']
 pdops = submodules['pd_ops']
+bge = submodules['bg_export']
+tle = submodules['tiles_export']
 
 
 def register():
@@ -103,8 +105,12 @@ def cl_setup():
     pdu.clear_collection('Waypoints')
 
 #clear()
-cl_setup()
+#cl_setup()
 register()
+
+#bge.export()
+tle.export(f'D:/Mega/PD/pd_blend/modelbin2/bg_mp11_tilesZ')
+
 
 #loadmodel('ProofgunZ')
 
@@ -124,13 +130,13 @@ register()
 #bgi.bg_import('bg_azt') # Crash Site
 #bgi.bg_import('bg_rit') # Air Force One
 
-bgi.bg_import('bg_mp15') # Grid
+#bgi.bg_import('bg_mp15') # Grid
 #bgi.bg_import('bg_mp11') # Felicity
 #bgi.bg_import('bg_mp4') # Warehouse
 #bgi.bg_import('bg_mp12') # Fortress
 
 # ------------------ SETUPS ------------------
-setup.setup_import('bg_mp15', True)
+#setup.setup_import('bg_mp15', True)
 #setup.setup_import('bg_mp11', True)
 #setup.setup_import('bg_mp4', True)
 #setup.setup_import('bg_dish')
