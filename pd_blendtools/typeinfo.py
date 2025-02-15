@@ -125,6 +125,7 @@ class TypeInfo:
         return size, max_sz
 
     @classmethod
+    @cache
     def sizeof(cls, typename):
         if '*' in typename: return cls.sizes['pointer']
 

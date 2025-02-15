@@ -43,7 +43,7 @@ decl_rodata_chrinfo = [ # type 0x01
 decl_rodata_position = [ # type 0x02
     'struct coord pos',
     'u16 part',
-    's16 mtxindexes[3]',
+    'u16 mtxindexes[3]',
     'f32 drawdist',
 ]
 

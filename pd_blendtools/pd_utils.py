@@ -504,8 +504,8 @@ def ini_file(filename):
 
     return configs
 
-def add_to_collection(obj, col_name):
-    collection = new_collection(col_name)
+def add_to_collection(obj, col_name='', coll = None):
+    collection = new_collection(col_name) if not coll else coll
     collection.objects.link(obj)
     for child in obj.children:
         collection.objects.link(child)

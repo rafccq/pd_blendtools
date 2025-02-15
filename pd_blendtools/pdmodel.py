@@ -149,14 +149,14 @@ class PDModel:
         rd = self.rd
         dataout = bytearray()
 
-        rd.write_block(dataout, 'modeldef', self.modeldef)
-        rd.write_block(dataout, 'parts', self.modelparts, pad=8)
+        rd.write_block(dataout, self.modeldef)
+        rd.write_block(dataout, self.modelparts, pad=8)
 
         for texconf in self.texconfigs:
-            rd.write_block(dataout, 'texconfig', texconf, pad=4)
+            rd.write_block(dataout, texconf, pad=4)
 
         for node in self.nodes.values():
-            rd.write_block(dataout, 'modelnode', node, pad=4)
+            rd.write_block(dataout, node, pad=4)
 
         for texdata in self.texdata.values():
             rd.write_block_raw(dataout, texdata)
@@ -174,7 +174,7 @@ class PDModel:
                 rd.write_block_raw(dataout, colors, pad=8)
 
             rd.ref = len(dataout)
-            rd.write_block(dataout, rodata_decls[nodetype], rodata, pad=8)
+            rd.write_block(dataout, rodata, pad=8)
             idx += 1
 
         texaddrs = {blk.addr: blk.write_addr for blk in self.texdata.values()}
@@ -274,14 +274,14 @@ class PDModel:
         if numvertices:
             vtxsize = 12
             start = rodata['vertices']
-            end = ALIGN8(unmask(start) + numvertices * vtxsize)
+            end = pdu.ALIGN8(unmask(start) + numvertices * vtxsize)
             endnoalign = (unmask(start) + numvertices * vtxsize)
             self.vertices[idx] = rd.read_block_raw(unmask(start), end)
             v = self.vertices[idx].bytes
             log(f'.VTX   start {unmask(start):04X} end {end:04X} endnoalign {endnoalign:04X} len {len(v)} num {numvertices}')
             if enableLog: print_bin('^VTX', v, 0, 12*12, 2, 6)
 
-            col_start = ALIGN8(unmask(end))
+            col_start = pdu.ALIGN8(unmask(end))
             col_end = rodata.addr
 
             # save colors at the same address as the vertices
@@ -294,6 +294,10 @@ class PDModel:
             # there are no direct pointers to the colors block (its implicit since it follows vtxs)
             # so we need to add it manually here, to things can be patched later, pain in the ass
             rd.pointers_map[col_start] = 0
+        else:
+            self.vertices[idx] = rd.create_block(bytearray())
+            self.colors[idx] = rodata['colors'] = rd.create_block(bytearray())
+
 
     def read_tex_configs(self):
         rd = self.rd

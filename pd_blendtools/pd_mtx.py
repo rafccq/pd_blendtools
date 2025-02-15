@@ -33,3 +33,8 @@ def mtx_basis(M):
 # (90d on X and Z axes)
 def rot_blender():
     return Euler((pi/2, 0, pi/2)).to_matrix().to_4x4()
+
+def rot_blender_inv():
+    Rx = rot(-pi/2,  'x')
+    Rz = rot(-pi/2,  'z')
+    return Rx @ Rz

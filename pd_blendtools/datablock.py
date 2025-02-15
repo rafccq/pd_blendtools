@@ -1,4 +1,4 @@
-from typeinfo import TypeInfo
+from typeinfo import TypeInfo, field_info
 
 class DataBlock:
     def __init__(self, name, addr, data = None):
@@ -8,6 +8,28 @@ class DataBlock:
         self.fields = {}
         self.field_infos = {}
         self.bytes = data
+
+    # create a new empty block (all fields set to zero)
+    @staticmethod
+    def New(decl_name):
+        datablock = DataBlock(decl_name, 0)
+        decl = TypeInfo.get_decl(decl_name)
+        for typename in decl:
+            info = field_info(typename)
+            # print(info)
+            if info['is_struct']:
+                if info['is_array']:
+                    n = info['array_size']
+                    array = [DataBlock.New(info['typename']) for _ in range(n)]
+                    datablock.add_field(info, array)
+                else:
+                    datablock.add_field(info, DataBlock.New(info['typename']))
+            elif info['is_array']:
+                datablock.add_field(info, [0] * info['array_size'])
+            else:
+                datablock.add_field(info, 0)
+
+        return datablock
 
     def add_field(self, info, value):
         self.fields[info['fieldname']] = value

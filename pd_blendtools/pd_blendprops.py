@@ -67,6 +67,8 @@ blockparent_items = []
 
 def get_blockparent_items(scene, context):
     bl_roomblock = context.active_object
+    if not bl_roomblock: return []
+
     pd_room = bl_roomblock.pd_room
     bl_room = pd_room.room
 

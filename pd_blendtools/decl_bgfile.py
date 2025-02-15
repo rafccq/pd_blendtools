@@ -16,8 +16,8 @@ decl_coord = [
 decl_bgroom = [
     'u32* unk00',
     'struct coord pos',
-    'u8 unk10',
-    'u8 unk11',
+    'u8 br_light_min',
+    'u8 br_light_max',
     's16 _pad_',
 ]
 
@@ -64,12 +64,12 @@ decl_roomblock = [
 ]
 
 decl_bbox = [
-    'u16 min_x',
-    'u16 min_y',
-    'u16 min_z',
-    'u16 max_x',
-    'u16 max_y',
-    'u16 max_z',
+    's16 min_x',
+    's16 min_y',
+    's16 min_z',
+    's16 max_x',
+    's16 max_y',
+    's16 max_z',
 ]
 
 decl_gfxvtx = [

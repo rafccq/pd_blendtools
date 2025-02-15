@@ -119,7 +119,8 @@ class ByteReader:
         __addr = len(dataout)
         __addrrel = __addr - self.ref
         __v = val
-        val = val.to_bytes(nbytes, DEST_BO)
+        signed = typename in ['s8', 's16', 's32', 's64']
+        val = val.to_bytes(nbytes, DEST_BO, signed=signed)
 
         fmt = '0' + str(nbytes*2) + 'X'
         # print(f'  write {val}')
@@ -131,10 +132,11 @@ class ByteReader:
         s = f'  {typename.ljust(12)} {fd} ' + val.ljust(16) + f' [{__addr:04X}] [{__addrrel:04X}]'
         # if enableLog: print(s)
 
-    def write_block(self, dataout, decl, block, pad=0, reread_arraysize=False):
+    def write_block(self, dataout, block, pad=0, reread_arraysize=False):
         block.write_addr = len(dataout)
 
-        decl = TypeInfo.get_decl(decl)
+        decl_name = block.name
+        decl = TypeInfo.get_decl(decl_name)
         for field in decl:
             info = field_info(field)
 
@@ -150,18 +152,17 @@ class ByteReader:
                 for i in range(0, array_size):
                     memdata = block[fieldname][i]
                     if is_struct:
-                        self.write_block(dataout, typename, memdata)
+                        self.write_block(dataout, memdata)
                     else:
                         self.fd = f'{fieldname}[{i}]'
                         self.write(dataout, memdata, typename)
             elif is_struct and not is_pointer:
-                self.write_block(dataout, typename, block[fieldname])
+                self.write_block(dataout, block[fieldname])
             else:
                 self.fd = fieldname
                 self.write(dataout, block[fieldname], typename)
 
-        name = decl if decl is str else ''
-        add_padding(dataout, pad, name)
+        add_padding(dataout, pad)
 
     def write_block_list(self, dataout, decl, blocklist, endmarker=None, pad=0, dbg=0):
         for block in blocklist:
@@ -173,62 +174,19 @@ class ByteReader:
                 self.print_dict(block, decl, pad=5, numspaces=2)
                 # addr = block.addr
                 # print(f'addr:{addr:08X}', json.dumps(block, indent=4))
-            self.write_block(dataout, decl, block)
+            self.write_block(dataout, block)
 
         if endmarker is not None:
             # endmarker: (typename, value) eg ('s32', 0xffffffff)
             self.write(dataout, endmarker[1], endmarker[0])
 
-        add_padding(dataout, pad, decl)
+        add_padding(dataout, pad)
 
     @staticmethod
     def write_block_raw(dataout, block, pad=0):
         block.write_addr = len(dataout)
         dataout += block.bytes
         add_padding(dataout, pad)
-
-    def patch_gdl_pointers(self, dataout, start, end = None, base_ptr = None):
-        addr = start
-        vtx = 0
-        base_ptr = {} if not base_ptr else base_ptr
-        m = 0xff000000
-        while addr < end if end else True:
-            cmd = dataout[addr:addr+8]
-            opcode = cmd[0]
-
-            if not end and opcode == G_ENDDL: break
-
-            val = int.from_bytes(cmd, 'big')
-            w0 = int.from_bytes(cmd[4:8], 'big')
-            msg = ''
-            # print(f'  >GDL {val:016X}: w0:{w0:08X} {GDLcodes[cmd[0]]}')
-            seg = (w0 & m) >> 24
-            if is_cmd_ptr(opcode) and seg == 5:
-                # w0 &= 0x00ffffff
-                w = w0 & ~m
-                # print(f'key {w:08X} ({w})')
-                newptr = self.pointers_map[w] if w in self.pointers_map else 0
-
-                if opcode in [0x04, 0x07]: # VTX and COL commands
-                    if opcode not in base_ptr: base_ptr[opcode] = w
-                    base = base_ptr[opcode]
-                    base_new = self.pointers_map[base]
-                    # try:
-                    #     base_new = self.pointers_map[base]
-                    # except Exception as e:
-                    #     print('ERROR, ptr_map:', self.pointers_map)
-                    #     for k,v in self.pointers_map.items():
-                    #         print(f'  {k:08X} {v:08X}')
-                    #     raise e
-                    offset = w - base
-                    newptr = base_new + offset
-
-                if newptr:
-                    newptr += w0 & m
-                    dataout[addr+4:addr+8] = newptr.to_bytes(4, 'big')
-                msg = f': >GDLpatch {w0:04X} -> {newptr:08X}'
-            # print(f'{val:016X}: w0:{w0:08X} {GDLcodes[cmd[0]]} {msg}')
-            addr += 8
 
     def skip(self, nbytes):
         for i in range(nbytes):
@@ -313,20 +271,12 @@ class ByteReader:
         # print(f'{spaces}{name}: {val:{fmt}}{dec} [0x{self.cursor:04X}]')
         print(f'{spaces}{name}: {val:{fmt}}{dec}')
 
-def add_padding(dataout, pad, name=None):
+def add_padding(dataout, pad):
     if pad == 0: return
 
-    if pad not in [4, 8, 16]:
-        name = f'for decl {name}' if name else ''
-        print(f'invalid pad value {name}: {pad}, ignoring pad')
-        return
-
-    # print(f'    >padding {pad}')
     size = len(dataout)
     alignedsize = (size + (pad-1)) & ~(pad - 1)
     diff = alignedsize - size
 
     if diff > 0:
         dataout += bytearray(diff)
-
-

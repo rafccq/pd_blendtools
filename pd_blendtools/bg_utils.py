@@ -1,7 +1,8 @@
+import struct
 import math
 
 import bpy
-from mathutils import Vector
+from mathutils import Vector, Matrix
 import bmesh
 
 import pd_utils as pdu
@@ -9,6 +10,34 @@ import pd_materials as pdm
 import pd_blendprops as pdprops
 import pd_mtx as mtx
 
+
+as_s32 = lambda f: struct.unpack('>I', struct.pack('>f', f))[0]
+as_s16 = lambda f: struct.unpack('>h', struct.pack('>e', f))[0]
+ident = lambda e: e
+coord_as_s32 = lambda coord, f=ident: (as_s32(f(coord.x)), as_s32(f(coord.y)), as_s32(f(coord.z)))
+
+
+class Bbox:
+    MAX = 2**16 - 1
+    MIN = -(MAX+1)
+
+    def __init__(self, xmin=MAX, xmax=MIN, ymin=MAX, ymax=MIN, zmin=MAX, zmax=MIN):
+        self.xmin = xmin
+        self.xmax = xmax
+        self.ymin = ymin
+        self.ymax = ymax
+        self.zmin = zmin
+        self.zmax = zmax
+
+    def update(self, p):
+        if p.x < self.xmin: self.xmin = p.x
+        elif p.x > self.xmax: self.xmax = p.x
+
+        if p.y < self.ymin: self.ymin = p.y
+        elif p.y > self.ymax: self.ymax = p.y
+
+        if p.z < self.zmin: self.zmin = p.z
+        elif p.z > self.zmax: self.zmax = p.z
 
 def obj_get_child_meshes(obj):
     children = [c for c in obj.children]
@@ -404,3 +433,21 @@ def roomblock_changelayer(bl_roomblock, layer):
     for block in blocks: blocks += [b for b in block.children]
 
     for block in blocks: block.pd_room.layer = layer
+
+# returns a list of the vertices in this mesh, in world space
+def verts_world(bl_obj, M = Matrix.Identity(4), conv = lambda e: e):
+    pos = bl_obj.matrix_world.translation
+    verts = []
+
+    for v in bl_obj.data.vertices:
+        vt = M @ (pos + v.co)
+        vt.x, vt.y, vt.z = conv(vt.x), conv(vt.y), conv(vt.z)
+        verts.append(vt)
+
+    return verts
+
+def get_bbox(verts):
+    bbox = Bbox()
+    for v in verts:
+        bbox.update(v)
+    return bbox
