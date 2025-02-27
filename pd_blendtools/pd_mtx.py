@@ -1,6 +1,7 @@
 from math import pi
 
 from mathutils import Euler, Vector, Matrix
+from setup_import import M_BADPI
 
 
 def rotM(e):
@@ -22,6 +23,9 @@ def rot_doorinv():
     Rz = rot(-pi/2,  'z')
     return Rx @ Rz
 
+def rot_introinv():
+    return rotM((pi/2, 0, pi/2))
+
 def mtx_basis(M):
     vec = lambda mat, i: Vector([mat[k][i] for k in range(3)])
 
@@ -32,9 +36,14 @@ def mtx_basis(M):
 # returns a mtx that properly aligns PD objects in the Blender viewport
 # (90d on X and Z axes)
 def rot_blender():
-    return Euler((pi/2, 0, pi/2)).to_matrix().to_4x4()
+    return rotM((pi/2, 0, pi/2))
 
 def rot_blender_inv():
     Rx = rot(-pi/2,  'x')
     Rz = rot(-pi/2,  'z')
     return Rx @ Rz
+
+def rot_FLAG00000002inv():
+    Rx = rot(-pi * 1.5,  'x')
+    Ry = rot(M_BADPI,  'y')
+    return Rx @ Ry

@@ -567,7 +567,8 @@ def flags_unpack(flaglist, valuepacked, flagvalues):
     for idx in range(n):
         flaglist[idx] = bool(flagvalues[idx] & valuepacked)
 
-def waypoint_name(padnum): return f'waypoint_{padnum:02X}'
+def waypoint_name(pad_id): return f'waypoint_{pad_id:02X}'
+
 def group_name(num): return f'Set {num:02X}'
 
 def add_neighbour(bl_waypoint, bl_neighbour):
@@ -578,13 +579,13 @@ def add_neighbour(bl_waypoint, bl_neighbour):
 
     # check if the neighbour already exists
     for neighbour in pd_neighbours:
-        if neighbour.padnum == pd_waypoint.padnum:
+        if neighbour.id == pd_waypoint.id:
             return
 
     neighbour_item = pd_neighbours.add()
-    neighbour_item.name = waypoint_name(pd_neighbour_wp.padnum)
+    neighbour_item.name = waypoint_name(pd_neighbour_wp.id)
     neighbour_item.groupnum = pd_waypoint.groupnum
-    neighbour_item.padnum = pd_neighbour_wp.padnum
+    neighbour_item.id = pd_neighbour_wp.id
 
     edge = pdprops.WAYPOINT_EDGETYPES[0][0]
     neighbour_item.edgetype = edge
@@ -627,8 +628,11 @@ def get_view_location():
 def read_coord(coord):
     return [f32(coord[e]) for e in ['x', 'y', 'z']]
 
-def fcomp(fa, fb, epsilon=1e-5):
+def fcomp(fa, fb, epsilon=1e-4):
     return abs(fa - fb) < epsilon
 
-def fzero(fa, epsilon=1e-5):
+def fzero(fa, epsilon=1e-4):
     return fcomp(fa, 0, epsilon)
+
+def vec_comp(v0, v1, e=1e-4):
+    return fcomp(v0[0], v1[0], e) and fcomp(v0[1], v1[1], e) and fcomp(v0[2], v1[2], e)

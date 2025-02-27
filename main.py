@@ -9,11 +9,14 @@ import bpy
 import bmesh
 from mathutils import Euler, Vector, Matrix
 
-os.system('cls')
 
-t = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
-ln = '\n' + '-'*32 + '\n'
-print(ln, t, ln)
+def cls():
+    os.system('cls')
+
+    t = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
+    ln = '\n' + '-'*32 + '\n'
+    print(ln, t, ln)
+    
 
 # add modules to path
 blend_dir = os.path.dirname(bpy.data.filepath)
@@ -74,6 +77,7 @@ rom = submodules['romdata']
 pdops = submodules['pd_ops']
 bge = submodules['bg_export']
 tle = submodules['tiles_export']
+pde = submodules['pads_export']
 
 
 def register():
@@ -107,9 +111,11 @@ def cl_setup():
 #clear()
 #cl_setup()
 register()
+cls()
 
 #bge.export()
-tle.export(f'D:/Mega/PD/pd_blend/modelbin2/bg_mp11_tilesZ')
+#tle.export(f'D:/Mega/PD/pd_blend/modelbin2/bg_mp11_tilesZ')
+#pde.export(f'D:/Mega/PD/pd_blend/modelbin2/bg_mp11_padsZ')
 
 
 #loadmodel('ProofgunZ')

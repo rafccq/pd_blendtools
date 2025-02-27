@@ -74,7 +74,7 @@ class PD_PadsFile:
             fieldsmap = {
                 1: ['_pad_'],
                 3: ['x', 'y', 'z'],
-                6: ['minx', 'miny', 'minz', 'minx', 'miny', 'minz']
+                6: ['minx', 'miny', 'minz', 'maxx', 'maxy', 'maxz']
             }
 
             fields = fieldsmap[num] if num in fieldsmap else None
@@ -293,15 +293,13 @@ class PD_PadsFile:
 
         # log(f'pad #{self.curpad:04X} f {header:08X} sz {size:02X} [{offset:04X}]')
 
-        s16 = lambda e: struct.unpack('h', e.to_bytes(2, 'little'))[0]
-
         pos, up, look, bbox = Vec3(0,0,0), Vec3(0,0,0), Vec3(0,0,0), Bbox(*[0]*6)
         normal = Vec3(0,0,0)
 
         idx = padidx + 1
         if flags & PADFLAG_INTPOS:
             if fields & PADFIELD_POS:
-                pos = Vec3(*[s16(self.paddata[i][1]) for i in range(idx, idx+3)])
+                pos = Vec3(*[pdu.s16(self.paddata[i][1]) for i in range(idx, idx+3)])
             idx += 4
         elif fields & PADFIELD_POS:
             pos = Vec3(*[pdu.f32(self.paddata[i][1]) for i in range(idx, idx+3)])
@@ -355,12 +353,15 @@ class PD_PadsFile:
 
         return Pad(pos, look, up, normal, bbox, header[1])
 
-    def pad_hasbbox(self, padnum):
+    def pad_flags(self, padnum):
         padidx = self.padindices[padnum]
         header = self.paddata[padidx]
 
-        flags = header[1] >> 14
-        return flags & PADFLAG_HASBBOXDATA
+        return header[1] >> 14
+
+    def pad_hasbbox(self, padnum):
+        flags = self.pad_flags(padnum)
+        return bool(flags & PADFLAG_HASBBOXDATA)
 
 def pad_center(pad):
     x = pad.pos.x + (
@@ -397,3 +398,12 @@ def pad_pos(center, bbox, look, up, normal):
             (bbox.zmin + bbox.zmax) * look.z) * 0.5
 
     return Vec3(px, py, pz)
+
+def pad_room(pad):
+    return (pad.header & 0x3ff0) >> 4
+
+def pad_lift(pad):
+    return pad.header & 0xf
+
+def pad_makeheader(flags, room, lift):
+    return (flags << 14) | (room << 4) | lift

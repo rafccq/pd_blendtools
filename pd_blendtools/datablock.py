@@ -45,7 +45,12 @@ class DataBlock:
         offset = TypeInfo.offsetof(self.name, field)
         addr = self.write_addr + offset
 
-        dataout[addr:addr + size] = value.to_bytes(size, 'big') # TODO config
+        if info['is_array']:
+            for val in value:
+                dataout[addr:addr + size] = val.to_bytes(size, 'big') # TODO config
+                addr += size
+        else:
+            dataout[addr:addr + size] = value.to_bytes(size, 'big')
 
     def __getitem__(self, key):
         return self.fields[key]
