@@ -11,10 +11,10 @@ import pd_blendprops as pdprops
 import pd_mtx as mtx
 
 
-as_s32 = lambda f: struct.unpack('>I', struct.pack('>f', f))[0]
-as_s16 = lambda f: struct.unpack('>h', struct.pack('>e', f))[0]
+as_u32 = lambda f: struct.unpack('>I', struct.pack('>f', f))[0]
+as_u16 = lambda f: struct.unpack('>H', struct.pack('>e', f))[0]
 ident = lambda e: e
-coord_as_s32 = lambda coord, f=ident: (as_s32(f(coord.x)), as_s32(f(coord.y)), as_s32(f(coord.z)))
+coord_as_u32 = lambda coord, f=ident: (as_u32(f(coord.x)), as_u32(f(coord.y)), as_u32(f(coord.z)))
 
 
 class Bbox:

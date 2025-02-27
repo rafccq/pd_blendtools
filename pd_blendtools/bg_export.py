@@ -32,7 +32,7 @@ def export_rooms(rd, dataout):
 
         roompos = R_inv @ bl_room.matrix_world.translation
         pos = data['pos']
-        pos['x'], pos['y'], pos['z'] = bgu.coord_as_s32(roompos)
+        pos['x'], pos['y'], pos['z'] = bgu.coord_as_u32(roompos)
         data['br_light_min'] = 0x80
         data['br_light_max'] = 0xff
         rd.write_block(dataout, data)
@@ -96,7 +96,7 @@ def export_portalvertices(rd, dataout, portalvertices):
         data['count'] = count
         for i, v in enumerate(verts):
             pv = data['vertices'][i]
-            pv['x'], pv['y'], pv['z'] = bgu.coord_as_s32(v, round)
+            pv['x'], pv['y'], pv['z'] = bgu.coord_as_u32(v, round)
 
         rd.write_block(dataout, data)
 
@@ -235,8 +235,8 @@ def export_roomgfxdata(rd, bl_room, ofs_room):
         block_normal = DataBlock.New('coord')
         ofs_coord = len(dataout) + ofs_room
 
-        block_pos['x'], block_pos['y'], block_pos['z'] = bgu.coord_as_s32(bsp_pos)
-        block_normal['x'], block_normal['y'], block_normal['z'] = bgu.coord_as_s32(bsp_normal)
+        block_pos['x'], block_pos['y'], block_pos['z'] = bgu.coord_as_u32(bsp_pos)
+        block_normal['x'], block_normal['y'], block_normal['z'] = bgu.coord_as_u32(bsp_normal)
 
         rd.write_block(dataout, block_pos)
         rd.write_block(dataout, block_normal)
