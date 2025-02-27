@@ -786,22 +786,15 @@ class PDTOOLS_OT_SetupWaypointCreate(Operator):
         groupname = self.group_enum
         if groupname == pdprops.NEWGROUP:
             groupnum, bl_group = pdu.waypoint_newgroup()
-            groupname = bl_group.name
         else:
-            bl_group = bpy.data.objects[groupname]
             groups = [g[0] for g in pdprops.get_groupitems(context.scene, context)]
             groupnum = groups.index(self.group_enum)
 
         wp_coll = bpy.data.collections['Waypoints']
-        padnum = 1 + max([wp.pd_waypoint.padnum for wp in wp_coll.objects])
+        pad_id = 1 + max([wp.pd_waypoint.id for wp in wp_coll.objects])
 
         pos = pdu.get_view_location()
-        bl_waypoint = stpi.create_waypoint(padnum, pos, bl_group, False)
-        pd_waypoint = bl_waypoint.pd_waypoint
-        pd_waypoint.padnum = padnum
-        pd_waypoint.groupnum = groupnum
-        pd_waypoint.group_enum = groupname
-
+        bl_waypoint = stpi.create_waypoint(pad_id, pos, groupnum)
         pdu.select_obj(bl_waypoint)
         return {'FINISHED'}
 
@@ -865,13 +858,12 @@ class PDTOOLS_OT_SetupWaypointCreateFromMesh(Operator):
             groupnum, bl_group = pdu.waypoint_newgroup()
             groupname = bl_group.name
         else:
-            bl_group = bpy.data.objects[groupname]
             groups = [g[0] for g in pdprops.get_groupitems(context.scene, context)]
             groupnum = groups.index(self.group_enum)
 
         waypoints = []
         for v in bm.verts:
-            bl_waypoint = stpi.create_waypoint(padnum, pos + v.co, bl_group, False)
+            bl_waypoint = stpi.create_waypoint(padnum, pos + v.co, groupnum)
             pd_waypoint = bl_waypoint.pd_waypoint
             pd_waypoint.padnum = padnum
             pd_waypoint.groupnum = groupnum

@@ -346,8 +346,8 @@ class PDTOOLS_PT_SetupDoor(Panel):
             lmin = labels[idx][0]
             lmax = labels[idx][1]
             row = column.row()
-            row.prop(props_obj, 'pad_bbox', index=2*idx, text=lmin)
-            row.prop(props_obj, 'pad_bbox', index=2*idx+1, text=lmax)
+            row.prop(props_obj.pad, 'bbox', index=2*idx,   text=lmin)
+            row.prop(props_obj.pad, 'bbox', index=2*idx+1, text=lmax)
 
         column.separator(type='LINE')
         row = column.row()
@@ -448,7 +448,7 @@ class PDTOOLS_PT_SetupWaypoint(Panel):
         box = layout.box()
         box.label(text=f'{obj.pd_obj.name}', icon='OBJECT_DATA')
         row = box.row().split(factor=0.4)
-        row.label(text=f'Pad Number: {props_waypoint.padnum:02X}')
+        row.label(text=f'ID: {props_waypoint.id:02X}')
         box.separator(type='LINE')
         row.prop(props_waypoint, 'group_enum', text='')
         # box.prop(props_waypoint, 'neighbours', text='Neighbours')
@@ -523,9 +523,11 @@ class PD_SETUPLIFT_UL_interlinks(UIList):
 
 class PD_SETUPWAYPOINT_UL_neighbours(UIList):
     def draw_item(self, context, layout, _data, item, icon, _active_data, _active_propname, _index):
+        bl_obj = context.active_object
+        if not bl_obj: return
+
         waypoint = item
 
-        bl_obj = context.active_object
         pd_waypoint = bl_obj.pd_waypoint
 
         name = waypoint.name

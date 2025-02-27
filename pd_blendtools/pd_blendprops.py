@@ -29,11 +29,18 @@ PD_OBJTYPE_TILE         = 0x0600
 PD_OBJTYPE_PROP         = 0x0700
 PD_OBJTYPE_INTRO        = 0x0800
 PD_OBJTYPE_WAYPOINT     = 0x0900
+PD_OBJTYPE_COVER        = 0x0a00
 
+#### Setup:Props
 PD_PROP_DOOR            = PD_OBJTYPE_PROP | 0x01
 PD_PROP_TINTED_GLASS    = PD_OBJTYPE_PROP | 0x2f
 PD_PROP_LIFT            = PD_OBJTYPE_PROP | 0x30
 PD_PROP_LIFT_STOP       = PD_OBJTYPE_PROP | 0xf0
+#### Setup:Intro Objs
+PD_INTRO_SPAWN          = PD_OBJTYPE_INTRO | 0x09
+PD_INTRO_CASE           = PD_OBJTYPE_INTRO | 0x03
+PD_INTRO_CASERESPAWN    = PD_OBJTYPE_INTRO | 0x0a
+PD_INTRO_HILL           = PD_OBJTYPE_INTRO | 0x0b
 
 
 WAYPOINTS_VISIBILITY = [
@@ -197,14 +204,35 @@ class PDObject_Tile(PropertyGroup):
     room: PointerProperty(name='room', update=update_scene_tiles, type=bpy.types.Object, poll=check_isroom, options={'LIBRARY_EDITABLE'})
 
 # ---------------- SETUP OBJECTS ----------------
+pad_flags = [
+    ('INTPOS'         , 0x0001),
+    ('UPALIGNTOX'     , 0x0002),
+    ('UPALIGNTOY'     , 0x0004),
+    ('UPALIGNTOZ'     , 0x0008),
+    ('UPALIGNINVERT'  , 0x0010),
+    ('LOOKALIGNTOX'   , 0x0020),
+    ('LOOKALIGNTOY'   , 0x0040),
+    ('LOOKALIGNTOZ'   , 0x0080),
+    ('LOOKALIGNINVERT', 0x0100),
+    ('HASBBOXDATA'    , 0x0200),
+    ('AIWAITLIFT'     , 0x0400),
+    ('AIONLIFT'       , 0x0800),
+    ('AIWALKDIRECT'   , 0x1000),
+    ('AIDROP'         , 0x2000),
+    ('AIDUCK'         , 0x4000),
+    ('8000'           , 0x8000),
+    ('10000'          , 0x10000),
+    ('20000'          , 0x20000),
+]
+
 def update_pad_bbox(self, _context):
     obj = bpy.context.active_object
-    if not obj: return
+    if pdu.pdtype(obj) != PD_OBJTYPE_PROP: return
 
     proptype = obj.pd_obj.type
 
     if proptype == PD_PROP_DOOR:
-        padbbox = pdp.Bbox(*self.pad_bbox)
+        padbbox = pdp.Bbox(*self.bbox)
         bbox = pdp.Bbox(*self.model_bbox)
         sx = (padbbox.ymax - padbbox.ymin) / (bbox.xmax - bbox.xmin)
         sy = (padbbox.zmax - padbbox.zmin) / (bbox.ymax - bbox.ymin)
@@ -214,14 +242,14 @@ def update_pad_bbox(self, _context):
             sx = sy = sz = 1
     else:
         pd_prop = obj.pd_prop
-        pad_bbox = pdp.Bbox(*self.pad_bbox)
+        pad_bbox = pdp.Bbox(*self.bbox)
         model_bbox = pdp.Bbox(*self.model_bbox)
         modelscale = pd_prop.modelscale * pd_prop.extrascale / (256 * 4096)
         flags = pdu.flags_pack(pd_prop.flags1, [e[1] for e in flags1])
         sx, sy, sz = stpi.obj_getscale(modelscale, pad_bbox, model_bbox, flags)
 
-    bbox_p = pdp.Bbox(*self.pad_bbox_p)
-    bbox = pdp.Bbox(*self.pad_bbox)
+    bbox_p = pdp.Bbox(*self.bbox_p)
+    bbox = pdp.Bbox(*self.bbox)
     R = mtx.rot_doorinv() if proptype == PD_PROP_DOOR else Matrix()
     center = obj.location
 
@@ -233,8 +261,8 @@ def update_pad_bbox(self, _context):
     stpi.obj_setup_mtx(obj, look, up, center)
 
     self.pad_pos = newpos
-    for i, val in enumerate(self.pad_bbox):
-        self.pad_bbox_p[i] = val
+    for i, val in enumerate(self.bbox):
+        self.bbox_p[i] = val
 
     obj.scale = (sx, sy, sz)
 
@@ -342,6 +370,23 @@ flags3 = [
     (['80000000'],              0x80000000), # Not used in scripts
 ]
 
+class PDObject_PadData(PropertyGroup):
+    def update_flag(self, context):
+        flagsval = 0
+
+    padnum: IntProperty(name='padnum', default=0, options={'LIBRARY_EDITABLE'})
+    pos: FloatVectorProperty(name='pos', default=(0,0,0), size=3, options={'LIBRARY_EDITABLE'})
+    bbox: FloatVectorProperty(name='bbox', default=(0,0,0,0,0,0), size=6, update=update_pad_bbox, options={'LIBRARY_EDITABLE'})
+    # we need to save the "previous" (before it was changed) bbox, in order to derive
+    # the original position/center of the new one
+    bbox_p: FloatVectorProperty(name='bbox_p', default=(0,0,0,0,0,0), size=6, options={'LIBRARY_EDITABLE'})
+    model_bbox: FloatVectorProperty(name='model_bbox', default=(0,0,0,0,0,0), size=6, options={'LIBRARY_EDITABLE'})
+    flags: BoolVectorProperty(name="flags", size=len(pad_flags), default=(False,) * len(pad_flags), update=update_flag)
+    hasbbox: BoolProperty(name="hasbbox", default=False, options={'LIBRARY_EDITABLE'})
+    room: IntProperty(name='room', default=0, options={'LIBRARY_EDITABLE'})
+    lift: IntProperty(name='lift', default=0, options={'LIBRARY_EDITABLE'})
+
+
 class PDObject_SetupBaseObject(PropertyGroup):
     def update_flag(self, prop, propname, flags):
         flagsval = 0
@@ -381,13 +426,11 @@ class PDObject_SetupBaseObject(PropertyGroup):
     flags3_packed: StringProperty(name="Flags3_packed", update=update_flagpacked)
 
     padnum: IntProperty(name='padnum', default=0, options={'LIBRARY_EDITABLE'})
-    pad_pos: FloatVectorProperty(name='pad_pos', default=(0,0,0), size=3, options={'LIBRARY_EDITABLE'})
-    # we need to save the "previous" (before it was changed) bbox, in order to derive
-    # the original position/center of the new one
-    pad_bbox: FloatVectorProperty(name='pad_bbox', default=(0,0,0,0,0,0), size=6, update=update_pad_bbox, options={'LIBRARY_EDITABLE'})
-    pad_bbox_p: FloatVectorProperty(name='pad_bbox_p', default=(0,0,0,0,0,0), size=6, options={'LIBRARY_EDITABLE'})
-    model_bbox: FloatVectorProperty(name='pad_bbox', default=(0,0,0,0,0,0), size=6, options={'LIBRARY_EDITABLE'})
     modelscale: FloatProperty(name='modelscale', min=0, default=0, options={'LIBRARY_EDITABLE'})
+    modelnum: IntProperty(name='modelnum', default=0, options={'LIBRARY_EDITABLE'})
+    modelname: StringProperty(name="modelname", options={'LIBRARY_EDITABLE'})
+
+    pad: PointerProperty(name='pad', type=PDObject_PadData, options={'LIBRARY_EDITABLE'})
 
 
 def check_isdoor(_scene, obj):
@@ -521,13 +564,13 @@ class PDObject_SetupWaypointNeighbour(PropertyGroup):
     name: StringProperty(name='name', default='', options={'LIBRARY_EDITABLE'})
     edgetype: EnumProperty(items=WAYPOINT_EDGETYPES, default="STD")
     groupnum: IntProperty(name='groupnum', default=0, min=0, max=128, options={'LIBRARY_EDITABLE'})
-    padnum: IntProperty(name='padnum', default=0, min=0, max=255, options={'LIBRARY_EDITABLE'})
+    id: IntProperty(name='id', default=0, min=0, options={'LIBRARY_EDITABLE'})
 
 
 group_items = []
 NEWGROUP = '[New Set]'
 
-def get_groupitems(scene, context):
+def get_groupitems(_scene, _context):
     group_items.clear()
     for wp_set in bpy.data.collections['Waypoints'].objects:
         if wp_set.parent: continue
@@ -555,7 +598,9 @@ class PDObject_SetupWaypoint(PropertyGroup):
         bl_waypoint.parent = bl_group
 
     groupnum: IntProperty(name='groupnum', default=0, min=0, max=128, options={'LIBRARY_EDITABLE'})
-    padnum: IntProperty(name='padnum', default=0, min=0, max=255, options={'LIBRARY_EDITABLE'})
+    id: IntProperty(name='id', default=0, min=0, options={'LIBRARY_EDITABLE'})
+    # used by export to keep the waypoints contiguous
+    idx: IntProperty(name='idx', default=0, min=0, options={'LIBRARY_EDITABLE'})
     group_enum: EnumProperty(name="group_enum", description="Waypoint Group", items=get_groupitems, update=update_group)
     neighbours_coll: CollectionProperty(name='neighbours_coll', type=PDObject_SetupWaypointNeighbour)
     active_neighbour_idx: IntProperty(name='active_neighbour_idx', default=0, options={'LIBRARY_EDITABLE'})
@@ -587,6 +632,7 @@ classes = [
     PDObject_RoomBlock,
     PDObject_Portal,
     PDObject_Tile,
+    PDObject_PadData,
     PDObject_SetupBaseObject,
     PDObject_SetupDoor,
     PDObject_SetupTintedGlass,
@@ -678,7 +724,7 @@ def draw_bsp(bl_obj):
     scn = bpy.context.scene
 
     if pdu.pdtype(bl_obj) != PD_OBJTYPE_ROOMBLOCK or bl_obj.pd_room.blocktype != BLOCKTYPE_BSP:
-        return
+        return 0
 
     pd_room = bl_obj.pd_room
     pos = Vector(pd_room.bsp_pos)
@@ -714,13 +760,14 @@ def draw_bsp(bl_obj):
     colors[-1] = colors[-2] = (0.157, 0.380, 0.863)
 
     drawlines(verts, colors, w=2, ontop=True)
+    return 1
 
 def draw_waypoints():
     bl_obj = bpy.context.active_object
 
     if collection_vis('Rooms'):
-        draw_bsp(bl_obj)
-        return
+        bspdrawn = draw_bsp(bl_obj)
+        if bspdrawn: return
 
     scn = bpy.context.scene
     if 'waypoints' not in scn or not collection_vis('Waypoints'):
@@ -748,7 +795,7 @@ def draw_waypoints():
         pd_waypoint = bl_waypoint.pd_waypoint
 
         for idx, neighbour in enumerate(pd_waypoint.neighbours_coll):
-            bl_neighbour = waypoints[str(neighbour.padnum)]
+            bl_neighbour = waypoints[str(neighbour.id)]
 
             col = (0.0, 0.6, 0.0)
             neighbour_group = bl_neighbour.pd_waypoint.groupnum

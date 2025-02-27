@@ -86,6 +86,7 @@ def door_setprops(bl_door, prop, pad, bbox):
 
     pd_door = bl_door.pd_door
     pd_prop = bl_door.pd_prop
+    pd_pad = pd_prop.pad
 
     door_type = ndu.item_from_value(pdprops.DOORTYPES, prop['doortype'])
     pd_door.door_type = ndu.make_id(door_type)
@@ -101,13 +102,14 @@ def door_setprops(bl_door, prop, pad, bbox):
 
     pd_door.laserfade = prop['laserfade']
 
-    pd_prop.padnum = prop['base']['pad']
-
-    pd_prop.pad_pos = pad.pos
-
-    set_bbox(pd_prop.model_bbox, bbox)
-    set_bbox(pd_prop.pad_bbox, pad.bbox)
-    set_bbox(pd_prop.pad_bbox_p, pad.bbox)
+    pd_pad.padnum = prop['base']['pad']
+    pd_pad.pos = pad.pos
+    pd_pad.room = pdp.pad_room(pad)
+    pd_pad.lift = pdp.pad_lift(pad)
+    pd_pad.hasbbox = True # assuming doors always have a bbox (TODO verify)
+    set_bbox(pd_pad.model_bbox, bbox)
+    set_bbox(pd_pad.bbox, pad.bbox)
+    set_bbox(pd_pad.bbox_p, pad.bbox)
 
     doorflags = prop['doorflags']
     for idx, flag in enumerate(pdprops.DOOR_FLAGS):
@@ -207,8 +209,20 @@ def setup_create_door(prop, romdata, paddata):
     blender_align(bl_door)
     bl_door.scale = (sx, sy, sz)
     door_setprops(bl_door, prop, pad, bbox)
+    bl_door.pd_prop.pad.padnum = padnum # TODO TMP
 
     return bl_door
+
+def obj_make_opaque(bl_obj):
+    def edit_mat(obj):
+        if not obj.data: return
+        for mat in obj.data.materials:
+            pdm.mat_remove_links(mat, 'p_bsdf', ['Base Color', 'Alpha'])
+            s = .12
+            pdm.mat_set_basecolor(mat, (s, s, s, 1))
+
+    edit_mat(bl_obj)
+    for child in bl_obj.children: edit_mat(child)
 
 def setup_create_obj(prop, romdata, paddata):
     padnum = prop['pad']
@@ -226,21 +240,19 @@ def setup_create_obj(prop, romdata, paddata):
     }
 
     bl_obj, model = obj_load_model(romdata, modelnum)
+    pdu.add_to_collection(bl_obj, 'Props')
 
     proptype = prop['type']
     name = OBJNAMES[proptype] if proptype in OBJNAMES else 'object'
     if proptype in [OBJTYPE_TINTEDGLASS, OBJTYPE_GLASS]:
-        for mat in bl_obj.data.materials:
-            pdm.mat_remove_links(mat, 'p_bsdf', ['Base Color', 'Alpha'])
-            s = .12
-            pdm.mat_set_basecolor(mat, (s, s, s, 1))
+        obj_make_opaque(bl_obj)
 
     bl_obj.name = f'{name} {padnum:02X}'
     bl_obj['modelnum'] = f'{modelnum:04X}'
     bl_obj['pad'] = f'{padnum:04X}'
     pd_prop = bl_obj.pd_prop
-
-    pdu.add_to_collection(bl_obj, 'Props')
+    pd_pad = pd_prop.pad
+    pd_pad.padnum = padnum
 
     fields = PADFIELD_POS | PADFIELD_LOOK | PADFIELD_UP | PADFIELD_NORMAL | PADFIELD_BBOX
     pad = paddata.pad_unpack(padnum, fields)
@@ -250,12 +262,20 @@ def setup_create_obj(prop, romdata, paddata):
     modelscale = ModelStates[modelnum].scale
     pd_prop.modelscale = modelscale
     pd_prop.extrascale = prop['extrascale']
-    pd_prop.flags = prop['flags']
+    pdu.flags_unpack(pd_prop.flags1, prop['flags'], [e[1] for e in pdprops.flags1])
+    pdu.flags_unpack(pd_prop.flags2, prop['flags2'], [e[1] for e in pdprops.flags2])
+    pdu.flags_unpack(pd_prop.flags3, prop['flags3'], [e[1] for e in pdprops.flags3])
+
+    pd_prop.flags1_packed = f"{prop['flags']:08X}"
+    pd_prop.flags2_packed = f"{prop['flags2']:08X}"
+    pd_prop.flags3_packed = f"{prop['flags3']:08X}"
+
+    pad_setprops(bl_obj, paddata, pad, padnum)
 
     modelscale *= prop['extrascale'] / (256 * 4096)
 
     bbox = model.find_bbox()
-    set_bbox(bl_obj.pd_prop.model_bbox, bbox)
+    set_bbox(pd_pad.model_bbox, bbox)
     sx, sy, sz = obj_getscale(modelscale, pad.bbox, bbox, flags)
 
     rotation = None
@@ -264,7 +284,6 @@ def setup_create_obj(prop, romdata, paddata):
     if flags & OBJFLAG_00000002: # logic from func0f06ab60
         rotation = (pi * 1.5, M_BADPI, 0)
 
-    # print(f'{padnum:02X} {bl_obj.name}')
     center = pad.pos
 
     if hasbbox:
@@ -277,10 +296,10 @@ def setup_create_obj(prop, romdata, paddata):
     obj_setup_mtx(bl_obj, Vector(pad.look), Vector(pad.up), center, rotation, scale, flags, bbox)
     blender_align(bl_obj)
 
-    set_bbox(pd_prop.model_bbox, bbox)
+    set_bbox(pd_pad.model_bbox, bbox)
     if hasbbox:
-        set_bbox(pd_prop.pad_bbox, pad.bbox)
-        set_bbox(pd_prop.pad_bbox_p, pad.bbox)
+        set_bbox(pd_pad.bbox, pad.bbox)
+        set_bbox(pd_pad.bbox_p, pad.bbox)
 
     return bl_obj
 
@@ -332,34 +351,26 @@ def import_objects(romdata, setupdata, paddata):
         type1 = proptype in obj_types1
         type2 = proptype in obj_types2
 
-        # print(f'TYPE {proptype:02X}')
+        # print(f'{idx} TYPE {proptype:02X}')
         if proptype == OBJTYPE_DOOR:
             # print(f"DOOR p {b['pad']:04X} m {b['modelnum']:04X}")
             bl_door = setup_create_door(prop, romdata, paddata)
             all_props.append(bl_door)
+
         elif type1 or type2:
             obj = prop['base'] if type1 else prop
-            #     print(f"OBJ1 p {b['pad']:04X} m {b['modelnum']:04X}")
+
+            # print(f"OBJ1 p {obj['pad']:04X} m {obj['modelnum']:04X}")
             bl_prop = setup_create_obj(obj, romdata, paddata)
             if not bl_prop:
                 all_props.append(None)
                 continue
+
             objtype = pdprops.PD_OBJTYPE_PROP | proptype
             bl_prop.pd_obj.type = objtype
             if proptype == OBJTYPE_LIFT:
-                # TODO setup obj common props
-                pd_prop = bl_prop.pd_prop
-                pdu.flags_unpack(pd_prop.flags1, obj['flags'], [e[1] for e in pdprops.flags1])
-                pdu.flags_unpack(pd_prop.flags2, obj['flags2'], [e[1] for e in pdprops.flags2])
-                pdu.flags_unpack(pd_prop.flags3, obj['flags3'], [e[1] for e in pdprops.flags3])
-
-                pd_prop.flags1_packed = f"{obj['flags']:08X}"
-                pd_prop.flags2_packed = f"{obj['flags2']:08X}"
-                pd_prop.flags3_packed = f"{obj['flags3']:08X}"
-
                 bl_prop.pd_lift.accel = prop['accel'] / 0x10000
                 bl_prop.pd_lift.maxspeed = prop['maxspeed'] / 0x10000
-                bl_prop.pd_prop.padnum = obj['pad']
                 # ## Create lift stops
                 for idxpad, pad_stop in enumerate(prop['pads']):
                     padnum = pdu.s16(pad_stop)
@@ -432,7 +443,7 @@ def lift_setinterlink(prop, setup_props, pad2obj, idx):
     interlink.stopnum = prop['stopnum'] + 1
 
 def setup_fix_refs(all_props, setup_props):
-    pad2obj = {prop.pd_prop.padnum: prop for prop in all_props if prop}
+    pad2obj = {prop.pd_prop.pad.padnum: prop for prop in all_props if prop}
     for idx, bl_prop in enumerate(all_props):
         prop = setup_props[idx]
         proptype = prop['_type_']
@@ -449,35 +460,47 @@ def import_intro(introcmds, paddata):
             padnum = cmd['params'][0]
             print('SPAWN', f"pad: {padnum:02X}")
             pad = paddata.pad_unpack(padnum, PADFIELD_POS | PADFIELD_LOOK | PADFIELD_UP)
-            create_intro_obj('Spawn', pad, padnum)
+            create_intro_obj('Spawn', pad, paddata, padnum, pdprops.PD_INTRO_SPAWN)
         elif cmd['cmd'] == INTROCMD_HILL:
             padnum = cmd['params'][0]
             print('HILL', f"pad: {padnum:02X}")
             pad = paddata.pad_unpack(padnum, PADFIELD_POS | PADFIELD_LOOK | PADFIELD_UP)
-            create_intro_obj('Hill', pad, padnum, 20)
+            create_intro_obj('Hill', pad, paddata, padnum, pdprops.PD_INTRO_HILL, 20)
         elif cmd['cmd'] == INTROCMD_CASE:
             padnum = cmd['params'][1]
             print('CASE', f"pad: {padnum:02X}")
             pad = paddata.pad_unpack(padnum, PADFIELD_POS | PADFIELD_LOOK | PADFIELD_UP)
-            create_intro_obj('Case', pad, padnum)
+            create_intro_obj('Case', pad, paddata, padnum, pdprops.PD_INTRO_CASE)
         elif cmd['cmd'] == INTROCMD_CASERESPAWN:
             padnum = cmd['params'][1]
             print('CASERESPAWN', f"pad: {padnum:02X}")
             pad = paddata.pad_unpack(padnum, PADFIELD_POS | PADFIELD_LOOK | PADFIELD_UP)
-            create_intro_obj('CaseRespawn', pad, padnum)
+            create_intro_obj('CaseRespawn', pad, paddata, padnum, pdprops.PD_INTRO_CASERESPAWN)
 
-def create_intro_obj(name, pad, padnum, sc=16):
+def create_intro_obj(name, pad, paddata, padnum, objtype, sc=16):
     meshname = name.lower()
     name = f'{name}_{padnum:02X}'
-    spawn_obj = tmesh.create_mesh(name, meshname)
-    spawn_obj.show_wire = True
+    intro_obj = tmesh.create_mesh(name, meshname)
+    intro_obj.show_wire = True
     collection = pdu.new_collection('Intro')
-    collection.objects.link(spawn_obj)
-    obj_setup_mtx(spawn_obj, Vector(pad.look), Vector(pad.up), pad.pos, scale = pdp.Vec3(sc, sc, sc))
-    blender_align(spawn_obj)
-    spawn_obj.rotation_euler[0] -= pi/2
-    spawn_obj.rotation_euler[2] -= pi/2
+    collection.objects.link(intro_obj)
+    obj_setup_mtx(intro_obj, Vector(pad.look), Vector(pad.up), pad.pos, scale = pdp.Vec3(sc, sc, sc))
+    blender_align(intro_obj)
+    intro_obj.rotation_euler[0] -= pi/2
+    intro_obj.rotation_euler[2] -= pi/2
 
+    intro_obj.pd_obj.type = objtype
+    pad_setprops(intro_obj, paddata, pad, padnum)
+
+
+def pad_setprops(bl_obj, paddata, pad, padnum):
+    pd_pad = bl_obj.pd_prop.pad
+    pd_pad.padnum = padnum
+    pd_pad.hasbbox = paddata.pad_hasbbox(padnum)
+    pd_pad.room = pdp.pad_room(pad)
+    pd_pad.lift = pdp.pad_lift(pad)
+    padflags = paddata.pad_flags(padnum)
+    pdu.flags_unpack(pd_pad.flags, padflags, [e[1] for e in pdprops.pad_flags])
 
 def import_waypoints(paddata):
     scn = bpy.context.scene
@@ -486,7 +509,7 @@ def import_waypoints(paddata):
 
     scn['waypoints'] = {}
     groups = []
-    for i, wp in enumerate(waypoints):
+    for idx, wp in enumerate(waypoints):
         padnum = wp['padnum']
         if padnum == 0xffffffff: break
 
@@ -500,15 +523,16 @@ def import_waypoints(paddata):
         else:
             bl_group = bpy.data.objects[groupname]
 
-        pad = paddata.pad_unpack(padnum, PADFIELD_POS)
-        bl_waypoint = create_waypoint(padnum, pad.pos, bl_group)
+        pad = paddata.pad_unpack(padnum, PADFIELD_POS | PADFIELD_UP | PADFIELD_LOOK)
+        bl_waypoint = create_waypoint(idx, pad.pos, groupnum, pad)
 
         pd_waypoint = bl_waypoint.pd_waypoint
-        pd_waypoint.padnum = padnum
-        pd_waypoint.groupnum = groupnum
-        pd_waypoint.group_enum = groupname
+        bl_waypoint.pd_prop.pad.padnum = padnum  # TODO TMP
+
+        pad_setprops(bl_waypoint, paddata, pad, padnum)
+
         pd_neighbours = pd_waypoint.neighbours_coll
-        for idx, block in enumerate(wp['neighbours_list']):
+        for block in wp['neighbours_list']:
             neighbour = block['value']
             if neighbour == 0xffffffff: break
 
@@ -516,17 +540,24 @@ def import_waypoints(paddata):
             neighbour_item = pd_neighbours.add()
             neighbour_item.name = pdu.waypoint_name(neighbour_wp['padnum'])
             neighbour_item.groupnum = neighbour_wp['groupnum']
-            neighbour_item.padnum = neighbour_wp['padnum']
+            neighbour_item.id = neighbour & 0xfff
 
             idxs = { 0: 0, 0x4000: 1, 0x8000: 2, }
             edgeidx = idxs[neighbour & 0xff00]
             edge = pdprops.WAYPOINT_EDGETYPES[edgeidx][0]
             neighbour_item.edgetype = edge
 
-def create_waypoint(padnum, pos, bl_group, rotate=True):
-    objname = pdu.waypoint_name(padnum)
+def create_waypoint(pad_id, pos, groupnum, pad=None):
+    objname = pdu.waypoint_name(pad_id)
+    groupname = pdu.group_name(groupnum)
+    bl_group = bpy.data.objects[groupname]
     bl_waypoint = tmesh.create_mesh(objname, 'cube')
     bl_waypoint.parent = bl_group
+
+    pd_waypoint = bl_waypoint.pd_waypoint
+    pd_waypoint.id = pad_id
+    pd_waypoint.groupnum = groupnum
+    pd_waypoint.group_enum = groupname
 
     bl_waypoint.color = (0.0, 0.8, 0.0, 1.0)
     if len(bl_waypoint.data.materials) == 0:
@@ -539,12 +570,13 @@ def create_waypoint(padnum, pos, bl_group, rotate=True):
 
     bl_waypoint.matrix_world.translation = pos
 
-    if rotate:
+    if pad:
+        obj_setup_mtx(bl_waypoint, Vector(pad.look), Vector(pad.up), pad.pos, scale=pdp.Vec3(7,7,7))
         blender_align(bl_waypoint)
-
-    bl_waypoint.scale = (7, 7, 7)
+    else:
+        bl_waypoint.scale = (7, 7, 7)
 
     scn = bpy.context.scene
     waypoints = scn['waypoints']
-    waypoints[str(padnum)] = bl_waypoint
+    waypoints[str(pad_id)] = bl_waypoint
     return bl_waypoint
