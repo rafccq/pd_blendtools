@@ -284,7 +284,7 @@ def export_waypoints(dataout, waypoints):
 
     add_padding(dataout, 4)
 
-def export_waygroups(dataout, waypoints):
+def export_waygroups(dataout):
     EDGEVALUES = WAYPOINT_EDGEVALUES
 
     rd = ByteReader(None)
@@ -346,6 +346,27 @@ def export_waygroups(dataout, waypoints):
             rd.write(dataout, wp, 's32')
         rd.write(dataout, 0xffffffff, 'u32')
 
+def export_covers(dataout):
+    rd = ByteReader(None)
+
+    covers = [obj for obj in bpy.data.collections['Cover Pads'].objects if pdu.pdtype(obj) == pdprops.PD_OBJTYPE_COVER]
+
+    for bl_cover in covers:
+        block = DataBlock.New('cover')
+        B = mtx.rot_blender_inv()
+        M = B @ bl_cover.matrix_world
+
+        pos = M.translation
+        _, _, look = mtx.mtx_basis(M)
+
+        bpos = block['pos']
+        blook = block['look']
+
+        bpos['x'], bpos['y'], bpos['z'] = bgu.coord_as_u32(pos)
+        blook['x'], blook['y'], blook['z'] = bgu.coord_as_u32(look)
+
+        rd.write_block(dataout, block)
+
 def export(filename):
     get_objs = lambda coll, objtype: [prop for prop in bpy.data.collections[coll].objects if pdu.pdtype(prop) == objtype]
 
@@ -368,11 +389,12 @@ def export(filename):
     # print('--------------')
 
     numpads = len(all_objs)
+    numcovers = len(bpy.data.collections['Cover Pads'].objects)
     TypeInfo.register('padsfileheader', decl_padsfileheader, varmap={'N': numpads})
 
     header = DataBlock.New('padsfileheader')
     header['numpads'] = numpads
-    header['numcovers'] = 0
+    header['numcovers'] = numcovers
 
     rd.write_block(dataout, header)
 
@@ -393,11 +415,15 @@ def export(filename):
     export_waypoints(dataout, waypoints)
 
     ofs_waygroups = len(dataout)
-    export_waygroups(dataout, waypoints)
+    export_waygroups(dataout)
+
+    ofs_covers = len(dataout)
+    export_covers(dataout)
 
     header.update(dataout, 'padoffsets', pad_offsets)
     header.update(dataout, 'waypointsoffset', ofs_waypoints)
     header.update(dataout, 'waygroupsoffset', ofs_waygroups)
+    header.update(dataout, 'coversoffset', ofs_covers)
 
     dataout = pdu.compress(dataout)
     pdu.write_file(filename, dataout)
