@@ -36,17 +36,11 @@ decl_padsfileheader = [
     's16 padoffsets[N]',
 ]
 
-decl_coverdefinition = [
+decl_cover = [
 	'struct coord pos',
 	'struct coord look',
 	'u16 flags',
-]
-
-decl_cover = [
-	'struct coord *pos',
-	'struct coord *look',
-	's16 rooms[2]',
-	'u16 flags',
+	'u16 _pad_',
 ]
 
 decl_waygroup = [
@@ -74,7 +68,6 @@ decl_arrays32 = [
 
 padsfile_decls = {
 	'coord': decl_coord,
-	'coverdefinition': decl_coverdefinition,
     'cover': decl_cover,
     'waygroup': decl_waygroup,
     'waypoint': decl_waypoint,

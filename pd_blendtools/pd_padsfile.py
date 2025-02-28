@@ -121,7 +121,7 @@ class PD_PadsFile:
 
         n = header['numcovers']
         for i in range(0, n):
-            cover = rd.read_block('coverdefinition')
+            cover = rd.read_block('cover')
             # rd.print_dict(cover, 'coverdefinition', pad=16, numspaces=2)
             self.covers.append(cover)
 

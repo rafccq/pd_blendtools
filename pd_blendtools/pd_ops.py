@@ -774,7 +774,11 @@ class PDTOOLS_OT_SetupWaypointCreate(Operator):
 
     group_enum: EnumProperty(name="group_enum", description="Waypoint Group", items=pdprops.get_groupitems)
 
-    def invoke(self, context, event):
+    def invoke(self, context, _event):
+        obj = context.active_object
+        if pdu.pdtype(obj) == pdprops.PD_OBJTYPE_WAYGROUP:
+            self.group_enum = obj.name
+
         wm = context.window_manager
         return wm.invoke_props_dialog(self, width=150)
 

@@ -379,8 +379,9 @@ def material_cmds(mat):
 
 PORTAL_MAT = 'PD_PortalMat'
 WAYPOINT_MAT = 'PD_WaypointMat'
+COVER_MAT = 'PD_CoverMat'
 
-def create_basic_material(name, color = None, alpha = 0):
+def create_basic_material(name, color = None, alpha = 0.0):
     if name in bpy.data.materials:
         return bpy.data.materials[name]
 
@@ -413,3 +414,6 @@ def portal_material():
 
 def waypoint_material():
     return create_basic_material(WAYPOINT_MAT, (0.0, 0.8, 0.0, 1.0), 1.0)
+
+def cover_material():
+    return create_basic_material(COVER_MAT, (0.8, 0.0, 0.0, 1.0), 1.0)

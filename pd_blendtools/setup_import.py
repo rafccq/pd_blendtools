@@ -320,6 +320,7 @@ def setup_import(lvname, mp = False):
     import_objects(romdata, setupdata, paddata)
     import_intro(setupdata.introcmds, paddata)
     import_waypoints(paddata)
+    import_coverpads(paddata)
 
 # these objects have a 'base' struct preceding the obj data
 obj_types1 = [
@@ -518,10 +519,9 @@ def import_waypoints(paddata):
         groupname = pdu.group_name(groupnum)
         if groupnum not in groups:
             bl_group = pdu.new_empty_obj(groupname, dsize=0, link=False)
+            bl_group.pd_obj.type = pdprops.PD_OBJTYPE_WAYGROUP
             pdu.add_to_collection(bl_group, 'Waypoints')
             groups.append(groupnum)
-        else:
-            bl_group = bpy.data.objects[groupname]
 
         pad = paddata.pad_unpack(padnum, PADFIELD_POS | PADFIELD_UP | PADFIELD_LOOK)
         bl_waypoint = create_waypoint(idx, pad.pos, groupnum, pad)
@@ -536,7 +536,7 @@ def import_waypoints(paddata):
             neighbour = block['value']
             if neighbour == 0xffffffff: break
 
-            neighbour_wp = waypoints[neighbour&0xff]
+            neighbour_wp = waypoints[neighbour & 0xff]
             neighbour_item = pd_neighbours.add()
             neighbour_item.name = pdu.waypoint_name(neighbour_wp['padnum'])
             neighbour_item.groupnum = neighbour_wp['groupnum']
@@ -580,3 +580,31 @@ def create_waypoint(pad_id, pos, groupnum, pad=None):
     waypoints = scn['waypoints']
     waypoints[str(pad_id)] = bl_waypoint
     return bl_waypoint
+
+def import_coverpads(paddata):
+    for idx, cover in enumerate(paddata.covers):
+        create_coverpad(cover, idx)
+
+def create_coverpad(cover, idx):
+    objname = f'cover_{idx:02X}'
+    bl_cover = tmesh.create_mesh(objname, 'cube', copy=True)
+
+    # pd_cover = bl_cover.cover
+
+    bl_cover.color = (0.8, 0.0, 0.0, 1.0)
+    if len(bl_cover.data.materials) == 0:
+        cover_mat = pdm.cover_material()
+        bl_cover.data.materials.append(cover_mat)
+
+    bl_cover.pd_obj.type = pdprops.PD_OBJTYPE_COVER
+    bl_cover.pd_obj.name = objname
+    pdu.add_to_collection(bl_cover, 'Cover Pads')
+
+    pos = [pdu.f32(cover['pos'][key]) for key in ['x', 'y', 'z']]
+    look = [pdu.f32(cover['look'][key]) for key in ['x', 'y', 'z']]
+    up = (0, 1, 0)
+
+    obj_setup_mtx(bl_cover, Vector(look), Vector(up), pos, scale=pdp.Vec3(7,7,7))
+    blender_align(bl_cover)
+
+    return bl_cover
