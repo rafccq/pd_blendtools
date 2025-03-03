@@ -133,7 +133,6 @@ def pad_initial_pos(bl_obj):
     if is_intro:
         M = bl_obj.matrix_world.copy()
         T = M.translation
-        M.translation = (0,0,0)
         M = M @ mtx.rot_introinv()
         M.translation = T
         M = B @ M
@@ -148,7 +147,10 @@ def pad_initial_pos(bl_obj):
 
     # invert the rotation caused by FLAG00000002
     R = mtx.rot_FLAG00000002inv() if flags & dst.OBJFLAG_00000002 else Matrix.Identity(4)
-    if flags & dst.OBJFLAG_00000002: print('   FLAG0002')
+    # if flags & dst.OBJFLAG_00000002: print('   FLAG0002')
+    if flags & dst.OBJFLAG_UPSIDEDOWN:
+        R = R @ mtx.rot_FLAGUPSIDEDONWinv()
+
     # doors have an extra rotation
     R = R @ mtx.rot_doorinv() if objtype == pdprops.PD_PROP_DOOR else R
 
@@ -158,7 +160,7 @@ def pad_initial_pos(bl_obj):
     pad = pdp.Pad(pos, look, up, normal, pad_bbox, None)
 
     pos = pad_inv_center(pad, objtype) if pd_pad.hasbbox else pos
-    return pos, up, look
+    return pos, up.normalized(), look.normalized()
 
 def export_pad(bl_obj, padnum, dataout):
     rd = ByteReader(None)
