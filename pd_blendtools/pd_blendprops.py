@@ -31,15 +31,15 @@ PD_OBJTYPE_INTRO        = 0x0800
 PD_OBJTYPE_WAYPOINT     = 0x0900
 PD_OBJTYPE_WAYGROUP     = 0x0a00
 PD_OBJTYPE_COVER        = 0x0b00
+PD_PROP_LIFT_STOP       = 0x0c00
 
 #### Setup:Props
 PD_PROP_DOOR            = PD_OBJTYPE_PROP | 0x01
 PD_PROP_TINTED_GLASS    = PD_OBJTYPE_PROP | 0x2f
 PD_PROP_LIFT            = PD_OBJTYPE_PROP | 0x30
-PD_PROP_LIFT_STOP       = PD_OBJTYPE_PROP | 0xf0
 #### Setup:Intro Objs
-PD_INTRO_SPAWN          = PD_OBJTYPE_INTRO | 0x09
-PD_INTRO_CASE           = PD_OBJTYPE_INTRO | 0x03
+PD_INTRO_SPAWN          = PD_OBJTYPE_INTRO | 0x00
+PD_INTRO_CASE           = PD_OBJTYPE_INTRO | 0x09
 PD_INTRO_CASERESPAWN    = PD_OBJTYPE_INTRO | 0x0a
 PD_INTRO_HILL           = PD_OBJTYPE_INTRO | 0x0b
 
@@ -417,6 +417,7 @@ class PDObject_SetupBaseObject(PropertyGroup):
 
     extrascale: IntProperty(name='extrascale', default=0, options={'LIBRARY_EDITABLE'})
     maxdamage: IntProperty(name='maxdamage', default=0, options={'LIBRARY_EDITABLE'})
+    floorcol: IntProperty(name='floorcol', default=0, options={'LIBRARY_EDITABLE'})
 
     flags1: BoolVectorProperty(name="Flags1", size=len(flags1), default=(False,) * len(flags1), update=update_flag1)
     flags2: BoolVectorProperty(name="Flags2", size=len(flags2), default=(False,) * len(flags2), update=update_flag2)
@@ -477,8 +478,10 @@ DOORTYPES = [
     ('Fallaway',    'Surface Grate And Train Floor Panel (GE Only)', 0x8),
     ('Aztec Chair', 'Aztec Door Effect', 0x9),
     ('Hull',        'Attack Ship Windows', 0xa),
-    ('Laser',       'Lase Beam/Barricade', 0xb),
+    ('Laser',       'Laser Beam/Barricade', 0xb),
 ]
+
+DOORTYPES_VALUES = { ndu.make_id(e[0]): e[2] for e in DOORTYPES }
 
 DOOR_SOUNDTYPES = [
     ('00 None',                'None',                 0x00),
@@ -517,7 +520,10 @@ DOOR_SOUNDTYPES = [
     ('21 None',                'None',                 0x21),
 ]
 
+DOOR_SOUNDTYPES_VALUES = { ndu.make_id(e[0]): e[2] for e in DOOR_SOUNDTYPES }
 
+
+# objtype 0x01
 class PDObject_SetupDoor(PropertyGroup):
     def update_doorflags(self, context):
         src = repr(self)
@@ -539,9 +545,15 @@ class PDObject_SetupDoor(PropertyGroup):
     laserfade: IntProperty(name='laserfade', min=0, max=255, default=0, description='Laser Opacity', options={'LIBRARY_EDITABLE'})
 
 
+# objtype 0x08
+class PDObject_SetupWeapon(PropertyGroup):
+    weaponnum: IntProperty(name='weaponnum', min=0, options={'LIBRARY_EDITABLE'})
+
+
+# objtype 0x2f
 class PDObject_SetupTintedGlass(PropertyGroup):
-    opadist: FloatProperty(name='opadist', default=0, options={'LIBRARY_EDITABLE'})
-    xludist: FloatProperty(name='xludist', default=0, options={'LIBRARY_EDITABLE'})
+    opadist: IntProperty(name='opadist', default=0, min=0, max=2**15-1, options={'LIBRARY_EDITABLE'})
+    xludist: IntProperty(name='xludist', default=0, min=0, max=2**15-1, options={'LIBRARY_EDITABLE'})
 
 
 class PDObject_SetupInterlinkObject(PropertyGroup):
@@ -611,6 +623,7 @@ def check_is_elevstop(_scene, obj):
     return obj and obj.pd_obj.type == PD_PROP_LIFT_STOP
 
 
+# objtype 0x30
 class PDObject_SetupLift(PropertyGroup):
     sound: IntProperty(name='sound', default=0x16, min=0, max=0x3f, options={'LIBRARY_EDITABLE'})
     door1: PointerProperty(name='door1', type=Object, poll=check_isdoor, options={'LIBRARY_EDITABLE'})
@@ -636,6 +649,7 @@ classes = [
     PDObject_PadData,
     PDObject_SetupBaseObject,
     PDObject_SetupDoor,
+    PDObject_SetupWeapon,
     PDObject_SetupTintedGlass,
     PDObject_SetupInterlinkObject,
     PDObject_SetupLift,
@@ -883,6 +897,7 @@ def register():
     # setup props
     Object.pd_prop = bpy.props.PointerProperty(type=PDObject_SetupBaseObject)
     Object.pd_door = bpy.props.PointerProperty(type=PDObject_SetupDoor)
+    Object.pd_weapon = bpy.props.PointerProperty(type=PDObject_SetupWeapon)
     Object.pd_tintedglass = bpy.props.PointerProperty(type=PDObject_SetupTintedGlass)
     Object.pd_lift = bpy.props.PointerProperty(type=PDObject_SetupLift)
     Object.pd_waypoint = bpy.props.PointerProperty(type=PDObject_SetupWaypoint)
@@ -909,6 +924,7 @@ def unregister():
     del Object.pd_obj
     del Object.pd_prop
     del Object.pd_door
+    del Object.pd_weapon
     del Object.pd_tintedglass
     del Object.pd_lift
 

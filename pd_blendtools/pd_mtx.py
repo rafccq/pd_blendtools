@@ -45,5 +45,9 @@ def rot_blender_inv():
 
 def rot_FLAG00000002inv():
     Rx = rot(-pi * 1.5,  'x')
-    Ry = rot(M_BADPI,  'y')
+    Ry = rot(-M_BADPI,  'y')
     return Rx @ Ry
+
+def rot_FLAGUPSIDEDONWinv():
+    Rz = rot(-M_BADPI,  'z')
+    return Rz

@@ -1,6 +1,3 @@
-import struct
-from math import pi
-
 import bpy
 from mathutils import Euler, Vector, Matrix
 
@@ -135,7 +132,7 @@ def pad_initial_pos(bl_obj):
 
     if is_intro:
         M = bl_obj.matrix_world.copy()
-        T = M.translation.copy()
+        T = M.translation
         M.translation = (0,0,0)
         M = M @ mtx.rot_introinv()
         M.translation = T

@@ -578,8 +578,8 @@ class PDTOOLS_PT_SetupLift(Panel):
             lmin = labels[idx][0]
             lmax = labels[idx][1]
             row = column.row()
-            row.prop(props_obj, 'pad_bbox', index=2*idx, text=lmin)
-            row.prop(props_obj, 'pad_bbox', index=2*idx+1, text=lmax)
+            row.prop(props_obj.pad, 'bbox', index=2*idx, text=lmin)
+            row.prop(props_obj.pad, 'bbox', index=2*idx+1, text=lmax)
 
         column.separator(type='LINE')
         column.operator('pdtools.setupobj_editflags')
