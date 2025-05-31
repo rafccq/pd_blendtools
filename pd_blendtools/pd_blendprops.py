@@ -561,6 +561,7 @@ class PDObject_SetupInterlinkObject(PropertyGroup):
     controller: PointerProperty(name='controller', type=bpy.types.Object, options={'LIBRARY_EDITABLE'})
     controlled: PointerProperty(name='controlled', type=bpy.types.Object, options={'LIBRARY_EDITABLE'})
     stopnum: IntProperty(name='stopnum', default=0, min=1, max=4, options={'LIBRARY_EDITABLE'})
+    pd_obj: bpy.props.PointerProperty(type=PDObject)
 
 
 WAYPOINT_EDGETYPES = [
@@ -619,9 +620,8 @@ class PDObject_SetupWaypoint(PropertyGroup):
     active_neighbour_idx: IntProperty(name='active_neighbour_idx', default=0, options={'LIBRARY_EDITABLE'})
 
 
-def check_is_elevstop(_scene, obj):
+def check_is_liftstop(_scene, obj):
     return obj and obj.pd_obj.type == PD_PROP_LIFT_STOP
-
 
 # objtype 0x30
 class PDObject_SetupLift(PropertyGroup):
@@ -630,10 +630,10 @@ class PDObject_SetupLift(PropertyGroup):
     door2: PointerProperty(name='door2', type=Object, poll=check_isdoor, options={'LIBRARY_EDITABLE'})
     door3: PointerProperty(name='door3', type=Object, poll=check_isdoor, options={'LIBRARY_EDITABLE'})
     door4: PointerProperty(name='door4', type=Object, poll=check_isdoor, options={'LIBRARY_EDITABLE'})
-    stop1: PointerProperty(name='stop1', type=Object, poll=check_is_elevstop, options={'LIBRARY_EDITABLE'})
-    stop2: PointerProperty(name='stop2', type=Object, poll=check_is_elevstop, options={'LIBRARY_EDITABLE'})
-    stop3: PointerProperty(name='stop3', type=Object, poll=check_is_elevstop, options={'LIBRARY_EDITABLE'})
-    stop4: PointerProperty(name='stop4', type=Object, poll=check_is_elevstop, options={'LIBRARY_EDITABLE'})
+    stop1: PointerProperty(name='stop1', type=Object, poll=check_is_liftstop, options={'LIBRARY_EDITABLE'})
+    stop2: PointerProperty(name='stop2', type=Object, poll=check_is_liftstop, options={'LIBRARY_EDITABLE'})
+    stop3: PointerProperty(name='stop3', type=Object, poll=check_is_liftstop, options={'LIBRARY_EDITABLE'})
+    stop4: PointerProperty(name='stop4', type=Object, poll=check_is_liftstop, options={'LIBRARY_EDITABLE'})
     accel: FloatProperty(name='accel', default=0, options={'LIBRARY_EDITABLE'})
     maxspeed: FloatProperty(name='maxspeed', default=0, options={'LIBRARY_EDITABLE'})
     interlinks: CollectionProperty(name='interlinks', type=PDObject_SetupInterlinkObject)

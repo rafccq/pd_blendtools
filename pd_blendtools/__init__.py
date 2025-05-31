@@ -62,14 +62,21 @@ def register():
         print('unregister error:', err)
         pass
 
+    print(f'---------------------------------')
+    print(f'PD Blend Tools Register')
+    print(f'---------------------------------')
     bpy.utils.register_class(PDModelPropertyGroup)
     Object.pd_model = bpy.props.PointerProperty(type=PDModelPropertyGroup)
     register_types()
 
+    # register the submodules
     for m in submodules:
         m.register()
 
     bpy.app.handlers.load_post.append(pd_load_handler)
+
+def unregister_nodes():
+    pdn.unregister()
 
 def unregister():
     for m in reversed(submodules):
@@ -79,9 +86,6 @@ def unregister():
     bpy.utils.unregister_class(PD_AddonPreferences)
 
 
-if __name__ == "__main__":
-    register()
-
 @persistent
 def pd_load_handler(_dummy):
     context = bpy.context
@@ -90,3 +94,6 @@ def pd_load_handler(_dummy):
     rompath = pdp.pref_get(pdp.PD_PREF_ROMPATH)
     if rompath:
         pdops.PDTOOLS_OT_LoadRom.load_rom(context, rompath)
+
+if __name__ == "__main__":
+    register()

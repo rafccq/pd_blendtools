@@ -240,7 +240,7 @@ def setup_create_obj(prop, romdata, paddata):
     padnum = prop['pad']
     if padnum == 0xffff:
         print(f"TMP: skipping obj with no pad {prop['modelnum']:04X}")
-        return None
+        return None, None
 
     modelnum = prop['modelnum']
     OBJNAMES = {
@@ -326,7 +326,7 @@ def setup_create_obj(prop, romdata, paddata):
         set_bbox(pd_pad.bbox, pad.bbox)
         set_bbox(pd_pad.bbox_p, pad.bbox)
 
-    return bl_obj
+    return bl_obj, model
 
 def setup_import(lvname, mp = False):
     blend_dir = os.path.dirname(bpy.data.filepath)
@@ -388,7 +388,7 @@ def import_objects(romdata, setupdata, paddata):
             obj = prop['base'] if type1 else prop
 
             # print(f"OBJ1 p {obj['pad']:04X} m {obj['modelnum']:04X}")
-            bl_prop = setup_create_obj(obj, romdata, paddata)
+            bl_prop, model = setup_create_obj(obj, romdata, paddata)
             if not bl_prop:
                 all_props.append(None)
                 continue
@@ -397,7 +397,7 @@ def import_objects(romdata, setupdata, paddata):
             bl_prop.pd_obj.type = objtype
             if proptype == OBJTYPE_LIFT:
                 # pad = paddata.pad_unpack(padnum, PADFIELD_POS | PADFIELD_BBOX)
-                init_lift(bl_prop, prop, paddata)
+                init_lift(bl_prop, prop, paddata, model)
             elif proptype == OBJTYPE_TINTEDGLASS:
                 init_tintedglass(bl_prop, prop)
             elif proptype == OBJTYPE_WEAPON:
@@ -410,7 +410,7 @@ def import_objects(romdata, setupdata, paddata):
 
     setup_fix_refs(all_props, setupdata.props)
 
-def init_lift(bl_prop, prop, paddata):
+def init_lift(bl_prop, prop, paddata, model):
     bl_prop.pd_lift.accel = prop['accel'] / 0x10000
     bl_prop.pd_lift.maxspeed = prop['maxspeed'] / 0x10000
     # ## Create lift stops
@@ -433,6 +433,16 @@ def init_lift(bl_prop, prop, paddata):
             bl_prop.pd_lift.stop3 = bl_stop
         elif idxpad == 3:
             bl_prop.pd_lift.stop4 = bl_stop
+
+        # copy pad info
+        bbox = model.find_bbox()
+        pd_pad = bl_stop.pd_prop.pad
+        pd_pad.pos = pad.pos
+        pd_pad.room = pdp.pad_room(pad)
+        pd_pad.lift = pdp.pad_lift(pad)
+        pd_pad.hasbbox = True
+        set_bbox(pd_pad.model_bbox, bbox)
+        set_bbox(pd_pad.bbox, pad.bbox)
 
 def door_setsibling(bl_door, prop, setup_props, pad2obj, idx):
     sibling_ofs = pdu.s32(prop['sibling'])
@@ -468,6 +478,7 @@ def lift_setinterlink(prop, setup_props, pad2obj, idx):
     interlink = pd_interlinks.add()
     interlink.name = f'{bl_lift.name} Interlink {len(pd_interlinks)}'
     interlink.controlled = bl_lift
+    interlink.pd_obj.type = OBJTYPE_LINKLIFTDOOR | pdprops.PD_OBJTYPE_PROP
 
     door_ofs = pdu.s32(prop['door'])
     if door_ofs != 0:

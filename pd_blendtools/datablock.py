@@ -36,7 +36,7 @@ class DataBlock:
         self.field_infos[info['fieldname']] = info
 
     # updates the value of 'field' and also serialize it to dataout
-    def update(self, dataout, field, value):
+    def update(self, dataout, field, value, signed=False):
         self[field] = value
         info = self.field_infos[field]
         typename = info['typename']
@@ -47,10 +47,10 @@ class DataBlock:
 
         if info['is_array']:
             for val in value:
-                dataout[addr:addr + size] = val.to_bytes(size, 'big') # TODO config
+                dataout[addr:addr + size] = val.to_bytes(size, 'big', signed=signed) # TODO config
                 addr += size
         else:
-            dataout[addr:addr + size] = value.to_bytes(size, 'big')
+            dataout[addr:addr + size] = value.to_bytes(size, 'big', signed=signed)
 
     def __getitem__(self, key):
         return self.fields[key]

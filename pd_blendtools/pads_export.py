@@ -4,6 +4,7 @@ from mathutils import Euler, Vector, Matrix
 import pd_utils as pdu
 import bg_utils as bgu
 import pd_blendprops as pdprops
+from decl_setupfile import OBJTYPE_LIFT
 from pd_blendprops import WAYPOINT_EDGEVALUES
 import pd_mtx as mtx
 import pd_padsfile as pdp
@@ -108,15 +109,16 @@ def pad_inv_pos(objpos, look, up, flags=None, scale=None, rotation=None, bbox=No
     if flags is not None:
         if flags & dst.OBJFLAG_00000002:
             pos = tuple([objpos[i] + T[i][2] * bbox.zmin for i in range(3)])
-        else:
+        elif bbox is not None:
             ymin, ymax = bbox.ymin, bbox.ymax
             if flags & dst.OBJFLAG_UPSIDEDOWN:
-                rot = Euler((0, 0, stpi.M_BADPI)).to_matrix().to_4x4()
+                rot = Euler((0, 0, -stpi.M_BADPI)).to_matrix().to_4x4()
                 T = T @ rot
                 pos = tuple([objpos[i] + T[i][1] * ymax for i in range(3)])
             elif flags & dst.OBJFLAG_00000008:
-                TMP = M @ T
-                pos = tuple([objpos[i] + TMP[i][1] * ymin for i in range(3)])
+                MT = M @ T
+                pos = tuple([objpos[i] + MT[i][1] * ymin for i in range(3)])
+                # print(f'  OBJFLAG_00000008 {pos} {objpos} {ymin} {bbox}')
 
     return Vector(pos)
 
@@ -147,7 +149,6 @@ def pad_initial_pos(bl_obj):
 
     # invert the rotation caused by FLAG00000002
     R = mtx.rot_FLAG00000002inv() if flags & dst.OBJFLAG_00000002 else Matrix.Identity(4)
-    # if flags & dst.OBJFLAG_00000002: print('   FLAG0002')
     if flags & dst.OBJFLAG_UPSIDEDOWN:
         R = R @ mtx.rot_FLAGUPSIDEDONWinv()
 
@@ -156,10 +157,10 @@ def pad_initial_pos(bl_obj):
 
     normal, up, look = mtx.mtx_basis(M @ R)
     sc = Vector((sx, sy, sz))
-    pos = pad_inv_pos(objpos, look, up, flags, sc, R, pad_bbox)
+    pos = pad_inv_pos(objpos, look, up, flags, sc, R, model_bbox)
     pad = pdp.Pad(pos, look, up, normal, pad_bbox, None)
-
     pos = pad_inv_center(pad, objtype) if pd_pad.hasbbox else pos
+
     return pos, up.normalized(), look.normalized()
 
 def export_pad(bl_obj, padnum, dataout):
@@ -189,7 +190,6 @@ def export_pad(bl_obj, padnum, dataout):
     size += 3 * TypeInfo.sizeof('s16')
 
     # print(f'pad {padnum:02X} h {header:08X}  bbox {pd_pad.hasbbox} {bl_obj.name}')
-    print(f'pad #{padnum:04X} f {header:08X}')
 
     f = lambda e: round(e, 4)
 
@@ -366,12 +366,31 @@ def export_covers(dataout):
 
         rd.write_block(dataout, block)
 
+def add_lift_stops(props):
+    def add_stop(stop, idx):
+        nonlocal ofs
+        if stop is not None:
+            props.insert(idx + ofs + 1, stop)
+            ofs += 1
+
+    for idx, prop in enumerate(props):
+        if prop.pd_obj.type == pdprops.PD_PROP_LIFT:
+            pd_lift = prop.pd_lift
+
+            ofs = 0
+            add_stop(pd_lift.stop1, idx)
+            add_stop(pd_lift.stop2, idx)
+            add_stop(pd_lift.stop3, idx)
+            add_stop(pd_lift.stop4, idx)
+
 def export(filename):
     get_objs = lambda coll, objtype: [prop for prop in bpy.data.collections[coll].objects if pdu.pdtype(prop) == objtype]
 
     props = get_objs('Props', pdprops.PD_OBJTYPE_PROP)
     intros = get_objs('Intro', pdprops.PD_OBJTYPE_INTRO)
     waypoints = get_objs('Waypoints', pdprops.PD_OBJTYPE_WAYPOINT)
+
+    add_lift_stops(props)
 
     dataout = bytearray()
     rd = ByteReader(None)
@@ -407,8 +426,6 @@ def export(filename):
         ofs += export_pad(bl_obj, idx, dataout)
 
     add_padding(dataout, 4)
-    # for idx, ofs in enumerate(pad_offsets):
-    #     print(f'padoffsets[{idx}] {ofs:04X}')
 
     ofs_waypoints = len(dataout)
     export_waypoints(dataout, waypoints)

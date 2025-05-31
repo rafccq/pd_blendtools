@@ -33,19 +33,13 @@ for dir in modules_dirs:
 import pd_blendprops as pdprops
 pdprops.remove_drawhandler()
 
-
-# try to unregister
 import nodes.pd_shadernodes as pdn
-#try:
-#    pdn.unregister()
-#except RuntimeError as err:
-#    print('unregister error:', err)
-#    pass
-
 import pd_blendtools as pdbt
 import pd_blendtools.nodes as pdnodes
 import typeinfo
+
 importlib.reload(pdbt)
+
 #importlib.reload(pdnodes)
 #importlib.reload(typeinfo)
 
@@ -78,9 +72,11 @@ pdops = submodules['pd_ops']
 bge = submodules['bg_export']
 tle = submodules['tiles_export']
 pde = submodules['pads_export']
+stpe = submodules['setup_export']
 
 
 def register():
+    pdbt.unregister_nodes()
     pdops.remove_menu()
 #    pdn.register()
     tiles.register()
@@ -107,15 +103,12 @@ def cl_setup():
     pdu.clear_collection('Props')
     pdu.clear_collection('Intro')
     pdu.clear_collection('Waypoints')
+    pdu.clear_collection('Cover Pads')
 
 #clear()
 #cl_setup()
 register()
 cls()
-
-#bge.export()
-#tle.export(f'D:/Mega/PD/pd_blend/modelbin2/bg_mp11_tilesZ')
-#pde.export(f'D:/Mega/PD/pd_blend/modelbin2/bg_mp11_padsZ')
 
 
 #loadmodel('ProofgunZ')
@@ -152,3 +145,10 @@ cls()
 #setup.setup_import('bg_ear')
 #setup.setup_import('bg_rit')
 #setup.setup_import('bg_lue')
+
+
+#bge.export()
+#tle.export(f'D:/Mega/PD/pd_blend/modelbin2/bg_mp11_tilesZ')
+
+#pde.export(f'D:/Mega/PD/pd_blend/modelbin2/bg_mp15_padsZ')
+#stpe.export(f'D:/Mega/PD/pd_blend/modelbin2/Ump_setupmp11Z')

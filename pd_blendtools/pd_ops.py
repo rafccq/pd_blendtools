@@ -22,6 +22,7 @@ import pd_addonprefs as pdp
 import pd_blendprops as pdprops
 import bg_utils as bgu
 import tiles_import as tiles
+from decl_setupfile import OBJTYPE_LINKLIFTDOOR
 from mtxpalette_panel import gen_icons
 from bpy_extras import view3d_utils
 import setup_import as stpi
@@ -981,6 +982,7 @@ class PDTOOLS_OT_SetupInterlinkCreate(Operator):
         interlink = pd_interlinks.add()
         interlink.name = f'{bl_obj.name} Interlink {len(pd_interlinks)}'
         interlink.controlled = bl_obj
+        interlink.pd_obj.type = OBJTYPE_LINKLIFTDOOR | pdprops.PD_OBJTYPE_PROP
         return {'FINISHED'}
 
 
@@ -1192,6 +1194,10 @@ def register():
     for cl in classes:
         bpy.utils.register_class(cl)
 
+
+    # TMP
+    pdu.unregister_tool('pdtools.ws_new_portal_from_edge', 'VIEW_3D', 'EDIT_MESH')
+    pdu.unregister_tool('pdtools.ws_new_portal_from_face', 'VIEW_3D', 'EDIT_MESH')
 
     bpy.utils.register_tool(PD_WSTOOL_PortalFromEdge,
                             after={"builtin.scale_cage"}, separator=True, group=True)

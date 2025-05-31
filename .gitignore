@@ -11,6 +11,7 @@ pd_modeltool/nodes/__pycache__
 texbin
 texbmp
 modelbin
+modelbin2
 *.z64
 pd_blendtools/.idea
 pd_blendtools/nodes/__pycache__
