@@ -60,9 +60,8 @@ def bg_loadtiles(lvname):
     blend_dir = os.path.dirname(bpy.data.filepath)
     romdata = rom.load(f'{blend_dir}/pd.ntsc-final.z64')
 
-    filename = f'bgdata/{lvname}_tilesZ'
+    filename = f'bgdata/{lvname}'
     tiledata = romdata.filedata(filename)
-    # pdu.print_bin(f'^{lvname.upper()}', tiledata, 0, 64)
     tiledata = PD_BGTiles(tiledata)
 
     for idx, geo in enumerate(tiledata.geos):

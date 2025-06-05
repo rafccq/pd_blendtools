@@ -636,3 +636,26 @@ def fzero(fa, epsilon=1e-4):
 
 def vec_comp(v0, v1, e=1e-4):
     return fcomp(v0[0], v1[0], e) and fcomp(v0[1], v1[1], e) and fcomp(v0[2], v1[2], e)
+
+# returns the level 'code' from the filename, examples:
+# bgdata/bg_dish.seg: dish
+# UsetupearZ: ear
+# Ump_setupmp4Z: mp4
+# bgdata/bg_lue_tilesZ: lue
+def get_lvcode(filename):
+    toreplace = ['bgdata/', 'bg_', '.seg', 'Ump_setup', 'Usetup', '_pads', '_tiles']
+    for r in toreplace:
+        filename = filename.replace(r, '')
+
+    if filename[-1] == 'Z':
+        filename = filename[:-1]
+
+    return filename
+
+def get_lvname(lvcode, levelnames, addmp = True):
+    bgname = f'bg_{lvcode}'
+    lvname = f'{levelnames[bgname][0]}' if bgname in levelnames else ''
+    mp = ' MP' if bgname in levelnames and levelnames[bgname][2] and addmp else ''
+    # fullname = f'{lvname}{mp} ({bgname})' if lvname else bgname
+    fullname = f'{lvname}{mp}' if lvname else ''
+    return fullname

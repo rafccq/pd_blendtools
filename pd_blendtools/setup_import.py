@@ -53,18 +53,24 @@ def obj_setup_mtx(obj, look, up, pos, rotation=None, scale=None, flags=None, bbo
     if flags is not None:
         if flags & OBJFLAG_00000002:
             newpos = tuple([pos[i] - T[i][2] * bbox.zmin for i in range(3)])
+            # print(f'  OBJFLAG_00000002')
         elif bbox is not None:
             ymin, ymax = bbox.ymin, bbox.ymax
             if flags & OBJFLAG_UPSIDEDOWN:
                 rot = Euler((0, 0, M_BADPI)).to_matrix().to_4x4()
                 T = T @ rot
                 newpos = tuple([pos[i] - T[i][1] * ymax for i in range(3)])
+                # print(f'  OBJFLAG_UPSIDEDOWN')
             elif flags & OBJFLAG_00000008:
                 TMP = M @ T
                 newpos = tuple([pos[i] - TMP[i][1] * ymin for i in range(3)])
+                # print(f'  OBJFLAG_00000008 {pos} {newpos} {ymin} {bbox}')
 
     obj.matrix_world = M @ T
     obj.matrix_world.translation = newpos
+
+    # print(f'  newpos {newpos}')
+
 
 def obj_load_model(romdata, modelnum):
     filenum = ModelStates[modelnum].filenum
@@ -305,6 +311,8 @@ def setup_create_obj(prop, romdata, paddata):
 
     center = pad.pos
 
+    # print(f'{bl_obj.name} pad {padnum} c {center} bbox {hasbbox}')
+
     bbox = None
     if hasbbox:
         bbox = model.find_bbox()
@@ -318,6 +326,8 @@ def setup_create_obj(prop, romdata, paddata):
         cz += (pad.bbox.ymin - pad.bbox.ymax) * 0.5 * pad.up.z
         center = pdp.Vec3(cx, cy, cz)
 
+        # print(f'  c {center}')
+
     obj_setup_mtx(bl_obj, Vector(pad.look), Vector(pad.up), center, rotation, scale, flags, bbox)
     blender_align(bl_obj)
 
@@ -328,17 +338,14 @@ def setup_create_obj(prop, romdata, paddata):
 
     return bl_obj, model
 
-def setup_import(lvname, mp = False):
+def setup_import(setupname, padsname):
     blend_dir = os.path.dirname(bpy.data.filepath)
     romdata = rom.load(f'{blend_dir}/pd.ntsc-final.z64')
 
-    mp = 'mp_' if mp else ''
-    name = lvname.replace('bg_', '')
-    filename = f'U{mp}setup{name}Z'
-    setupdata = romdata.filedata(filename)
+    setupdata = romdata.filedata(setupname)
     setupdata = PD_SetupFile(setupdata)
 
-    filename = f'bgdata/{lvname}_padsZ'
+    filename = f'bgdata/{padsname}'
     paddata = romdata.filedata(filename)
     paddata = pdp.PD_PadsFile(paddata)
 

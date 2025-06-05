@@ -11,7 +11,6 @@ import pd_utils as pdu
 import bg_utils as bgu
 import model_import as mdi
 import pd_materials as pdm
-import tiles_import as tiles
 import romdata as rom
 import pd_blendprops as pdprops
 
@@ -34,7 +33,6 @@ def bg_import(lvname, roomrange=None):
         loadroom(bgdata, roomnum, tex_configs)
 
     bg_loadportals(bgdata, roomrange)
-    tiles.bg_loadtiles(lvname)
 
 def bg_load(lvname, loadimgs = True):
     print(f'bgload {lvname}')

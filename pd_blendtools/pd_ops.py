@@ -13,20 +13,69 @@ from bl_ui import space_toolsystem_common
 from mathutils import Vector
 import aud
 
-
 import romdata as rom
-import model_import as mdi
 import pd_export as pde
 import pd_utils as pdu
-import pd_addonprefs as pdp
+import pd_addonprefs as pda
 import pd_blendprops as pdprops
+import pd_panels as pdp
 import bg_utils as bgu
-import tiles_import as tiles
 from decl_setupfile import OBJTYPE_LINKLIFTDOOR
 from mtxpalette_panel import gen_icons
 from bpy_extras import view3d_utils
-import setup_import as stpi
 
+import model_import as mdi
+import bg_import as bgi
+import setup_import as stpi
+import tiles_import as tiles
+
+
+levelnames = {
+    'bg_sev':   ('Maian SOS',               0x09, 0),
+    'bg_stat':  ('WAR!',                    0x16, 0),
+    'bg_arec':  ('Ravine',                  0x17, 1),
+    'bg_tra':   ('A51 Escape',              0x19, 0),
+    'bg_sevb':  ('Retaking the Institute',  0x1b, 0),
+    'bg_azt':   ('Crash Site',              0x1c, 0),
+    'bg_pete':  ('Chicago',                 0x1d, 0),
+    'bg_depo':  ('G5 Building',             0x1e, 0),
+    'bg_ref':   ('Complex',                 0x1f, 1),
+    'bg_cryp':  ('G5 Building',             0x20, 1),
+    'bg_dam':   ('Pelagic II',              0x21, 0),
+    'bg_ark':   ('Datadyne Extraction',     0x22, 0),
+    'bg_jun':   ('Temple',                  0x25, 1),
+    'bg_dish':  ('CI Training',             0x26, 0),
+    'bg_cave':  ('Air Base',                0x27, 0),
+    'bg_crad':  ('Pipes',                   0x29, 1),
+    'bg_sho':   ('Skedar Ruins',            0x2a, 0),
+    'bg_eld':   ('Villa',                   0x2c, 0),
+    'bg_imp':   ('Datadyne Defense',        0x2d, 0),
+    'bg_lue':   ('A51 Infiltration',        0x2f, 0),
+    'bg_ame':   ('Datadyne Defection',      0x30, 0),
+    'bg_rit':   ('Air Force One',           0x31, 0),
+    'bg_oat':   ('Skedar',                  0x32, 1),
+    'bg_ear':   ('Datadyne Investigation',  0x33, 0),
+    'bg_lee':   ('Attack Ship',             0x34, 0),
+    'bg_lip':   ('A51 Rescue',              0x35, 0),
+    'bg_wax':   ('Mr. Blonde Revenge',      0x37, 0),
+    'bg_pam':   ('Deep Sea',                0x38, 0),
+    'bg_mp1':   ('Base',                    0x39, 1),
+    'bg_mp3':   ('Area 52',                 0x3b, 1),
+    'bg_mp4':   ('Warehouse',               0x3c, 1),
+    'bg_mp5':   ('Car Park',                0x3d, 1),
+    'bg_mp9':   ('Ruins',                   0x41, 1),
+    'bg_mp10':  ('Sewers',                  0x42, 1),
+    'bg_mp11':  ('Felicity',                0x43, 1),
+    'bg_mp12':  ('Fortress',                0x44, 1),
+    'bg_mp13':  ('Villa',                   0x45, 1),
+    'bg_mp15':  ('Grid',                    0x47, 1),
+    'bg_ate':   ('Duel',                    0x4f, 0),
+}
+
+list_bgs = []
+list_setups = []
+list_pads = []
+list_tiles = []
 
 class PDTOOLS_OT_LoadRom(Operator, ImportHelper):
     bl_idname = "pdtools.load_rom"
@@ -48,16 +97,54 @@ class PDTOOLS_OT_LoadRom(Operator, ImportHelper):
         romdata = rom.Romdata(filepath)
 
         # save into the addon settings
-        pdp.pref_save(pdp.PD_PREF_ROMPATH, filepath)
+        pda.pref_save(pda.PD_PREF_ROMPATH, filepath)
 
         # fill the scene's list of models
         scn.pdmodel_list.clear()
+        pdp.rom_bgs.clear()
+        pdp.rom_pads.clear()
+        pdp.rom_setups.clear()
+        pdp.rom_tiles.clear()
+
+        bg_idx = 0
         for filename in romdata.fileoffsets.keys():
-            if filename[0] not in ['P', 'G', 'C']: continue
+            if filename.startswith('bgdata'):
+                if filename.endswith('.seg'):
+                    lvcode = pdu.get_lvcode(filename)
+                    bgname = f'bg_{lvcode}'
+                    lvname = pdu.get_lvname(lvcode, levelnames)
+                    fullname = f'{lvname} ({bgname})' if lvname else bgname
+                    idx = f'{bg_idx:02X}: '
+                    pdp.rom_bgs.append((bgname, idx+fullname, bgname))
+                    bg_idx += 1
+                elif 'pads' in filename:
+                    filename = filename.replace('bgdata/', '')
+                    lvcode = pdu.get_lvcode(filename)
+                    lvname = pdu.get_lvname(lvcode, levelnames)
+                    fullname = f'{lvname} ({filename})' if lvname else filename
+                    pdp.rom_pads.append((filename, fullname, filename))
+                elif 'tiles' in filename:
+                    filename = filename.replace('bgdata/', '')
+                    lvcode = pdu.get_lvcode(filename)
+                    lvname = pdu.get_lvname(lvcode, levelnames)
+                    fullname = f'{lvname} ({filename})' if lvname else filename
+                    pdp.rom_tiles.append((filename, fullname, filename))
+            elif filename[0] == 'U':
+                lvcode = pdu.get_lvcode(filename)
+                bgname = f'bg_{lvcode}'
+                mp = ' MP ' if filename.startswith('Ump_') else ' '
+                cs = ' CS' if bgname in levelnames and levelnames[bgname][2] else ''
+                lvname = pdu.get_lvname(lvcode, levelnames, False)
+                fullname = f'{lvname}{cs}{mp}({filename})' if lvname else filename
+                pdp.rom_setups.append((filename, fullname, bgname))
 
             item = scn.pdmodel_list.add()
             item.filename = filename
             # if item.alias: # TODO
+
+        pdp.rom_pads.sort(key=lambda e: e[1])
+        pdp.rom_setups.sort(key=lambda e: e[1])
+        pdp.rom_tiles.sort(key=lambda e: e[1])
 
 
 class PDTOOLS_OT_ExportModel(Operator, ExportHelper):
@@ -174,20 +261,24 @@ class PDTOOLS_OT_SelectDirectory(Operator):
     bl_label = "Select Directory"
     bl_options = {'REGISTER'}
 
-    # Define this to tell 'fileselect_add' that we want a directoy
-    directory: StringProperty(
-        name="Path",
-        description="Select Directory"
-    )
+    # define this to tell 'fileselect_add' that we want a directory
+    directory: StringProperty(name="Path", description="Select Directory")
+    filter_folder: BoolProperty(default=True, options={"HIDDEN"})
+    type: StringProperty(name='type', options={'LIBRARY_EDITABLE'})
 
-    # Filters folders
-    filter_folder: BoolProperty(
-        default=True,
-        options={"HIDDEN"}
-    )
+    @classmethod
+    def description(cls, context, properties):
+        if properties.type == 'EXT_TEXTURE':
+            return 'Directory With Replacement Textures'
+        else:
+            return 'Select Directory'
 
     def execute(self, context):
-        print("Selected dir: '" + self.directory + "'")
+        scn = context.scene
+
+        if self.type == 'EXT_TEXTURE':
+           scn.external_tex_dir = self.directory
+
         return {'FINISHED'}
 
     def invoke(self, context, event):
@@ -196,7 +287,7 @@ class PDTOOLS_OT_SelectDirectory(Operator):
 
 
 def load_model(_context, modelname=None, filename=None):
-    rompath = pdp.pref_get(pdp.PD_PREF_ROMPATH)
+    rompath = pda.pref_get(pda.PD_PREF_ROMPATH)
     romdata = rom.Romdata(rompath)
 
     if modelname:
@@ -217,10 +308,7 @@ class PDTOOLS_OT_ImportModelFromFile(Operator, ImportHelper):
     bl_label = "Import From File"
     bl_description = "Import a model from a file"
 
-    filter_glob: bpy.props.StringProperty(
-        default="*.*",
-        # options={'HIDDEN'},
-    )
+    filter_glob: bpy.props.StringProperty(default="*.*",)
 
     def execute(self, context):
         scn = context.scene
@@ -234,9 +322,33 @@ class PDTOOLS_OT_ImportModelFromFile(Operator, ImportHelper):
         return {'FINISHED'}
 
 
+class PDTOOLS_OT_ImportSelectFile(Operator, ImportHelper):
+    bl_idname = "pdtools.import_select_file"
+    bl_label = "File"
+    bl_description = "Import from an external file"
+
+    filter_glob: bpy.props.StringProperty(default="*.*",)
+    type: StringProperty(name='type', options={'LIBRARY_EDITABLE'})
+
+    def execute(self, context):
+        self.bl_label = "File"
+        bl_description = "Import from an external file"
+        scn = context.scene
+        print('import from file', self.filepath)
+        if self.type == 'BG':
+            scn.file_bg = self.filepath
+        elif self.type == 'pads':
+            scn.file_pads = self.filepath
+        elif self.type == 'setup':
+            scn.file_setup = self.filepath
+        elif self.type == 'tiles':
+            scn.file_tiles = self.filepath
+        return {'FINISHED'}
+
+
 class PDTOOLS_OT_ImportModelFromROM(Operator):
     bl_idname = "pdtools.import_model_rom"
-    bl_label = "Import From ROM"
+    bl_label = "Import Model From ROM"
 
     @classmethod
     def description(cls, context, properties):
@@ -272,10 +384,121 @@ class PDTOOLS_OT_ImportModelFromROM(Operator):
         return context.window_manager.invoke_props_dialog(self, width=300)
 
     def draw(self, context):
-        self.layout.label(text='Import Model From ROM')
         scn = context.scene
         self.layout.template_list("PDTOOLS_UL_ModelList", "", scn, "pdmodel_list",
                                   scn, "pdmodel_listindex", rows=20)
+
+class PDTOOLS_OT_ImportLevel(Operator):
+    bl_idname = "pdtools.import_level"
+    bl_label = "Import Level"
+
+    @classmethod
+    def description(cls, context, properties):
+        scn = context.scene
+        return 'Import levels from the ROM or external files'
+
+    source = bpy.props.EnumProperty(
+        items=[("ROM", "File")], name="source", default="ROM",
+    )
+
+    def execute(self, context):
+        scn = context.scene
+
+        bgi.bg_import(scn.rom_bgs)
+        stpi.setup_import(scn.rom_setups, scn.rom_pads)
+        tiles.bg_loadtiles(scn.rom_tiles)
+
+        return {'FINISHED'}
+
+    def invoke(self, context, event):
+        return context.window_manager.invoke_props_dialog(self, width=300)
+
+    def draw_bg(self, context):
+        scn = context.scene
+
+        box = self.layout.box()
+        row = box.row().split(factor=0.3)
+        row.prop(scn, 'import_bg', text='BG File')
+        row = row.row()
+        row.label(text='Source:')
+        row.prop(scn, 'import_src_bg', expand=True)
+        row.enabled = scn.import_bg
+
+        if scn.import_src_bg == 'ROM':
+            row = box.row()
+            row.prop(scn, 'rom_bgs', text='Level')
+            row.enabled = scn.import_bg
+        else:
+            row = box.row().split(factor=0.9)
+            row.prop(scn, 'file_bg', text='')
+            op = row.operator('pdtools.import_select_file', text='...')
+            op.type = 'BG'
+            row.enabled = scn.import_bg
+
+        box.separator(type='LINE')
+        row = box.row()
+        row.prop(scn, 'level_external_tex', text='Replace Textures')
+        row.enabled = scn.import_bg
+        row = box.row().split(factor=0.9)
+        row.prop(scn, 'external_tex_dir', text='')
+        op = row.operator('pdtools.select_directory', text='...')
+        op.type = 'EXT_TEXTURE'
+        row.enabled = scn.level_external_tex and scn.import_bg
+
+    def draw_pads(self, context):
+        scn = context.scene
+
+        box = self.layout.box()
+        row = box.row().split(factor=0.3)
+        row.prop(scn, 'import_pads', text='Pads')
+        row = row.row()
+        row.label(text='Source:')
+        row.prop(scn, 'import_src_pads', expand=True)
+        row.enabled = scn.import_setup
+
+        if scn.import_src_pads == 'ROM':
+            row = box.row()
+            row.prop(scn, 'rom_pads', text='Level')
+            row.enabled = scn.import_pads
+
+    def draw_tiles(self, context):
+        scn = context.scene
+
+        box = self.layout.box()
+        row = box.row().split(factor=0.3)
+        row.prop(scn, 'import_tiles', text='Tiles')
+        row = row.row()
+        row.label(text='Source:')
+        row.prop(scn, 'import_src_tiles', expand=True)
+        row.enabled = scn.import_tiles
+
+        if scn.import_src_tiles == 'ROM':
+            row = box.row()
+            row.prop(scn, 'rom_tiles', text='Level')
+            row.enabled = scn.import_pads
+
+    def draw_setup(self, context):
+        scn = context.scene
+
+        box = self.layout.box()
+        row = box.row().split(factor=0.3)
+        row.prop(scn, 'import_setup', text='Setup')
+        row = row.row()
+        row.label(text='Source:')
+        row.prop(scn, 'import_src_setup', expand=True)
+        row.enabled = scn.import_setup and scn.import_pads
+        box.enabled = scn.import_pads
+
+        if scn.import_src_setup == 'ROM':
+            row = box.row()
+            row.prop(scn, "rom_setups", text='Level')
+            row.enabled = scn.import_setup
+
+    def draw(self, context):
+        self.draw_bg(context)
+        self.draw_pads(context)
+        self.draw_setup(context)
+        self.draw_tiles(context)
 
 
 class PDTOOLS_OT_RoomSplitByPortal(Operator):
@@ -331,6 +554,7 @@ class PDTOOLS_OT_RoomSelectRoom(Operator):
 BLOCKTYPES = [
     (e, e, e) for e in [pdprops.BLOCKTYPE_DL, pdprops.BLOCKTYPE_BSP]
 ]
+
 class PDTOOLS_OT_RoomCreateBlock(Operator):
     bl_idname = "pdtools.op_room_create_block"
     bl_label = "Create Block"
@@ -1126,6 +1350,8 @@ classes = [
     PDTOOLS_OT_LoadRom,
     PDTOOLS_OT_ImportModelFromROM,
     PDTOOLS_OT_ImportModelFromFile,
+    PDTOOLS_OT_ImportLevel,
+    PDTOOLS_OT_ImportSelectFile,
     PDTOOLS_OT_AssignMtxToVerts,
     PDTOOLS_OT_ExportModel,
     PDTOOLS_OT_SelectVertsUnassignedMtxs,

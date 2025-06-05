@@ -1,29 +1,34 @@
 import bpy
 from bpy.types import PropertyGroup, Panel, UIList, UI_UL_list, Scene, Context
-from bpy.props import IntProperty, StringProperty, BoolProperty, CollectionProperty, BoolVectorProperty
+from bpy.props import IntProperty, StringProperty, BoolProperty, CollectionProperty, BoolVectorProperty, EnumProperty
 
 from pd_blendprops import TILE_FLAGS
 from model_import import MeshLayer
 import pd_addonprefs as pdp
 import pd_blendprops as pdprops
 import pd_utils as pdu
-import pd_ops as pdo
+import pd_ops as pdops
+import bg_import as bgi
 import nodes.nodeutils as ndu
+from pd_ops import levelnames
 
 
-class PDTOOLS_PT_PanelModel(Panel):
-    bl_label = "Model"
+class PDTOOLS_PT_Import(Panel):
+    bl_label = "Import"
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
     bl_category = "PD Tools"
 
     def draw(self, context: Context) -> None:
         self.layout.operator_context = "INVOKE_DEFAULT"
-        row = self.layout.row()
 
         rompath = pdp.pref_get(pdp.PD_PREF_ROMPATH)
         rom_exists = bool(rompath)
 
+        row = self.layout.row()
+        row.operator("pdtools.import_level")
+
+        row = self.layout.row()
         row.enabled = rom_exists
         icon = 'NONE' if rompath else 'ERROR'
         row.operator("pdtools.import_model_rom", icon=icon)
@@ -34,9 +39,7 @@ class PDTOOLS_PT_PanelModel(Panel):
 
         obj = context.object
         row = self.layout.row()
-        # ismodel = pdu.pdtype(obj) == pdprops.PD_OBJTYPE_MODEL
         ismodel = obj is not None and (obj.pd_obj.type & 0xff00) == pdprops.PD_OBJTYPE_MODEL
-        # print(ismodel, obj.pd_obj.type if obj is not None else '-')
         row.enabled = rom_exists and ismodel
         row.operator("pdtools.export_model", text = "Export Model")
 
@@ -258,13 +261,13 @@ class PDTOOLS_PT_RoomTools(Panel):
         row = col.row()
         row = row.split(factor=0.5)
         col = row.column()
-        col.operator(pdo.PDTOOLS_OT_RoomSplitByPortal.bl_idname, text='Split By Portal')
+        col.operator(pdops.PDTOOLS_OT_RoomSplitByPortal.bl_idname, text='Split By Portal')
         portalselected = context.scene.pd_portal is not None
         col.enabled = isroom(bl_obj) and portalselected
         row.prop(scn, 'pd_portal', text='')
 
         row = layout.column()
-        row.operator(pdo.PDTOOLS_OT_RoomSelectAllBlocks.bl_idname, text='Select All Blocks In Room')
+        row.operator(pdops.PDTOOLS_OT_RoomSelectAllBlocks.bl_idname, text='Select All Blocks In Room')
         row.enabled = nsel == 1 and pdtype in [pdprops.PD_OBJTYPE_ROOM, pdprops.PD_OBJTYPE_ROOMBLOCK]
 
 
@@ -605,10 +608,10 @@ class PDTOOLS_PT_SetupLift(Panel):
             if stops[idx]:
                 row = row.split(factor=.9)
                 row.label(text=f'{stops[idx].name}')
-                op = row.operator(pdo.PDTOOLS_OT_SetupLiftRemoveStop.bl_idname, icon='REMOVE', text='')
+                op = row.operator(pdops.PDTOOLS_OT_SetupLiftRemoveStop.bl_idname, icon='REMOVE', text='')
                 op.index = idx
             else:
-                op = row.operator(pdo.PDTOOLS_OT_SetupLiftCreateStop.bl_idname, text='Create')
+                op = row.operator(pdops.PDTOOLS_OT_SetupLiftCreateStop.bl_idname, text='Create')
                 op.index = idx
 
         column.separator(type='LINE')
@@ -672,7 +675,7 @@ class PDModelListItem(PropertyGroup):
 class PDTOOLS_UL_ModelList(UIList):
     #note: only in v4.2+ the filter will update as you type
     filter_name: StringProperty(name="filter_name", options={"TEXTEDIT_UPDATE"})
-    filter_type: bpy.props.EnumProperty(
+    filter_type: EnumProperty(
         items=[("Props", "Props", "Props", 'Props Models', 1),
                ("Guns", "Guns", "Guns", 'Guns Models', 2),
                ("Chars", "Chars", "Chars", 'Character Models', 3)],
@@ -718,7 +721,7 @@ class PDTOOLS_UL_ModelList(UIList):
         return flt_flags, []
 
 classes = [
-    PDTOOLS_PT_PanelModel,
+    PDTOOLS_PT_Import,
     PDTOOLS_PT_Scene,
     PDTOOLS_PT_TileTools,
     PDTOOLS_PT_RoomTools,
@@ -738,6 +741,43 @@ classes = [
     PD_SETUPWAYPOINT_UL_neighbours,
 ]
 
+_classes = [
+    PDTOOLS_PT_Import,
+    PDTOOLS_UL_ModelList,
+    PDModelListItem,
+]
+
+rom_bgs = []
+rom_pads = []
+rom_setups = []
+rom_tiles = []
+
+def items_rom_bgs(scene, context):
+    return rom_bgs
+
+def items_rom_pads(scene, context):
+    return rom_pads
+
+def items_rom_setups(scene, context):
+    return rom_setups
+
+def items_rom_tiles(scene, context):
+    return rom_tiles
+
+ITEMS_IMPORT_SRC = [
+    ('ROM', 'ROM', 'Import From ROM', 'ROM', 1),
+    ('File', 'File', 'Import From File', 'File', 2)
+]
+
+def on_select_bg(self, context):
+    scn = context.scene
+    lvcode = pdu.get_lvcode(scn.rom_bgs)
+    bgname = f'bg_{lvcode}'
+    scn.rom_pads = f'bg_{lvcode}_padsZ'
+    usetup = 'Ump_setup' if bgname in levelnames and levelnames[bgname][2] else 'Usetup'
+    scn.rom_setups = f'{usetup}{lvcode}Z'
+    scn.rom_tiles = f'bg_{lvcode}_tilesZ'
+
 def register():
     for cl in classes:
         bpy.utils.register_class(cl)
@@ -745,6 +785,34 @@ def register():
     Scene.pdmodel_list = CollectionProperty(type=PDModelListItem)
     Scene.pdmodel_listindex = IntProperty(name="ModelList item index", default=0)
     Scene.rompath = StringProperty(name="ROM file path", default='')
+
+    # import source: ROM or File
+    Scene.import_src_bg = EnumProperty(items=ITEMS_IMPORT_SRC, name="src_bg", default="ROM")
+    Scene.import_src_pads = EnumProperty(items=ITEMS_IMPORT_SRC, name="src_pads", default="ROM")
+    Scene.import_src_setup = EnumProperty(items=ITEMS_IMPORT_SRC, name="src_setup", default="ROM")
+    Scene.import_src_tiles = EnumProperty(items=ITEMS_IMPORT_SRC, name="src_tiles", default="ROM")
+
+    # flags to indicate if each component will be imported or not
+    Scene.import_bg = BoolProperty(name='import_bg', default=True, description="")
+    Scene.import_pads = BoolProperty(name='import_pads', default=True, description="")
+    Scene.import_setup = BoolProperty(name='import_setup', default=True, description="")
+    Scene.import_tiles = BoolProperty(name='import_tiles', default=True, description="")
+
+    # list of items from the ROM
+    Scene.rom_bgs = EnumProperty(name='rom_bgs', items=items_rom_bgs, update=on_select_bg)
+    Scene.rom_pads = EnumProperty(name='rom_pads', items=items_rom_pads)
+    Scene.rom_setups = EnumProperty(name='rom_setups', items=items_rom_setups)
+    Scene.rom_tiles = EnumProperty(name='rom_tiles', items=items_rom_tiles)
+
+    # used when importing levels from an external file
+    Scene.file_bg = StringProperty(name='file_bg')
+    Scene.file_pads = StringProperty(name='file_pads')
+    Scene.file_setup = StringProperty(name='file_setup')
+    Scene.file_tiles = StringProperty(name='file_tiles')
+
+    # external textures
+    Scene.level_external_tex = BoolProperty(name='level_external_tex', default=False, description="")
+    Scene.external_tex_dir = StringProperty(name='external_tex_dir', description="")
 
 def unregister():
     for cl in reversed(classes):
