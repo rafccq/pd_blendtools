@@ -56,15 +56,17 @@ def tile_setprops(bl_tile, geo):
     if 'rooms' in scn and roomnum != 0:
         bl_tile.pd_tile.room = scn['rooms'][str(roomnum)]
 
-def bg_loadtiles(lvname):
-    blend_dir = os.path.dirname(bpy.data.filepath)
-    romdata = rom.load(f'{blend_dir}/pd.ntsc-final.z64')
+def tiles_import(romdata):
+    scn = bpy.context.scene
 
-    filename = f'bgdata/{lvname}'
-    tiledata = romdata.filedata(filename)
-    tiledata = PD_BGTiles(tiledata)
+    if scn.import_src_tiles == 'ROM':
+        tilesdata = romdata.filedata(scn.rom_tiles)
+    else:
+        tilesdata = pdu.read_file(scn.file_tiles)
 
-    for idx, geo in enumerate(tiledata.geos):
+    pdtiles = PD_BGTiles(tilesdata)
+
+    for idx, geo in enumerate(pdtiles.geos):
         # print(geo)
         geotype = geo['header']['type']
         if geotype == GEOTYPE_TILE_I:

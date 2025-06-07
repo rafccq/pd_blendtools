@@ -1,6 +1,7 @@
 import os
 from math import pi
 from collections import namedtuple
+import glob
 
 import bpy
 from mathutils import Vector, Euler, Matrix
@@ -8,6 +9,7 @@ from mathutils import Vector, Euler, Matrix
 import pd_materials as pdm
 from pd_setupfile import PD_SetupFile
 import pd_padsfile as pdp
+from pd_padsfile import PD_PadsFile
 from decl_setupfile import *
 from decl_padsfile import *
 from typeinfo import TypeInfo
@@ -77,7 +79,12 @@ def obj_load_model(romdata, modelnum):
 
     modelname = romdata.filenames[filenum]
     # print(f'loadmodel {modelname}')
-    return mdi.import_model(romdata, modelname=modelname)
+    filename = None
+    scn = bpy.context.scene
+    if scn.level_external_models and modelname in scn['external_models']:
+        # print(f"MODEL_REPLACED: {modelname}")
+        filename = f'{scn.external_models_dir}/{modelname}'
+    return mdi.import_model(romdata, modelname=modelname, filename=filename)
 
 def blender_align(obj):
     rot_mat = Euler((pi/2, 0, pi/2)).to_matrix().to_4x4()
@@ -338,21 +345,34 @@ def setup_create_obj(prop, romdata, paddata):
 
     return bl_obj, model
 
-def setup_import(setupname, padsname):
-    blend_dir = os.path.dirname(bpy.data.filepath)
-    romdata = rom.load(f'{blend_dir}/pd.ntsc-final.z64')
+def setup_import(romdata):
+    scn = bpy.context.scene
 
-    setupdata = romdata.filedata(setupname)
-    setupdata = PD_SetupFile(setupdata)
+    if scn.import_src_setup == 'ROM':
+        setupdata = romdata.filedata(scn.rom_setups)
+    else:
+        setupdata = pdu.read_file(scn.file_setup)
 
-    filename = f'bgdata/{padsname}'
-    paddata = romdata.filedata(filename)
-    paddata = pdp.PD_PadsFile(paddata)
+    if scn.import_src_pads == 'ROM':
+        padsdata = romdata.filedata(scn.rom_pads)
+    else:
+        padsdata = pdu.read_file(scn.file_pads)
 
-    import_objects(romdata, setupdata, paddata)
-    import_intro(setupdata.introcmds, paddata)
-    import_waypoints(paddata)
-    import_coverpads(paddata)
+    if scn.level_external_models:
+        path = scn.external_models_dir
+        ext_models = []
+        for filename in glob.iglob(f'{path}/P*'):
+            filename = os.path.basename(filename).split('.')[0]
+            ext_models.append(filename)
+        scn['external_models'] = ext_models
+
+    pdsetup = PD_SetupFile(setupdata)
+    pdpads = pdp.PD_PadsFile(padsdata)
+
+    import_objects(romdata, pdsetup, pdpads)
+    import_intro(pdsetup.introcmds, pdpads)
+    import_waypoints(pdpads)
+    import_coverpads(pdpads)
 
 # these objects have a 'base' struct preceding the obj data
 obj_types1 = [

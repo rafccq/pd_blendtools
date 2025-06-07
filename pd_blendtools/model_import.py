@@ -1,6 +1,7 @@
 import struct
 import os
 from collections import namedtuple
+import glob
 
 import bpy
 import bmesh
@@ -101,15 +102,21 @@ def create_mesh(mesh, tex_configs, meshidx, sub_idx):
         matsetup.optimize_cmds()
 
         # logger.debug(f'face {idx} mat {matsetup.id()}')
-        tc = tex_configs[matsetup.texnum]
+        tc = None
+        if matsetup.texnum in tex_configs:
+            tc = tex_configs[matsetup.texnum]
+        else:
+            print(f'WARNING: No config found for tex {matsetup.texnum:04X}')
 
         matname = matsetup.id()
         mat_idx = obj.data.materials.find(matname)
         # material does not exist, create a new one
         if mat_idx < 0:
             mat_idx = len(obj.data.materials)
-            fmt = tex.TexFormatGbiMapping[tc['format']]
-            use_alpha = matsetup.smode == 1 or pdm.tex_has_alpha(fmt, tc['depth'])
+            use_alpha = False
+            if tc:
+                fmt = tex.TexFormatGbiMapping[tc['format']]
+                use_alpha = matsetup.smode == 1 or pdm.tex_has_alpha(fmt, tc['depth'])
             mat = pdm.material_new(matsetup, use_alpha)
             obj.data.materials.append(mat)
 
@@ -118,7 +125,11 @@ def create_mesh(mesh, tex_configs, meshidx, sub_idx):
         # sets up the verts uv data, colors and matrices
         for loop in face.loops:
             vert = verts[loop.vert.index]
-            uv_sc = (1 / (32 * tc['width']), 1 / (32 * tc['height']))
+
+            uv_sc = (1, 1)
+            if tc:
+                uv_sc = (1 / (32 * tc['width']), 1 / (32 * tc['height']))
+
             uv = (vert.uv[0] * uv_sc[0], vert.uv[1] * uv_sc[1])
             loop[uv_layer].uv = uv
             loop[layer_color] = colors[loop.vert.index]
@@ -474,6 +485,30 @@ def loadimages_embedded(model):
                 'depth': teximg.depth,
             }
 
+def loadimage(texdata, tex_path, texnum):
+    imglib = bpy.data.images
+    imgname = f'{texnum & 0xffffff:04X}.png'
+    texture = tex.tex_load(texdata, tex_path, imgname)
+    img = imglib.load(f'{tex_path}/{imgname}')
+
+    teximg = texture.image
+    img['texinfo'] = {
+        'width': teximg.width,
+        'height': teximg.height,
+        'format': teximg.format,
+        'depth': teximg.depth,
+    }
+
+def loadimages_external(path):
+    addon_path = pdu.addon_path()
+    tex_path = f'{addon_path}/tex'
+
+    for filename in glob.iglob(f'{path}/*.bin'):
+        texdata = pdu.read_file(filename, autodecomp=False)
+        filename = os.path.basename(filename).split('.')[0]
+        texnum = int(filename, 16)
+        loadimage(texdata, tex_path, texnum)
+
 def loadimages(romdata, texnums):
     imglib = bpy.data.images
 
@@ -481,24 +516,19 @@ def loadimages(romdata, texnums):
     tex_path = f'{addon_path}/tex'
 
     for texnum in texnums:
-        if texnum & 0x05000000: continue
+        if texnum & 0x05000000 or texnum > 3503: continue #TODO temp hack
 
         imgname = f'{texnum & 0xffffff:04X}.png'
 
         if imgname not in imglib:
-            texdata = romdata.texturedata(texnum)
-            texture = tex.tex_load(texdata, tex_path, imgname)
-            teximg = texture.image
-            img = imglib.load(f'{tex_path}/{imgname}')
-            img['texinfo'] = {
-                'width': teximg.width,
-                'height': teximg.height,
-                'format': teximg.format,
-                'depth': teximg.depth,
-            }
+            if texnum <= 3503: #TODO temp hack
+                texdata = romdata.texturedata(texnum)
+                loadimage(texdata, tex_path, texnum)
+            else:
+                img = imglib.load(f'{tex_path}/{imgname}')
 
 def loadmodel(romdata, modelname=None, filename=None):
-    modeldata = romdata.filedata(modelname) if modelname else pdu.read_file(filename)
+    modeldata = pdu.read_file(filename) if filename else romdata.filedata(modelname)
     model = PDModel(modeldata)
 
     loadimages(romdata, [tc['texturenum'] for tc in model.texconfigs])

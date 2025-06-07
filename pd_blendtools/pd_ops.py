@@ -268,16 +268,20 @@ class PDTOOLS_OT_SelectDirectory(Operator):
 
     @classmethod
     def description(cls, context, properties):
-        if properties.type == 'EXT_TEXTURE':
+        if properties.type == 'EXT_TEXTURES':
             return 'Directory With Replacement Textures'
+        elif properties.type == 'EXT_MODELS':
+            return 'Directory With Replacement Models'
         else:
             return 'Select Directory'
 
     def execute(self, context):
         scn = context.scene
 
-        if self.type == 'EXT_TEXTURE':
+        if self.type == 'EXT_TEXTURES':
            scn.external_tex_dir = self.directory
+        elif properties.type == 'EXT_MODELS':
+            scn.external_models_dir = self.directory
 
         return {'FINISHED'}
 
@@ -327,8 +331,8 @@ class PDTOOLS_OT_ImportSelectFile(Operator, ImportHelper):
     bl_label = "File"
     bl_description = "Import from an external file"
 
-    filter_glob: bpy.props.StringProperty(default="*.*",)
-    type: StringProperty(name='type', options={'LIBRARY_EDITABLE'})
+    filter_glob: bpy.props.StringProperty(default="*", options={'HIDDEN'})
+    type: StringProperty(name='type', options={'LIBRARY_EDITABLE', 'HIDDEN'})
 
     def execute(self, context):
         self.bl_label = "File"
@@ -403,10 +407,23 @@ class PDTOOLS_OT_ImportLevel(Operator):
 
     def execute(self, context):
         scn = context.scene
+        loadrom = 'ROM' in [scn.import_src_bg, scn.import_src_tiles]
+        blend_dir = os.path.dirname(bpy.data.filepath)
+        rompath = f'{blend_dir}/pd.ntsc-final.z64'
+        romdata = rom.load(rompath) if loadrom else None
 
-        bgi.bg_import(scn.rom_bgs)
-        stpi.setup_import(scn.rom_setups, scn.rom_pads)
-        tiles.bg_loadtiles(scn.rom_tiles)
+        if scn.import_bg:
+            bgi.bg_import(romdata)
+
+        if scn.import_pads and scn.import_setup:
+            # setup always needs the romdata
+            if romdata is None:
+                romdata = rom.load(rompath)
+
+            stpi.setup_import(romdata)
+
+        if scn.import_tiles:
+            tiles.tiles_import(romdata)
 
         return {'FINISHED'}
 
@@ -442,7 +459,7 @@ class PDTOOLS_OT_ImportLevel(Operator):
         row = box.row().split(factor=0.9)
         row.prop(scn, 'external_tex_dir', text='')
         op = row.operator('pdtools.select_directory', text='...')
-        op.type = 'EXT_TEXTURE'
+        op.type = 'EXT_TEXTURES'
         row.enabled = scn.level_external_tex and scn.import_bg
 
     def draw_pads(self, context):
@@ -454,12 +471,52 @@ class PDTOOLS_OT_ImportLevel(Operator):
         row = row.row()
         row.label(text='Source:')
         row.prop(scn, 'import_src_pads', expand=True)
-        row.enabled = scn.import_setup
+        row.enabled = scn.import_pads
 
         if scn.import_src_pads == 'ROM':
             row = box.row()
             row.prop(scn, 'rom_pads', text='Level')
             row.enabled = scn.import_pads
+        else:
+            row = box.row().split(factor=0.9)
+            row.prop(scn, 'file_pads', text='')
+            op = row.operator('pdtools.import_select_file', text='...')
+            op.type = 'pads'
+            row.enabled = scn.import_pads
+
+    def draw_setup(self, context):
+        scn = context.scene
+        enabled = scn.import_setup and scn.import_pads
+
+        box = self.layout.box()
+        row = box.row().split(factor=0.3)
+        row.prop(scn, 'import_setup', text='Setup')
+        row = row.row()
+        row.label(text='Source:')
+        row.prop(scn, 'import_src_setup', expand=True)
+        row.enabled = enabled
+        box.enabled = scn.import_pads
+
+        if scn.import_src_setup == 'ROM':
+            row = box.row()
+            row.prop(scn, "rom_setups", text='Level')
+            row.enabled = enabled
+        else:
+            row = box.row().split(factor=0.9)
+            row.prop(scn, 'file_setup', text='')
+            op = row.operator('pdtools.import_select_file', text='...')
+            op.type = 'setup'
+            row.enabled = scn.import_setup
+
+        box.separator(type='LINE')
+        row = box.row()
+        row.prop(scn, 'level_external_models', text='Replace Models')
+        row.enabled = enabled
+        row = box.row().split(factor=0.9)
+        row.prop(scn, 'external_models_dir', text='')
+        op = row.operator('pdtools.select_directory', text='...')
+        op.type = 'EXT_MODELS'
+        row.enabled = scn.level_external_tex and scn.import_bg
 
     def draw_tiles(self, context):
         scn = context.scene
@@ -475,29 +532,24 @@ class PDTOOLS_OT_ImportLevel(Operator):
         if scn.import_src_tiles == 'ROM':
             row = box.row()
             row.prop(scn, 'rom_tiles', text='Level')
-            row.enabled = scn.import_pads
-
-    def draw_setup(self, context):
-        scn = context.scene
-
-        box = self.layout.box()
-        row = box.row().split(factor=0.3)
-        row.prop(scn, 'import_setup', text='Setup')
-        row = row.row()
-        row.label(text='Source:')
-        row.prop(scn, 'import_src_setup', expand=True)
-        row.enabled = scn.import_setup and scn.import_pads
-        box.enabled = scn.import_pads
-
-        if scn.import_src_setup == 'ROM':
-            row = box.row()
-            row.prop(scn, "rom_setups", text='Level')
-            row.enabled = scn.import_setup
+            row.enabled = scn.import_tiles
+        else:
+            row = box.row().split(factor=0.9)
+            row.prop(scn, 'file_tiles', text='')
+            op = row.operator('pdtools.import_select_file', text='...')
+            op.type = 'tiles'
+            row.enabled = scn.import_tiles
 
     def draw(self, context):
         self.draw_bg(context)
+
+        self.layout.separator(type='SPACE')
         self.draw_pads(context)
+
+        self.layout.separator(type='SPACE')
         self.draw_setup(context)
+
+        self.layout.separator(type='SPACE')
         self.draw_tiles(context)
 
 

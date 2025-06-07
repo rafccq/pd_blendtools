@@ -34,33 +34,38 @@ def bg_import(lvname, roomrange=None):
 
     bg_loadportals(bgdata, roomrange)
 
-def bg_load(lvname, loadimgs = True):
-    print(f'bgload {lvname}')
+def bg_load(romdata):
+    scn = bpy.context.scene
 
-    blend_dir = os.path.dirname(bpy.data.filepath)
-    romdata = rom.load(f'{blend_dir}/pd.ntsc-final.z64')
+    waypoints = scn['waypoints']
+    waypoints.clear()
 
-    filename = f'bgdata/{lvname}.seg'
-    bgdata = romdata.filedata(filename)
-    bgdata = PDBGFile(bgdata)
+    if scn.import_src_bg == 'ROM':
+        bgname = f'bgdata/{scn.rom_bgs}.seg'
+        bgdata = romdata.filedata(bgname)
+    else:
+        bgdata = pdu.read_file(scn.file_bg)
 
-    print('nrooms', len(bgdata.rooms))
+    pdbg = PDBGFile(bgdata)
+
+    print('nrooms', len(pdbg.rooms))
     print('load images')
 
-    if loadimgs:
-        mdi.loadimages(romdata, bgdata.textures)
-    # for texnum in sorted(bgdata.textures):
-    #     print(f'{texnum: 04X}')
-    # print('done')
+    if scn.level_external_tex:
+        mdi.loadimages_external(scn.external_tex_dir)
 
+    # for texnum in sorted(pdbg.textures):
+    #     print(f'tex: {texnum: 04X}')
+
+    mdi.loadimages(romdata, pdbg.textures)
+
+    print('done')
     tex_configs = {}
-    for texnum in bgdata.textures:
+    for texnum in pdbg.textures:
         img = bpy.data.images[f'{texnum:04X}.png']
         tex_configs[texnum] = img['texinfo']
 
-    bpy.context.scene['lvname'] = lvname
-
-    return bgdata, tex_configs
+    return pdbg, tex_configs
 
 def bg_loadroom(room):
     bg_loadrooms(room, room)
@@ -117,11 +122,12 @@ def bg_loadrooms(room_from, room_to):
         TypeInfo.register(name, decl)
 
     scn = bpy.context.scene
-    lvname = scn['lvname']
-    bgdata, tex_configs = bg_load(lvname, loadimgs=False)
-
-    for roomnum in range(room_from, room_to+1):
-        loadroom(bgdata, roomnum, tex_configs)
+    # partial load: not implemented for now, maybe in the future #TODO
+    # lvname = scn['lvname']
+    # bgdata, tex_configs = bg_load(lvname, loadimgs=False)
+    #
+    # for roomnum in range(room_from, room_to+1):
+    #     loadroom(bgdata, roomnum, tex_configs)
 
 def loadroom(bgdata, roomnum, tex_configs):
     print(f'loadroom {roomnum:02X}')
@@ -229,9 +235,10 @@ def _bg_loadlights():
     for name, decl in bgfile_decls.items(): #TMP
         TypeInfo.register(name, decl)
 
-    lvname = bpy.context.scene['lvname']
-    bgdata, _ = bg_load(lvname, False)
-    bg_loadlights(bgdata)
+    # TODO
+    # lvname = bpy.context.scene['lvname']
+    # bgdata, _ = bg_load(lvname, False)
+    # bg_loadlights(bgdata)
 
 def light_center(roompos, points):
     center = [roompos[0], roompos[1], roompos[2]]

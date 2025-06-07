@@ -814,6 +814,10 @@ def register():
     Scene.level_external_tex = BoolProperty(name='level_external_tex', default=False, description="")
     Scene.external_tex_dir = StringProperty(name='external_tex_dir', description="")
 
+    # external models
+    Scene.level_external_models = BoolProperty(name='level_external_models', default=False, description="")
+    Scene.external_models_dir = StringProperty(name='external_models_dir', description="")
+
 def unregister():
     for cl in reversed(classes):
         bpy.utils.unregister_class(cl)

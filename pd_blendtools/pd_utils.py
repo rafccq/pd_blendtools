@@ -161,9 +161,12 @@ def align(addr, alignment):
     m = alignment - 1
     return ((addr + m) | m) ^ m
 
-def read_file(filename):
+def read_file(filename, autodecomp=True):
     with open(filename, 'rb') as fd:
         data = fd.read()
+
+    if autodecomp and data[0:2] == b'\x11\x73':
+        data = zlib.decompress(data[5:], wbits=-15)
 
     return data
 
