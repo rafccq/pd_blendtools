@@ -401,10 +401,6 @@ class PDTOOLS_OT_ImportLevel(Operator):
         scn = context.scene
         return 'Import levels from the ROM or external files'
 
-    source = bpy.props.EnumProperty(
-        items=[("ROM", "File")], name="source", default="ROM",
-    )
-
     def execute(self, context):
         scn = context.scene
         loadrom = 'ROM' in [scn.import_src_bg, scn.import_src_tiles]
