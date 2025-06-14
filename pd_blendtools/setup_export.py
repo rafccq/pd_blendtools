@@ -1,12 +1,9 @@
 import bpy
-from mathutils import Euler, Vector, Matrix
 
 import pd_utils as pdu
-import bg_utils as bgu
 import pd_blendprops as pdprops
-import pd_mtx as mtx
 from decl_setupfile import *
-from bytereader import ByteReader, add_padding
+from bytereader import ByteReader
 from datablock import DataBlock
 from typeinfo import TypeInfo
 import setup_import as stpi
@@ -40,7 +37,7 @@ def export_intro(rd, dataout):
 
     rd.write(dataout, ENDMARKER_INTROCMD, 'u32')
 
-def export(filename):
+def export(filename, compress):
     dataout = bytearray()
     rd = ByteReader(None)
 
@@ -56,7 +53,9 @@ def export(filename):
     header.update(dataout, 'props', ofs_props)
     header.update(dataout, 'intro', ofs_intro)
 
-    dataout = pdu.compress(dataout)
+    if compress:
+        dataout = pdu.compress(dataout)
+
     pdu.write_file(filename, dataout)
 
 def export_objects(rd, dataout):

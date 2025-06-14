@@ -383,7 +383,7 @@ def add_lift_stops(props):
             add_stop(pd_lift.stop3, idx)
             add_stop(pd_lift.stop4, idx)
 
-def export(filename):
+def export(filename, compress):
     get_objs = lambda coll, objtype: [prop for prop in bpy.data.collections[coll].objects if pdu.pdtype(prop) == objtype]
 
     props = get_objs('Props', pdprops.PD_OBJTYPE_PROP)
@@ -441,5 +441,7 @@ def export(filename):
     header.update(dataout, 'waygroupsoffset', ofs_waygroups)
     header.update(dataout, 'coversoffset', ofs_covers)
 
-    dataout = pdu.compress(dataout)
+    if compress:
+        dataout = pdu.compress(dataout)
+
     pdu.write_file(filename, dataout)

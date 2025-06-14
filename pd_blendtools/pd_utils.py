@@ -662,3 +662,7 @@ def get_lvname(lvcode, levelnames, addmp = True):
     # fullname = f'{lvname}{mp} ({bgname})' if lvname else bgname
     fullname = f'{lvname}{mp}' if lvname else ''
     return fullname
+
+def str_remove(src, items):
+    mapping = str.maketrans({c: '' for c in items})
+    return src.translate(mapping)

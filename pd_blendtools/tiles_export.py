@@ -70,7 +70,7 @@ def export_tile(bl_tile, R_inv, floortypes):
 
     return tile
 
-def export(filename):
+def export(filename, compress):
     numrooms = get_numrooms()
     if numrooms == 0: return
 
@@ -117,5 +117,7 @@ def export(filename):
 
     rooms_ofs[roomidx+1].update(dataout, 'ofs', len(dataout))
 
-    dataout = pdu.compress(dataout)
+    if compress:
+        dataout = pdu.compress(dataout)
+
     pdu.write_file(filename, dataout)

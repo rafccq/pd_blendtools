@@ -13,8 +13,8 @@ import nodes.nodeutils as ndu
 from pd_ops import levelnames
 
 
-class PDTOOLS_PT_Import(Panel):
-    bl_label = "Import"
+class PDTOOLS_PT_ImportExport(Panel):
+    bl_label = "Import/Export"
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
     bl_category = "PD Tools"
@@ -37,11 +37,16 @@ class PDTOOLS_PT_Import(Panel):
         row.operator("pdtools.import_model_file")
         row.enabled = rom_exists
 
+        self.layout.separator(type='LINE')
+
         obj = context.object
         row = self.layout.row()
         ismodel = obj is not None and (obj.pd_obj.type & 0xff00) == pdprops.PD_OBJTYPE_MODEL
         row.enabled = rom_exists and ismodel
         row.operator("pdtools.export_model", text = "Export Model")
+
+        row = self.layout.row()
+        row.operator("pdtools.export_level")
 
 
 class PDTOOLS_PT_ModelProps(Panel):
@@ -721,7 +726,7 @@ class PDTOOLS_UL_ModelList(UIList):
         return flt_flags, []
 
 classes = [
-    PDTOOLS_PT_Import,
+    PDTOOLS_PT_ImportExport,
     PDTOOLS_PT_Scene,
     PDTOOLS_PT_TileTools,
     PDTOOLS_PT_RoomTools,
@@ -739,12 +744,6 @@ classes = [
     PDTOOLS_PT_SetupWaypoint,
     PD_SETUPLIFT_UL_interlinks,
     PD_SETUPWAYPOINT_UL_neighbours,
-]
-
-_classes = [
-    PDTOOLS_PT_Import,
-    PDTOOLS_UL_ModelList,
-    PDModelListItem,
 ]
 
 rom_bgs = []
@@ -778,6 +777,29 @@ def on_select_bg(self, context):
     scn.rom_setups = f'{usetup}{lvcode}Z'
     scn.rom_tiles = f'bg_{lvcode}_tilesZ'
 
+def on_update_exportname(self, context):
+    scn = context.scene
+
+    if scn.export_bg:
+        scn.export_file_bg = f'bg_{scn.export_name}.seg'
+
+    if scn.export_pads:
+        scn.export_file_pads = f'bg_{scn.export_name}_padsZ'
+
+    if scn.export_setup:
+        scn.export_file_setup = f'Usetup{scn.export_name}Z'
+
+    if scn.export_tiles:
+        scn.export_file_tiles = f'bg_{scn.export_name}_tilesZ'
+
+FILENAME_EXCLUSIONS = '|\/<>:*?\"'
+
+def name_get(name):
+    val = bpy.context.scene.get(name)
+    return val if val else ''
+
+def name_set(val, name): bpy.context.scene[name] = pdu.str_remove(val, FILENAME_EXCLUSIONS)
+
 def register():
     for cl in classes:
         bpy.utils.register_class(cl)
@@ -793,10 +815,10 @@ def register():
     Scene.import_src_tiles = EnumProperty(items=ITEMS_IMPORT_SRC, name="src_tiles", default="ROM")
 
     # flags to indicate if each component will be imported or not
-    Scene.import_bg = BoolProperty(name='import_bg', default=True, description="")
-    Scene.import_pads = BoolProperty(name='import_pads', default=True, description="")
-    Scene.import_setup = BoolProperty(name='import_setup', default=True, description="")
-    Scene.import_tiles = BoolProperty(name='import_tiles', default=True, description="")
+    Scene.import_bg = BoolProperty(name='import_bg', default=True, description="Import Background File")
+    Scene.import_pads = BoolProperty(name='import_pads', default=True, description="Import Pads File")
+    Scene.import_setup = BoolProperty(name='import_setup', default=True, description="Import Setup File")
+    Scene.import_tiles = BoolProperty(name='import_tiles', default=True, description="Import Tiles File")
 
     # list of items from the ROM
     Scene.rom_bgs = EnumProperty(name='rom_bgs', items=items_rom_bgs, update=on_select_bg)
@@ -809,6 +831,27 @@ def register():
     Scene.file_pads = StringProperty(name='file_pads')
     Scene.file_setup = StringProperty(name='file_setup')
     Scene.file_tiles = StringProperty(name='file_tiles')
+
+    # flags to indicate if each component will be exported or not
+    Scene.export_bg = BoolProperty(name='export_bg', default=True, description="Export Background File")
+    Scene.export_pads = BoolProperty(name='export_pads', default=True, description="Export Pads File")
+    Scene.export_setup = BoolProperty(name='export_setup', default=True, description="Export Setup File")
+    Scene.export_tiles = BoolProperty(name='export_tiles', default=True, description="Export Tiles File")
+
+    Scene.export_dir = StringProperty(name='export_dir', description="Folder To Export To", subtype='DIR_PATH')
+    Scene.export_name = StringProperty(name='export_name', description="Exported Level Name",
+        options={"TEXTEDIT_UPDATE"}, subtype='FILE_NAME', update=on_update_exportname,
+        get=lambda _: name_get('export_name'), set=lambda _, val: name_set(val, 'export_name'))
+    Scene.export_compress = BoolProperty(name='export_compress', default=True, description="Compress Exported Files")
+
+    Scene.export_file_bg = StringProperty(name='export_file_bg',
+        get=lambda _: name_get('export_file_bg'), set=lambda _, val: name_set(val, 'export_file_bg'))
+    Scene.export_file_pads = StringProperty(name='export_file_pads',
+        get=lambda _: name_get('export_file_pads'), set=lambda _, val: name_set(val, 'export_file_pads'))
+    Scene.export_file_setup = StringProperty(name='export_file_setup',
+        get=lambda _: name_get('export_file_setup'), set=lambda _, val: name_set(val, 'export_file_setup'))
+    Scene.export_file_tiles = StringProperty(name='export_file_tiles',
+        get=lambda _: name_get('export_file_tiles'), set=lambda _, val: name_set(val, 'export_file_tiles'))
 
     # external textures
     Scene.level_external_tex = BoolProperty(name='level_external_tex', default=False, description="")

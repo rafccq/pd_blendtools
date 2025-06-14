@@ -397,7 +397,7 @@ def pack_section(dataout, mask = 1):
 
     return header
 
-def export(filename):
+def export(filename, _):
     textures = set()
     gfxdatalens = []
     bboxes = []

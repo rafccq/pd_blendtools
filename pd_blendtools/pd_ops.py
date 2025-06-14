@@ -14,7 +14,11 @@ from mathutils import Vector
 import aud
 
 import romdata as rom
-import pd_export as pde
+import pd_export as mde
+import bg_export as bge
+import pads_export as pde
+import setup_export as stpe
+import tiles_export as tle
 import pd_utils as pdu
 import pd_addonprefs as pda
 import pd_blendprops as pdprops
@@ -158,7 +162,7 @@ class PDTOOLS_OT_ExportModel(Operator, ExportHelper):
         print(f'Export model: {self.filepath}')
         model_obj = pdu.get_model_obj(context.object)
         try:
-            pde.export_model(model_obj, self.filepath)
+            mde.export_model(model_obj, self.filepath)
         except RuntimeError as ex:
             traceback.print_exc()
             pass
@@ -280,7 +284,7 @@ class PDTOOLS_OT_SelectDirectory(Operator):
 
         if self.type == 'EXT_TEXTURES':
            scn.external_tex_dir = self.directory
-        elif properties.type == 'EXT_MODELS':
+        elif self.type == 'EXT_MODELS':
             scn.external_models_dir = self.directory
 
         return {'FINISHED'}
@@ -547,6 +551,74 @@ class PDTOOLS_OT_ImportLevel(Operator):
 
         self.layout.separator(type='SPACE')
         self.draw_tiles(context)
+
+class PDTOOLS_OT_ExportLevel(Operator):
+    bl_idname = "pdtools.export_level"
+    bl_label = "Export Level"
+    bl_description = "Export Level To A File"
+
+    def export(self, scene, module, filename):
+        dir = scene.export_dir
+        sep = os.sep if dir[-1] != os.sep else ''
+        filepath = f'{dir}{sep}{filename}'
+        module.export(filepath, scene.export_compress)
+
+    def execute(self, context):
+        scn = context.scene
+
+        if not scn.export_name or not scn.export_dir:
+            return {'CANCELLED'}
+
+        if scn.export_bg:
+            self.export(scn, bge, scn.export_file_bg)
+
+        if scn.export_pads:
+            self.export(scn, pde, scn.export_file_pads)
+
+        if scn.export_setup:
+            self.export(scn, stpe, scn.export_file_setup)
+
+        if scn.export_tiles:
+            self.export(scn, tle, scn.export_file_tiles)
+
+        return {'FINISHED'}
+
+    def invoke(self, context, event):
+        return context.window_manager.invoke_props_dialog(self, width=300)
+
+    def draw_options(self, context):
+        scn = context.scene
+
+        row = self.layout.row()
+        icon = 'NONE' if scn.export_name else 'ERROR'
+        row.prop(scn, 'export_name', text='Level Name', icon=icon)
+
+        row = self.layout.row()
+        icon = 'NONE' if scn.export_dir else 'ERROR'
+        row.prop(scn, 'export_dir', text='Folder', icon=icon)
+
+        row = self.layout.row()
+        row.prop(scn, 'export_compress', text='Compress Files')
+
+    def draw_file(self, context, prop_name, prop_text, enabled):
+        scn = context.scene
+
+        row = self.layout.row().split(factor=0.3)
+        icon = 'NONE' if scn.export_name else 'ERROR'
+        row.prop(scn, f'export_{prop_name}', text=prop_text)
+        row = row.row()
+        row.prop(scn, f'export_file_{prop_name}', text='', icon=icon)
+        row.enabled = enabled
+
+    def draw(self, context):
+        scn = context.scene
+
+        self.draw_options(context)
+        self.layout.separator(type='LINE')
+        self.draw_file(context, 'bg', 'BG', scn.export_bg)
+        self.draw_file(context, 'pads', 'Pads', scn.export_pads)
+        self.draw_file(context, 'setup', 'Setup', scn.export_setup)
+        self.draw_file(context, 'tiles', 'Tiles', scn.export_tiles)
 
 
 class PDTOOLS_OT_RoomSplitByPortal(Operator):
@@ -1402,6 +1474,7 @@ classes = [
     PDTOOLS_OT_ImportSelectFile,
     PDTOOLS_OT_AssignMtxToVerts,
     PDTOOLS_OT_ExportModel,
+    PDTOOLS_OT_ExportLevel,
     PDTOOLS_OT_SelectVertsUnassignedMtxs,
     PDTOOLS_OT_SelectDirectory,
     PDTOOLS_OT_PortalFindRooms,
