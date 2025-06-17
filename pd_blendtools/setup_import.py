@@ -295,7 +295,7 @@ def setup_create_obj(prop, romdata, paddata):
     flags = prop['flags']
     hasbbox = paddata.pad_hasbbox(padnum)
 
-    modelscale = ModelStates[modelnum].scale if modelnum in ModelStates else 0x1000
+    modelscale = ModelStates[modelnum].scale if modelnum < len(ModelStates) else 0x1000
     pd_prop.modelscale = modelscale
     pd_prop.extrascale = prop['extrascale']
     pd_prop.maxdamage = prop['maxdamage']
@@ -313,7 +313,8 @@ def setup_create_obj(prop, romdata, paddata):
     modelscale *= prop['extrascale'] / (256 * 4096)
 
     rotation = None
-    scale = pdp.Vec3(1, 1, 1) if proptype != OBJTYPE_WEAPON else pdp.Vec3(24, 24, 24)
+    s = modelscale
+    scale = pdp.Vec3(s, s, s) if proptype != OBJTYPE_WEAPON else pdp.Vec3(24, 24, 24)
 
     if flags & OBJFLAG_00000002: # logic from func0f06ab60
         rotation = (pi * 1.5, M_BADPI, 0)
