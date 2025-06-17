@@ -875,7 +875,7 @@ def register():
 
     bpy.types.WindowManager.progress = bpy.props.FloatProperty()
     bpy.types.WindowManager.progress_msg = bpy.props.StringProperty()
-    bpy.types.WindowManager.import_step_msg = bpy.props.IntProperty()
+    bpy.types.WindowManager.import_step = bpy.props.IntProperty()
     bpy.types.WindowManager.import_numsteps = bpy.props.IntProperty()
 
 def unregister():
