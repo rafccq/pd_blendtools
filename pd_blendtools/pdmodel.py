@@ -90,11 +90,15 @@ class PDModel:
 
             rodata = model.find_rodata(node['rodata'])
 
-            pos = rodata['pos']
-            # note: this is for external use so we use little-endian
-            x = struct.unpack('f', pos['x'].to_bytes(4, 'little'))[0]
-            y = struct.unpack('f', pos['y'].to_bytes(4, 'little'))[0]
-            z = struct.unpack('f', pos['z'].to_bytes(4, 'little'))[0]
+            # if rodata and 'pos' not in rodata.fields: return
+
+            x = y = z = 0
+            if nodetype in [NODETYPE_POSITION, NODETYPE_POSITIONHELD]:
+                pos = rodata['pos']
+                # note: this is for external use so we use little-endian
+                x = struct.unpack('f', pos['x'].to_bytes(4, 'little'))[0]
+                y = struct.unpack('f', pos['y'].to_bytes(4, 'little'))[0]
+                z = struct.unpack('f', pos['z'].to_bytes(4, 'little'))[0]
 
             parentaddr = unmask(node['parent'])
             parentmtx = model.get_parent_mtx(parentaddr)
@@ -150,7 +154,7 @@ class PDModel:
         dataout = bytearray()
 
         rd.write_block(dataout, self.modeldef)
-        rd.write_block(dataout, self.modelparts, pad=8)
+        rd.write_block(dataout, self.modelparts)
 
         for texconf in self.texconfigs:
             rd.write_block(dataout, texconf, pad=4)
