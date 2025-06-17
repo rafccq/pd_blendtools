@@ -658,14 +658,14 @@ def import_waypoints(paddata):
             neighbour = block['value']
             if neighbour == 0xffffffff: break
 
-            neighbour_wp = waypoints[neighbour & 0xff]
+            neighbour_wp = waypoints[neighbour & 0x3fff]
             neighbour_item = pd_neighbours.add()
             neighbour_item.name = pdu.waypoint_name(neighbour_wp['padnum'])
             neighbour_item.groupnum = neighbour_wp['groupnum']
-            neighbour_item.id = neighbour & 0xfff
+            neighbour_item.id = neighbour & 0x3fff
 
             idxs = { 0: 0, 0x4000: 1, 0x8000: 2, }
-            edgeidx = idxs[neighbour & 0xff00]
+            edgeidx = idxs[neighbour & 0xc000]
             edge = pdprops.WAYPOINT_EDGETYPES[edgeidx][0]
             neighbour_item.edgetype = edge
 
