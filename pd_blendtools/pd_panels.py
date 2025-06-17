@@ -48,6 +48,16 @@ class PDTOOLS_PT_ImportExport(Panel):
         row = self.layout.row()
         row.operator("pdtools.export_level")
 
+        # draw the progress bar
+        if context.scene.level_loading and bpy.app.version >= (4, 0, 0):
+            row = self.layout.row()
+            row.progress(
+                factor = context.window_manager.progress,
+                type="BAR",
+                text = context.window_manager.progress_msg
+            )
+            row.scale_x = 2
+
 
 class PDTOOLS_PT_ModelProps(Panel):
     bl_label = 'PD Model'
@@ -857,9 +867,16 @@ def register():
     Scene.level_external_tex = BoolProperty(name='level_external_tex', default=False, description="")
     Scene.external_tex_dir = StringProperty(name='external_tex_dir', description="")
 
+    Scene.level_loading = BoolProperty(name='level_loading', default=False)
+
     # external models
     Scene.level_external_models = BoolProperty(name='level_external_models', default=False, description="")
     Scene.external_models_dir = StringProperty(name='external_models_dir', description="")
+
+    bpy.types.WindowManager.progress = bpy.props.FloatProperty()
+    bpy.types.WindowManager.progress_msg = bpy.props.StringProperty()
+    bpy.types.WindowManager.import_step_msg = bpy.props.IntProperty()
+    bpy.types.WindowManager.import_numsteps = bpy.props.IntProperty()
 
 def unregister():
     for cl in reversed(classes):

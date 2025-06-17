@@ -124,11 +124,6 @@ class PD_SetupFile:
             pads = rd.read_block('pads', endmarker=endmarker)
             padstotal += rd.cursor - s
             self.pads.append(pads)
-            addr = path['pads']
-            # log(f'pads {addr:08X}')
-            for i, p in enumerate(pads['pads']):
-                # log(f'  pad {i:02d}: {p:08X}')
-                print(f'  pad {i:02d}: {p:08X}')
 
         log(f'PADS TOTAL: {padstotal}')
 

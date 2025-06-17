@@ -1,3 +1,6 @@
+import time
+from functools import cache
+
 import numpy
 import os
 
@@ -56,18 +59,31 @@ def tile_setprops(bl_tile, geo):
     if 'rooms' in scn and roomnum != 0:
         bl_tile.pd_tile.room = scn['rooms'][str(roomnum)]
 
-def tiles_import(romdata):
+@cache
+def tiledata(romdata):
     scn = bpy.context.scene
-
     if scn.import_src_tiles == 'ROM':
-        tilesdata = romdata.filedata(scn.rom_tiles)
+        tilesdata = romdata.filedata(f'bgdata/{scn.rom_tiles}')
     else:
         tilesdata = pdu.read_file(scn.file_tiles)
 
-    pdtiles = PD_BGTiles(tilesdata)
+    return PD_BGTiles(tilesdata)
 
-    for idx, geo in enumerate(pdtiles.geos):
-        # print(geo)
+def tiles_import(romdata, tilenum, count):
+    pdtiles = tiledata(romdata)
+
+    wm = bpy.context.window_manager
+    stepmsg = pdu.msg_import_step(wm)
+
+    ntiles = len(pdtiles.geos)
+    start = tilenum
+    end = min(tilenum + count, ntiles)
+
+    for tilenum in range(start, end):
+        wm.progress = tilenum / ntiles
+        wm.progress_msg = f'{stepmsg}Loading Tile {tilenum}/{ntiles}...'
+
+        geo = pdtiles.geos[tilenum]
         geotype = geo['header']['type']
         if geotype == GEOTYPE_TILE_I:
             numvtx = geo['header']['numvertices']
@@ -77,7 +93,7 @@ def tiles_import(romdata):
                 x, y, z = [numpy.int16(geoverts[v+k]) for k in range(3)]
                 verts.append((z, x, y))
 
-            basename = f'Tile_{idx:02X}'
+            basename = f'Tile_{tilenum:02X}'
             tilemesh = pdu.mesh_from_verts(verts, f'{basename}_mesh', triangulate=False)
             bl_tile = bpy.data.objects.new(f'{basename}', tilemesh)
             bl_tile['flags'] = geo['header']['flags']
@@ -87,6 +103,8 @@ def tiles_import(romdata):
             bl_tile.show_wire = True
             pdu.add_to_collection(bl_tile, 'Tiles')
             tile_setprops(bl_tile, geo)
+
+    return tilenum == ntiles - 1
 
 def col444_to_RGBA(col):
     r = ((col & 0xf00) >> 8) / 15

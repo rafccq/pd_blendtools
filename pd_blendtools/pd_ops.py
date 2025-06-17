@@ -1,6 +1,7 @@
 import os
 import traceback
 import math
+import time
 
 import bpy
 from bpy.types import Operator, WorkSpaceTool
@@ -33,6 +34,11 @@ import bg_import as bgi
 import setup_import as stpi
 import tiles_import as tiles
 
+
+STEP_BG = 'STEP_BG'
+STEP_SETUP = 'STEP_SETUP'
+STEP_TILES = 'STEP_TILES'
+TILE_BATCH_SIZE = 100
 
 levelnames = {
     'bg_sev':   ('Maian SOS',               0x09, 0),
@@ -399,33 +405,96 @@ class PDTOOLS_OT_ImportModelFromROM(Operator):
 class PDTOOLS_OT_ImportLevel(Operator):
     bl_idname = "pdtools.import_level"
     bl_label = "Import Level"
+    bl_description = 'Import levels from the ROM or external files'
 
-    @classmethod
-    def description(cls, context, properties):
+    current_item = 0
+    romdata = None
+    steps = []
+    all_props = []
+
+    def next_step(self, context):
+        self.steps.pop(0)
+        self.current_item = 0
+        context.window_manager.import_step += 1
+
+    def modal(self, context, event):
         scn = context.scene
-        return 'Import levels from the ROM or external files'
+        if event.type in {'RIGHTMOUSE', 'ESC'}:
+            scn.level_loading = False
+            return {'CANCELLED'}
+
+        if event.type == 'TIMER':
+            if not self.steps:
+                scn.level_loading = False
+                [a.tag_redraw() for a in context.screen.areas]
+                return {'FINISHED'}
+
+            current_step = self.steps[0]
+            if current_step == STEP_BG:
+                done, roomnum = bgi.bg_import(self.romdata, self.current_item, 0.1)
+                self.current_item = roomnum
+                if done:
+                    # print(f'BGIMPORT done {time.time() - self.t_bgload:2.1f}')
+                    self.t_tiles = time.time()
+                    self.t_setup = time.time()
+                    self.next_step(context)
+            elif current_step == STEP_SETUP:
+                # setup always needs the rom loaded, because of the models
+                if self.romdata is None:
+                    self.loadrom()
+
+                romdata, all_props, cur_item = self.romdata, self.all_props, self.current_item
+                done, objnum = stpi.setup_import(romdata, all_props, cur_item, 0.2)
+                self.current_item = objnum
+
+                if done:
+                    dt = time.time() - self.t_setup
+                    # print(f'LOAD_SETUP: {dt:2.1f}')
+                    self.next_step(context)
+            elif current_step == STEP_TILES:
+                done = tiles.tiles_import(self.romdata, self.current_item, TILE_BATCH_SIZE)
+                self.current_item += TILE_BATCH_SIZE
+
+                if done:
+                    dt = time.time() - self.t_tiles
+                    # print(f'LOAD_TILES: {dt:2.1f}')
+                    self.next_step(context)
+
+        return {'PASS_THROUGH'}
+
+    def loadrom(self):
+        blend_dir = os.path.dirname(bpy.data.filepath)
+        rompath = f'{blend_dir}/pd.ntsc-final.z64'
+        self.romdata = rom.load(rompath)
 
     def execute(self, context):
         scn = context.scene
+        self.current_item = 0
+        scn.level_loading = True
+        scn['rooms'] = {}
+        self.t_bgload = time.time()
+        self.t_setup = time.time()
+
         loadrom = 'ROM' in [scn.import_src_bg, scn.import_src_tiles]
-        blend_dir = os.path.dirname(bpy.data.filepath)
-        rompath = f'{blend_dir}/pd.ntsc-final.z64'
-        romdata = rom.load(rompath) if loadrom else None
+        if loadrom:
+            self.loadrom()
 
-        if scn.import_bg:
-            bgi.bg_import(romdata)
+        add_step_if = lambda step, cond: self.steps.append(step) if cond else None
 
-        if scn.import_pads and scn.import_setup:
-            # setup always needs the romdata
-            if romdata is None:
-                romdata = rom.load(rompath)
+        self.steps.clear()
+        self.all_props.clear()
 
-            stpi.setup_import(romdata)
+        add_step_if(STEP_BG, scn.import_bg)
+        add_step_if(STEP_SETUP, scn.import_pads and scn.import_setup)
+        add_step_if(STEP_TILES, scn.import_tiles)
 
-        if scn.import_tiles:
-            tiles.tiles_import(romdata)
+        wm = context.window_manager
+        self._timer = wm.event_timer_add(0.1, window=context.window)
+        wm.modal_handler_add(self)
+        wm.import_step = 1
+        wm.import_numsteps = len(self.steps)
 
-        return {'FINISHED'}
+        return {'RUNNING_MODAL'}
 
     def invoke(self, context, event):
         return context.window_manager.invoke_props_dialog(self, width=300)

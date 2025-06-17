@@ -1,5 +1,7 @@
 import os
+import time
 from math import pi
+from functools import cache
 
 import bpy
 from mathutils import Euler, Vector, Matrix
@@ -17,23 +19,35 @@ import pd_blendprops as pdprops
 def register():
     TypeInfo.register_all(bgfile_decls)
 
-def bg_import(lvname, roomrange=None):
-    scn = bpy.context.scene
-    scn['rooms'] = {}
+def bg_import(romdata, roomnum, duration):
+    bgdata, tex_configs = bg_load(romdata)
 
-    bgdata, tex_configs = bg_load(lvname)
-
-    # room1, room2 = 0x10, 0x37
-    # roomrange = range(room1, room2)
+    # first and last rooms in the file are markers
     nrooms = len(bgdata.rooms) - 2
-    roomrange = range(1, nrooms) if roomrange is None else roomrange
-    # roomrange = range(1, len(bgdata.rooms)-1)
 
-    for roomnum in roomrange:
-        loadroom(bgdata, roomnum, tex_configs)
+    wm = bpy.context.window_manager
+    stepmsg = pdu.msg_import_step(wm)
 
-    bg_loadportals(bgdata, roomrange)
+    # loads rooms until a maximum allocated time of 'duration' is reached
+    dt = 0
+    end = nrooms - 1
+    while dt < duration and roomnum < end:
+        wm.progress = roomnum / nrooms
+        wm.progress_msg = f'{stepmsg}Loading Room {roomnum}/{nrooms}...'
+        t_start = time.time()
+        loadroom(bgdata, roomnum + 1, tex_configs) # roomnum starts at 0 but the actual rooms start at 1
+        dt += time.time() - t_start
+        roomnum += 1
 
+    done = False
+    # when done loading the rooms, load the portals
+    if roomnum == end:
+        bg_loadportals(bgdata, range(1, nrooms))
+        done = True
+
+    return done, roomnum
+
+@cache
 def bg_load(romdata):
     scn = bpy.context.scene
 
@@ -66,9 +80,6 @@ def bg_load(romdata):
         tex_configs[texnum] = img['texinfo']
 
     return pdbg, tex_configs
-
-def bg_loadroom(room):
-    bg_loadrooms(room, room)
 
 def loadportals(roomrange):
     blend_dir = os.path.dirname(bpy.data.filepath)
@@ -103,8 +114,8 @@ def bg_loadportals(bgdata, roomrange):
             M = R @ M
             t = M.translation
             verts_bl.append((round(t.x), round(t.y), round(t.z)))
-            nx, ny, nz = verts_bl[-1]
-            print(f'v {x} {y} {z} ({nx} {ny} {nz})')
+            # nx, ny, nz = verts_bl[-1]
+            # print(f'v {x} {y} {z} ({nx} {ny} {nz})')
 
         basename = f'portal_{portalnum:02X}'
         portalmesh = pdu.mesh_from_verts(verts_bl, f'{basename}_mesh')
@@ -117,20 +128,8 @@ def bg_loadportals(bgdata, roomrange):
         bl_portal.pd_portal.room1 = rooms[str(room1)]
         bl_portal.pd_portal.room2 = rooms[str(room2)]
 
-def bg_loadrooms(room_from, room_to):
-    for name, decl in bgfile_decls.items():
-        TypeInfo.register(name, decl)
-
-    scn = bpy.context.scene
-    # partial load: not implemented for now, maybe in the future #TODO
-    # lvname = scn['lvname']
-    # bgdata, tex_configs = bg_load(lvname, loadimgs=False)
-    #
-    # for roomnum in range(room_from, room_to+1):
-    #     loadroom(bgdata, roomnum, tex_configs)
-
 def loadroom(bgdata, roomnum, tex_configs):
-    print(f'loadroom {roomnum:02X}')
+    # print(f'loadroom {roomnum:02X}')
     room = bgdata.rooms[roomnum]
     gfxdata = room['gfxdata']
 
@@ -151,7 +150,8 @@ def loadroom(bgdata, roomnum, tex_configs):
     idx = bg_create_roomblocks(room, gfxdata['opablocks'], bl_room, bl_room, tex_configs, 'opa', 0)
     bg_create_roomblocks(room, gfxdata['xlublocks'], bl_room, bl_room, tex_configs, 'xlu', idx)
 
-    bpy.context.scene['rooms'][str(roomnum)] = bl_room
+    scn = bpy.context.scene
+    scn['rooms'][str(roomnum)] = bl_room
 
 def get_vec3(pos):
     x = pdu.f32(pos['x'])

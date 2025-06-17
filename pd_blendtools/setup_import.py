@@ -1,7 +1,9 @@
 import os
+import time
 from math import pi
 from collections import namedtuple
 import glob
+from functools import cache
 
 import bpy
 from mathutils import Vector, Euler, Matrix
@@ -203,7 +205,7 @@ def obj_getscale(modelscale, padbbox, bbox, flags):
 
 def setup_create_door(prop, romdata, paddata):
     padnum = prop['base']['pad']
-    print(f"{padnum:02X} {prop['base']['modelnum']:04X}")
+    # print(f"{padnum:02X} {prop['base']['modelnum']:04X}")
     bl_door, model = obj_load_model(romdata, prop['base']['modelnum'])
     bl_door.name = f'door {padnum:02X}'
 
@@ -345,7 +347,8 @@ def setup_create_obj(prop, romdata, paddata):
 
     return bl_obj, model
 
-def setup_import(romdata):
+@cache
+def get_setupdata(romdata):
     scn = bpy.context.scene
 
     if scn.import_src_setup == 'ROM':
@@ -354,11 +357,19 @@ def setup_import(romdata):
         setupdata = pdu.read_file(scn.file_setup)
 
     if scn.import_src_pads == 'ROM':
-        padsdata = romdata.filedata(scn.rom_pads)
+        padsdata = romdata.filedata(f'bgdata/{scn.rom_pads}')
     else:
         padsdata = pdu.read_file(scn.file_pads)
 
-    if scn.level_external_models:
+    pdsetup = PD_SetupFile(setupdata)
+    pdpads = pdp.PD_PadsFile(padsdata)
+
+    return pdsetup, pdpads
+
+def setup_import(romdata, all_props, objnum, duration):
+    scn = bpy.context.scene
+
+    if objnum == 0 and scn.level_external_models:
         path = scn.external_models_dir
         ext_models = []
         for filename in glob.iglob(f'{path}/P*'):
@@ -366,13 +377,16 @@ def setup_import(romdata):
             ext_models.append(filename)
         scn['external_models'] = ext_models
 
-    pdsetup = PD_SetupFile(setupdata)
-    pdpads = pdp.PD_PadsFile(padsdata)
+    pdsetup, pdpads = get_setupdata(romdata)
 
-    import_objects(romdata, pdsetup, pdpads)
-    import_intro(pdsetup.introcmds, pdpads)
-    import_waypoints(pdpads)
-    import_coverpads(pdpads)
+    t = time.time()
+    if objnum == 0:
+        import_intro(pdsetup.introcmds, pdpads)
+        import_waypoints(pdpads)
+        import_coverpads(pdpads)
+        print(f'LOAD_SETUP_INTRO {time.time() - t:2.1f}')
+
+    return import_objects(romdata, pdsetup, pdpads, all_props, objnum, duration)
 
 # these objects have a 'base' struct preceding the obj data
 obj_types1 = [
@@ -398,9 +412,20 @@ obj_types2 = [
     OBJTYPE_SAFE,
 ]
 
-def import_objects(romdata, setupdata, paddata):
-    all_props = []
-    for idx, prop in enumerate(setupdata.props):
+def import_objects(romdata, setupdata, paddata, all_props, objnum, duration):
+    wm = bpy.context.window_manager
+    stepmsg = pdu.msg_import_step(wm)
+
+    dt = 0
+    nobjs = len(setupdata.props)
+
+    while dt < duration and objnum < nobjs:
+        t_start = time.time()
+        wm.progress = objnum / nobjs
+        wm.progress_msg = f'{stepmsg}Loading Object {objnum}/{nobjs}...'
+
+        prop = setupdata.props[objnum]
+
         proptype = prop['_type_']
         # name = OBJ_NAMES[proptype]
         type1 = proptype in obj_types1
@@ -418,6 +443,8 @@ def import_objects(romdata, setupdata, paddata):
             bl_prop, model = setup_create_obj(obj, romdata, paddata)
             if not bl_prop:
                 all_props.append(None)
+                dt += time.time() - t_start
+                objnum += 1
                 continue
 
             objtype = pdprops.PD_OBJTYPE_PROP | proptype
@@ -435,7 +462,14 @@ def import_objects(romdata, setupdata, paddata):
             # to make sure both lists have the same size
             all_props.append(None)
 
-    setup_fix_refs(all_props, setupdata.props)
+        dt += time.time() - t_start
+        objnum += 1
+
+    done = objnum == nobjs
+    if done:
+        setup_fix_refs(all_props, setupdata.props)
+
+    return done, objnum
 
 def init_lift(bl_prop, prop, paddata, model):
     bl_prop.pd_lift.accel = prop['accel'] / 0x10000

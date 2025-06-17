@@ -34,7 +34,7 @@ class PatchBGTiles:
 
         numrooms = rd.read_primitive('u32')
 
-        log(f'numrooms: {numrooms:04X} ({numrooms:03})')
+        # log(f'numrooms: {numrooms:04X} ({numrooms:03})')
 
         for i in range(0, numrooms+1):
             room = rd.read_primitive('u32')

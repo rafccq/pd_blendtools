@@ -35,8 +35,8 @@ class Romdata:
             name = self.filenames[index]
             self.fileoffsets[name] = (offset, endoffset)
 
-    def filedata(self, modelname):
-        ofs = self.fileoffsets[modelname]
+    def filedata(self, filename):
+        ofs = self.fileoffsets[filename]
         data = self.rom[ofs[0]:ofs[1]]
         return pdu.decompress(data) if data[0:2] == b'\x11\x73' else data
 

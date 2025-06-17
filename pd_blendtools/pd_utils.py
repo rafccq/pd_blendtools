@@ -666,3 +666,7 @@ def get_lvname(lvcode, levelnames, addmp = True):
 def str_remove(src, items):
     mapping = str.maketrans({c: '' for c in items})
     return src.translate(mapping)
+
+def msg_import_step(wm):
+    step, nsteps = wm.import_step, wm.import_numsteps
+    return f'({step}/{nsteps}) '
