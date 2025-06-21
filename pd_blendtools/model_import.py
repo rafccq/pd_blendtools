@@ -384,7 +384,25 @@ def create_model_mesh(idx, meshdata, sc, tex_configs, apply_mtx):
 
     return mesh_objs
 
-def create_model_meshes(model, sc, apply_mtx):
+def mesh_merge(mesh_dst, mesh_src):
+    mesh_dst.add_vertices(mesh_src.verts)
+    for idx_tri, tri in enumerate(mesh_src.tris):
+        mesh_dst.add_tri(tri, mesh_src.tri2tex[idx_tri])
+
+def aggregate_mesh(finalmesh, idx, meshdata, apply_mtx):
+    mesh_opa, mesh_xlu, _ = gdl_read_data(meshdata, idx, apply_mtx)
+
+    if finalmesh:
+        mesh_merge(finalmesh, mesh_opa)
+    else:
+        finalmesh = mesh_opa
+
+    if mesh_xlu:
+        mesh_merge(mesh_opa, mesh_xlu)
+
+    return finalmesh
+
+def create_model_meshes(model, sc, apply_mtx, single_mesh):
     tex_configs = {}
     for tc in model.texconfigs:
         texnum = tc['texturenum']
@@ -392,6 +410,7 @@ def create_model_meshes(model, sc, apply_mtx):
 
     idx = 0
     mesh_objs = []
+    finalmesh = None
     for ro in model.rodatas:
         nodetype = ro['_node_type_']
         typeDL1 = nodetype in [0x4, 0x18]
@@ -410,7 +429,7 @@ def create_model_meshes(model, sc, apply_mtx):
             ptr_col = pdu.align(ptr_vtx + rodata['numvertices']*12, 8)
             meshdata = PDMeshData(
                 model.data(rodata['opagdl']),
-                model.data(rodata['xlugdl']) if rodata['xlugdl'] else None, # xlu_gdl
+                model.data(rodata['xlugdl']) if rodata['xlugdl'] else None,
                 ptr_vtx,
                 ptr_col,
                 model.data(ptr_vtx),
@@ -418,13 +437,21 @@ def create_model_meshes(model, sc, apply_mtx):
                 model.matrices
             )
 
-            mesh_obj = create_model_mesh(idx, meshdata, sc, tex_configs, apply_mtx)
-            mesh_objs += mesh_obj
+            if single_mesh:
+                finalmesh = aggregate_mesh(finalmesh, idx, meshdata, apply_mtx)
+            else:
+                mesh_obj = create_model_mesh(idx, meshdata, sc, tex_configs, apply_mtx)
+                mesh_objs += mesh_obj
+
         idx += 1
+
+    if single_mesh:
+        mesh_obj = create_mesh(finalmesh, tex_configs, 0, -1)
+        mesh_objs = [mesh_obj]
 
     return mesh_objs
 
-def import_model(romdata, modelname=None, filename=None):
+def import_model(romdata, single_mesh=False, modelname=None, filename=None):
     logger.debug(f'import model {modelname}')
     model = loadmodeldata(romdata, modelname=modelname, filename=filename)
 
@@ -437,7 +464,7 @@ def import_model(romdata, modelname=None, filename=None):
     props_with_mtx = ['ProofgunZ', 'PgroundgunZ']
     name = modelname if modelname else os.path.basename(filename)
     apply_mtx = name[0] != 'P' or name in props_with_mtx
-    meshes = create_model_meshes(model, sc, apply_mtx)
+    meshes = create_model_meshes(model, sc, apply_mtx, single_mesh)
 
     if len(meshes) > 1:
         model_obj = pdu.new_empty_obj(name, link=False)

@@ -100,16 +100,18 @@ def obj_setup_mtx(obj, look, up, pos, rotation=None, scale=None, flags=None, bbo
 
 
 def obj_load_model(romdata, modelnum):
+    scn = bpy.context.scene
+
     filenum = ModelStates[modelnum].filenum
 
     modelname = romdata.filenames[filenum]
-    # print(f'loadmodel {modelname}')
-    filename = None
-    scn = bpy.context.scene
-    if scn.level_external_models and modelname in scn['external_models']:
-        # print(f"MODEL_REPLACED: {modelname}")
+    load_external = scn.level_external_models and modelname in scn['external_models']
+
+    if load_external:
         filename = f'{scn.external_models_dir}/{modelname}'
-    return mdi.import_model(romdata, modelname=modelname, filename=filename)
+        return mdi.import_model(romdata, single_mesh=True, filename=filename)
+    else:
+        return mdi.import_model(romdata, single_mesh=True, modelname=modelname)
 
 def blender_align(obj):
     rot_mat = Euler((pi/2, 0, pi/2)).to_matrix().to_4x4()
