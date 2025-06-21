@@ -123,9 +123,9 @@ def setup_baseobj(bl_obj, base):
     base['extrascale'] = pd_prop.extrascale
     base['maxdamage'] = pd_prop.maxdamage
     base['floorcol'] = pd_prop.floorcol
-    base['flags']  = pdu.flags_pack(pd_prop.flags1, [e[1] for e in pdprops.flags1])
-    base['flags2'] = pdu.flags_pack(pd_prop.flags2, [e[1] for e in pdprops.flags2])
-    base['flags3'] = pdu.flags_pack(pd_prop.flags3, [e[1] for e in pdprops.flags3])
+    base['flags']  = pdu.flags_pack(pd_prop.flags1, [e[1] for e in pdprops.OBJ_FLAGS1])
+    base['flags2'] = pdu.flags_pack(pd_prop.flags2, [e[1] for e in pdprops.OBJ_FLAGS2])
+    base['flags3'] = pdu.flags_pack(pd_prop.flags3, [e[1] for e in pdprops.OBJ_FLAGS3])
 
 def setup_door(bl_obj, block):
     pd_door = bl_obj.pd_door

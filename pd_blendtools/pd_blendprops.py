@@ -146,8 +146,6 @@ OBJ_TYPES = [
     ('Lift',              'Lift',             6),
 ]
 
-DOOR_SOUNDTYPES_VALUES = { ndu.make_id(e[0]): e[2] for e in DOOR_SOUNDTYPES }
-
 DOOR_FLAGS = [
     ('DOORFLAG_0001',       0x0001),
     ('Windowed',            0x0002),
@@ -229,6 +227,8 @@ DOOR_SOUNDTYPES = [
     ('21 None',                'None',                 0x21),
 ]
 
+DOOR_SOUNDTYPES_VALUES = { ndu.make_id(e[0]): e[2] for e in DOOR_SOUNDTYPES }
+
 pad_flags = [
     ('INTPOS'         , 0x0001),
     ('UPALIGNTOX'     , 0x0002),
@@ -250,7 +250,7 @@ pad_flags = [
     ('20000'          , 0x20000),
 ]
 
-flags1 = [
+OBJ_FLAGS1 = [
     (['Fall'],                  0x00000001),
     (['In Air Rotated 90 Deg Upside-Down'], 0x00000002), # Editor: "In Air Rotated 90 Deg Upside-Down"
     (['Upside Down'],           0x00000004),
@@ -285,7 +285,7 @@ flags1 = [
     (['80000000', 'Chopper Inactive', 'Door Two Way', 'Hover Car Is Hover Bot', 'Lift Check Ceiling', 'Weapon Can Mix Dual'], 0x80000000),
 ]
 
-flags2 = [
+OBJ_FLAGS2 = [
     (['Immune To Anti'],          0x00000001), # Counter-op cannot damage this object
     (['00000002'],                0x00000002), # Ruins spikes
     (['Skip Door Locked Msg'],    0x00000004),
@@ -320,7 +320,7 @@ flags2 = [
     (['Attack Ship Glass', 'Auto Gun Malfunctioning 1', 'Weapon Huge Exp'], 0x80000000),
 ]
 
-flags3 = [
+OBJ_FLAGS3 = [
     (['Grabbable'],             0x00000002),
     (['Door Sticky'],           0x00000004), # eg. Skedar Ruins
     (['00000008'],              0x00000008), # Not used in scripts
@@ -481,7 +481,7 @@ def update_pad_bbox(self, _context):
         pad_bbox = pdp.Bbox(*self.bbox)
         model_bbox = pdp.Bbox(*self.model_bbox)
         modelscale = pd_prop.modelscale * pd_prop.extrascale / (256 * 4096)
-        flags = pdu.flags_pack(pd_prop.flags1, [e[1] for e in flags1])
+        flags = pdu.flags_pack(pd_prop.flags1, [e[1] for e in OBJ_FLAGS1])
         sx, sy, sz = stpi.obj_getscale(modelscale, pad_bbox, model_bbox, flags)
 
     bbox_p = pdp.Bbox(*self.bbox_p)
@@ -526,13 +526,13 @@ class PDObject_SetupBaseObject(PropertyGroup):
         self[f'{propname}_packed'] = f'{flagsval:08X}'
 
     def update_flag1(self, context):
-        self.update_flag(self.flags1, 'flags1', flags1)
+        self.update_flag(self.flags1, 'flags1', OBJ_FLAGS1)
 
     def update_flag2(self, context):
-        self.update_flag(self.flags2, 'flags2', flags2)
+        self.update_flag(self.flags2, 'flags2', OBJ_FLAGS2)
 
     def update_flag3(self, context):
-        self.update_flag(self.flags3, 'flags3', flags3)
+        self.update_flag(self.flags3, 'flags3', OBJ_FLAGS3)
 
     def update_flagpacked(self, context):
         def update_array(array, flags):
@@ -550,9 +550,9 @@ class PDObject_SetupBaseObject(PropertyGroup):
     maxdamage: IntProperty(name='maxdamage', default=0, options={'LIBRARY_EDITABLE'})
     floorcol: IntProperty(name='floorcol', default=0, options={'LIBRARY_EDITABLE'})
 
-    flags1: BoolVectorProperty(name="Flags1", size=len(flags1), default=(False,) * len(flags1), update=update_flag1)
-    flags2: BoolVectorProperty(name="Flags2", size=len(flags2), default=(False,) * len(flags2), update=update_flag2)
-    flags3: BoolVectorProperty(name="Flags3", size=len(flags3), default=(False,) * len(flags3), update=update_flag3)
+    flags1: BoolVectorProperty(name="Flags1", size=len(OBJ_FLAGS1), default=(False,) * len(OBJ_FLAGS1), update=update_flag1)
+    flags2: BoolVectorProperty(name="Flags2", size=len(OBJ_FLAGS2), default=(False,) * len(OBJ_FLAGS2), update=update_flag2)
+    flags3: BoolVectorProperty(name="Flags3", size=len(OBJ_FLAGS3), default=(False,) * len(OBJ_FLAGS3), update=update_flag3)
 
     flags1_packed: StringProperty(name="Flags1_packed", update=update_flagpacked)
     flags2_packed: StringProperty(name="Flags2_packed", update=update_flagpacked)

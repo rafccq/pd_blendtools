@@ -133,9 +133,9 @@ def init_door(bl_door, prop, pad, bbox):
     pd_prop.maxdamage = prop['base']['maxdamage']
     pd_prop.floorcol = prop['base']['floorcol']
 
-    pdu.flags_unpack(pd_prop.flags1, prop['base']['flags'], [e[1] for e in pdprops.flags1])
-    pdu.flags_unpack(pd_prop.flags2, prop['base']['flags2'], [e[1] for e in pdprops.flags2])
-    pdu.flags_unpack(pd_prop.flags3, prop['base']['flags3'], [e[1] for e in pdprops.flags3])
+    pdu.flags_unpack(pd_prop.flags1, prop['base']['flags'], [e[1] for e in pdprops.OBJ_FLAGS1])
+    pdu.flags_unpack(pd_prop.flags2, prop['base']['flags2'], [e[1] for e in pdprops.OBJ_FLAGS2])
+    pdu.flags_unpack(pd_prop.flags3, prop['base']['flags3'], [e[1] for e in pdprops.OBJ_FLAGS3])
 
     # door props
     door_type = ndu.item_from_value(pdprops.DOORTYPES, prop['doortype'])
@@ -326,9 +326,9 @@ def setup_create_obj(prop, romdata, pad):
     pd_prop.extrascale = prop['extrascale']
     pd_prop.maxdamage = prop['maxdamage']
     pd_prop.floorcol = prop['floorcol']
-    pdu.flags_unpack(pd_prop.flags1, prop['flags'], [e[1] for e in pdprops.flags1])
-    pdu.flags_unpack(pd_prop.flags2, prop['flags2'], [e[1] for e in pdprops.flags2])
-    pdu.flags_unpack(pd_prop.flags3, prop['flags3'], [e[1] for e in pdprops.flags3])
+    pdu.flags_unpack(pd_prop.flags1, prop['flags'], [e[1] for e in pdprops.OBJ_FLAGS1])
+    pdu.flags_unpack(pd_prop.flags2, prop['flags2'], [e[1] for e in pdprops.OBJ_FLAGS2])
+    pdu.flags_unpack(pd_prop.flags3, prop['flags3'], [e[1] for e in pdprops.OBJ_FLAGS3])
 
     pd_prop.flags1_packed = f"{prop['flags']:08X}"
     pd_prop.flags2_packed = f"{prop['flags2']:08X}"

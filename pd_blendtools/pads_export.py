@@ -144,7 +144,7 @@ def pad_initial_pos(bl_obj):
     pad_bbox = pdp.Bbox(*pd_pad.bbox)
     model_bbox = pdp.Bbox(*pd_pad.model_bbox)
     modelscale = pd_prop.modelscale * pd_prop.extrascale / (256 * 4096)
-    flags = pdu.flags_pack(pd_prop.flags1, [e[1] for e in pdprops.flags1])
+    flags = pdu.flags_pack(pd_prop.flags1, [e[1] for e in pdprops.OBJ_FLAGS1])
     sx, sy, sz = stpi.obj_getscale(modelscale, pad_bbox, model_bbox, flags)
 
     # invert the rotation caused by FLAG00000002
@@ -169,7 +169,7 @@ def export_pad(bl_obj, padnum, dataout):
     pd_prop = bl_obj.pd_prop
     pd_pad = pd_prop.pad
 
-    flags = pdu.flags_pack(pd_pad.flags, [e[1] for e in pdprops.flags1])
+    flags = pdu.flags_pack(pd_pad.flags, [e[1] for e in pdprops.OBJ_FLAGS1])
 
     padpos, up, look = pad_initial_pos(bl_obj)
     padflags = pad_flags(up, look)

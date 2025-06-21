@@ -1515,13 +1515,13 @@ class PDTOOLS_OT_SetupObjEditFlags(bpy.types.Operator):
 
         row = layout.row()
         col = row.column()
-        grid(pd_obj, col, 'flags1', pdprops.flags1, scn.flags_filter, scn.flags_toggle)
+        grid(pd_obj, col, 'flags1', pdprops.OBJ_FLAGS1, scn.flags_filter, scn.flags_toggle)
 
         col = row.column()
-        grid(pd_obj, col, 'flags2', pdprops.flags2, scn.flags_filter, scn.flags_toggle)
+        grid(pd_obj, col, 'flags2', pdprops.OBJ_FLAGS2, scn.flags_filter, scn.flags_toggle)
 
         col = row.column()
-        grid(pd_obj, col, 'flags3', pdprops.flags3, scn.flags_filter, scn.flags_toggle)
+        grid(pd_obj, col, 'flags3', pdprops.OBJ_FLAGS3, scn.flags_filter, scn.flags_toggle)
 
 
 class PDTOOLS_OT_SetupDoorPlaySound(Operator):
