@@ -426,7 +426,7 @@ def create_model_meshes(model, sc, apply_mtx):
 
 def import_model(romdata, modelname=None, filename=None):
     logger.debug(f'import model {modelname}')
-    model = loadmodel(romdata, modelname=modelname, filename=filename)
+    model = loadmodeldata(romdata, modelname=modelname, filename=filename)
 
     sc = 1
 
@@ -527,7 +527,7 @@ def loadimages(romdata, texnums):
             else:
                 img = imglib.load(f'{tex_path}/{imgname}')
 
-def loadmodel(romdata, modelname=None, filename=None):
+def loadmodeldata(romdata, modelname=None, filename=None):
     modeldata = pdu.read_file(filename) if filename else romdata.filedata(modelname)
     model = PDModel(modeldata)
 
