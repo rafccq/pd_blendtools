@@ -16,6 +16,7 @@ from decl_bgtiles import *
 import pd_padsfile as pdp
 import pd_mtx as mtx
 import bg_utils as bgu
+from filenums import ModelNames_Items, ModelNames
 
 
 PD_OBJTYPE_MODEL        = 0x0100
@@ -35,6 +36,7 @@ PD_PROP_LIFT_STOP       = 0x0c00
 
 #### Setup:Props
 PD_PROP_DOOR            = PD_OBJTYPE_PROP | 0x01
+PD_PROP_STANDARD        = PD_OBJTYPE_PROP | 0x03
 PD_PROP_TINTED_GLASS    = PD_OBJTYPE_PROP | 0x2f
 PD_PROP_LIFT            = PD_OBJTYPE_PROP | 0x30
 #### Setup:Intro Objs
@@ -43,25 +45,15 @@ PD_INTRO_CASE           = PD_OBJTYPE_INTRO | 0x09
 PD_INTRO_CASERESPAWN    = PD_OBJTYPE_INTRO | 0x0a
 PD_INTRO_HILL           = PD_OBJTYPE_INTRO | 0x0b
 
-
-WAYPOINTS_VISIBILITY = [
-    ('All Sets', 'All Sets', 0),
-    ('Selected Set', 'Show Only Links From The Selected Set', 1),
-    ('Isolated Sets', 'Hide Links Connecting Different Sets', 2),
-    ('Selected Waypoint', 'Show Only Links From The Selected Waypoint', 3),
+PD_COLLECTIONS = [
+    'Rooms',
+    'Portals',
+    'Tiles',
+    'Props',
+    'Intro',
+    'Waypoints',
+    'Cover Pads',
 ]
-
-
-class PDObject(PropertyGroup):
-    name: StringProperty(name='name', default='', options={'LIBRARY_EDITABLE'})
-    type: IntProperty(name='type', default=0, options={'LIBRARY_EDITABLE'})
-
-
-class PDObject_Model(PropertyGroup):
-    filename: StringProperty(name='filename', default='', options={'LIBRARY_EDITABLE'})
-    idx: IntProperty(name='idx', default=0, options={'LIBRARY_EDITABLE'})
-    layer: IntProperty(name='layer', default=0, options={'LIBRARY_EDITABLE'})
-
 
 BLOCK_LAYER = [
     ('opa', 'Primary',   'Primary Layer', 0),
@@ -71,67 +63,35 @@ BLOCK_LAYER = [
 BLOCKTYPE_DL = 'Display List'
 BLOCKTYPE_BSP = 'BSP'
 
-blockparent_items = []
 
-def get_blockparent_items(scene, context):
-    bl_roomblock = context.active_object
-    if not bl_roomblock: return []
+WAYPOINTS_VISIBILITY = [
+    ('All Sets', 'All Sets', 0),
+    ('Selected Set', 'Show Only Links From The Selected Set', 1),
+    ('Isolated Sets', 'Hide Links Connecting Different Sets', 2),
+    ('Selected Waypoint', 'Show Only Links From The Selected Waypoint', 3),
+]
 
-    pd_room = bl_roomblock.pd_room
-    bl_room = pd_room.room
+WAYPOINT_EDGETYPES = [
+    ('STD', 'Standard',        'Normal bidirectional connection between waypoints', 'ARROW_LEFTRIGHT',           0x0),
+    ('OWF', 'One Way Forward', 'Can only go from this waypoint to the neighbour',   'FORWARD',                   0x40),
+    ('OWB', 'One Way Blocked', 'Cant go away from this waypoint to the neighbour',  'TRACKING_FORWARDS_SINGLE',  0x80),
+]
 
-    blockparent_items.clear()
-    name = bl_room.name
-    blockparent_items.append((name, name, name))
+WAYPOINT_EDGEVALUES = {
+    item[0]: item[-1] for item in WAYPOINT_EDGETYPES
+}
 
-    bsp_blocks = lambda parent: [b for b in parent.children if b.pd_room.blocktype == BLOCKTYPE_BSP]
+c = 0.6
+WAYPOINT_GROUPCOLORS = {
+    0: (1, 1, 1),
+    1: (c, 0, 0),
+    2: (0, c, 0),
+    3: (0, 0, c),
+    4: (0, c, c),
+    5: (c, 0, c),
+    6: (c, c, 0),
+}
 
-    blocks = bsp_blocks(bl_room)
-    for block in blocks: blocks += bsp_blocks(block)
-
-    for block in blocks:
-        e = block.name
-        blockparent_items.append((e, e, e))
-
-    return blockparent_items
-
-
-# both room and roomblock objects will use this class
-class PDObject_RoomBlock(PropertyGroup):
-    def update_parent(self, _context):
-        bl_block = self.id_data
-        name = self.parent_enum
-        bl_parent = bpy.data.objects[name]
-        layer = bl_parent.pd_room.layer
-        bl_block.parent = bl_parent
-
-        if pdu.pdtype(bl_parent) == PD_OBJTYPE_ROOMBLOCK:
-            bgu.roomblock_changelayer(bl_block, layer)
-
-    roomnum: IntProperty(name='roomnum', default=0, options={'LIBRARY_EDITABLE'})
-
-    blocknum: IntProperty(name='blocknum', default=0, options={'LIBRARY_EDITABLE'})
-    layer: EnumProperty(name="layer", description="Room Layer", items=BLOCK_LAYER)
-    blocktype: StringProperty(name='blocktype', default='', options={'LIBRARY_EDITABLE'})
-    bsp_pos: FloatVectorProperty(name='bsp_pos', default=(0,0,0), subtype='XYZ', options={'LIBRARY_EDITABLE'})
-    bsp_normal: FloatVectorProperty(name='bsp_normal', default=(1,0,0), subtype='DIRECTION', options={'LIBRARY_EDITABLE'})
-    # parent: PointerProperty(name='parent', type=Object, options={'LIBRARY_EDITABLE'})
-    parent_enum: EnumProperty(name="parent_enum", description="Parent Block", items=get_blockparent_items, update=update_parent)
-    room: PointerProperty(name='room', type=Object, options={'LIBRARY_EDITABLE'})
-
-
-def check_isroom(_scene, obj):
-    return pdu.pdtype(obj) == PD_OBJTYPE_ROOM
-
-def check_isportal(_scene, obj):
-    return pdu.pdtype(obj) == PD_OBJTYPE_PORTAL
-
-class PDObject_Portal(PropertyGroup):
-    room1: PointerProperty(name='room1', type=bpy.types.Object, poll=check_isroom, options={'LIBRARY_EDITABLE'})
-    room2: PointerProperty(name='room2', type=bpy.types.Object, poll=check_isroom, options={'LIBRARY_EDITABLE'})
-
-
-# cycle independent params
 TILE_FLOORTYPES = [
     ('Default', 'Default',  0),
     ('Wood', 'Wood',        1),
@@ -176,35 +136,99 @@ TILE_HIGHLIGHT_MODE = [
     ('Room',        'Highlight All Tiles From Room',         5),
 ]
 
+OBJ_TYPES = [
+    ('Standard',          'Standard',         0),
+    ('Door',              'Door',             1),
+    ('Weapon',            'Weapon',           2),
+    ('Multi-Ammo Crate',  'Multi-Ammo Crate', 3),
+    ('Glass',             'Glass',            4),
+    ('Tinted Glass',      'Tinted Glass',     5),
+    ('Lift',              'Lift',             6),
+]
 
-class PDObject_Tile(PropertyGroup):
-    def update_scene_tiles(self, context):
-        src = repr(self)
-        if src.startswith('bpy.data.objects'):
-            if self.room: self.roomnum = self.room.pd_room.roomnum
+DOOR_SOUNDTYPES_VALUES = { ndu.make_id(e[0]): e[2] for e in DOOR_SOUNDTYPES }
 
-            scn = context.scene
-            mode = scn.pd_tile_hilightmode
-            flags = tile_flags(scn.pd_tile_hilight.flags) if mode in ['flags', 'wallfloor'] else None
+DOOR_FLAGS = [
+    ('DOORFLAG_0001',       0x0001),
+    ('Windowed',            0x0002),
+    ('DOORFLAG_0004',       0x0004),
+    ('Flip',                0x0008),
+    ('Automatic',           0x0010),
+    ('DOORFLAG_0020',       0x0020),
+    ('Rotated Pad',         0x0040),
+    ('DOORFLAG_0080',       0x0080),
+    ('DOORFLAG_0100',       0x0100),
+    ('Long Range',          0x0200),
+    ('Damage On Contact',   0x0400),
+    ('Unblockable Open',    0x0800),
+    ('DOORFLAG_4000',       0x4000),
+]
 
-            if context.active_object:
-                tiles.bg_colortile(context.active_object, context, flags, scn.pd_tile_hilight.room)
-        elif src.startswith('bpy.data.scenes'):
-            numaffected = tiles.bg_colortiles(context)
-            msg = f'{numaffected} Tiles Affected'
-            bpy.ops.pdtools.messagebox(msg=msg)
-            # pd_utils.msg_box('Tiles', f'{numaffected} Tiles Affected')
-        else:
-            print(f'WARNING: update_flags() unknown source: {src}')
+DOOR_KEYFLAGS = [
+    ('10000000', 0x80),
+    ('01000000', 0x40),
+    ('00100000', 0x20),
+    ('00010000', 0x10),
+    ('00001000', 0x08),
+    ('00000100', 0x04),
+    ('00000010', 0x02),
+    ('00000001', 0x01),
+]
 
+DOORTYPES = [
+    ('Sliding',     'Sliding', 0x0),
+    ('Flexi1',      'Bunker Flexi Door (GE Only)', 0x1),
+    ('Flexi2',      'Bunker Flexi Door (GE Only)', 0x2),
+    ('Flexi3',      'Bunker Flexi Door (GE Only)', 0x3),
+    ('Vertical',    'Vertical', 0x4),
+    ('Swinging',    'Swinging', 0x5),
+    ('Eye',         'Caverns (GE Only)', 0x6),
+    ('Iris',        'Caverns (GE Only)', 0x7),
+    ('Fallaway',    'Surface Grate And Train Floor Panel (GE Only)', 0x8),
+    ('Aztec Chair', 'Aztec Door Effect', 0x9),
+    ('Hull',        'Attack Ship Windows', 0xa),
+    ('Laser',       'Laser Beam/Barricade', 0xb),
+]
 
-    flags: BoolVectorProperty(name='flags', size=len(TILE_FLAGS), update=update_scene_tiles, options={'LIBRARY_EDITABLE'})
-    floorcol: FloatVectorProperty(name='floorcol', subtype='COLOR', size=4, min=0, max=1, update=update_scene_tiles, options={'LIBRARY_EDITABLE'})
-    floortype: ndu.make_prop('floortype', {'floortype': TILE_FLOORTYPES}, 'default', update_scene_tiles)
-    roomnum: IntProperty(name='roomnum', default=0, options={'LIBRARY_EDITABLE'})
-    room: PointerProperty(name='room', update=update_scene_tiles, type=bpy.types.Object, poll=check_isroom, options={'LIBRARY_EDITABLE'})
+DOORTYPES_VALUES = { ndu.make_id(e[0]): e[2] for e in DOORTYPES }
 
-# ---------------- SETUP OBJECTS ----------------
+DOOR_SOUNDTYPES = [
+    ('00 None',                'None',                 0x00),
+    ('01 Electronic',          'Electronic',           0x01),
+    ('02 Target SFX',          'Target SFX',           0x02),
+    ('03 Hydraulic 1',         'Hydraulic 1',          0x03),
+    ('04 Skedar Ruins',        'Skedar Ruins',         0x04),
+    ('05 Skedar Elevator',     'Skedar Elevator',      0x05),
+    ('06 Wooden',              'Wooden',               0x06),
+    ('07 Target SFX',          'Target SFX',           0x07),
+    ('08 Sliding 1',           'Sliding 1',            0x08),
+    ('09 Wooden (Target SFX)', 'Wooden (Target SFX)',  0x09),
+    ('0A Roller',              'Roller',               0x0a),
+    ('0B Metal',               'Metal',                0x0b),
+    ('0C Target SFX/Latch',    'Target SFX/Latch',     0x0c),
+    ('0D Locker',              'Locker',               0x0d),
+    ('0E Target SFX',          'Target SFX',           0x0e),
+    ('0F Automatic 1',         'Automatic 1',          0x0f),
+    ('10 Stone',               'Stone',                0x10),
+    ('11 Automatic 2',         'Automatic 2',          0x11),
+    ('12 Elevator',            'Elevator',             0x12),
+    ('13 Lift 1',              'Lift 1',               0x13),
+    ('14 Lift 2',              'Lift 2',               0x14),
+    ('15 Lift 3',              'Lift 3',               0x15),
+    ('16 Lift 4',              'Lift 4',               0x16),
+    ('17 Hydraulic 2',         'Hydraulic 2',          0x17),
+    ('18 Blast Door',          'Blast Door',           0x18),
+    ('19 Automatic 1',         'Automatic 1',          0x19),
+    ('1A Lift 5',              'Lift 5',               0x1a),
+    ('1B Lift 6',              'Lift 6',               0x1b),
+    ('1C Sliding 2',           'Sliding 2',            0x1c),
+    ('1D Skedar Ship',         'Skedar Ship',          0x1d),
+    ('1E Blast Door (Alt)',    'Blast Door (Alt)',     0x1e),
+    ('1F Lift 7',              'Lift 7',               0x1f),
+    ('20 Lift 8',              'Lift 8',               0x20),
+    ('21 None',                'None',                 0x21),
+]
+
 pad_flags = [
     ('INTPOS'         , 0x0001),
     ('UPALIGNTOX'     , 0x0002),
@@ -225,47 +249,6 @@ pad_flags = [
     ('10000'          , 0x10000),
     ('20000'          , 0x20000),
 ]
-
-def update_pad_bbox(self, _context):
-    obj = bpy.context.active_object
-    if pdu.pdtype(obj) != PD_OBJTYPE_PROP: return
-
-    proptype = obj.pd_obj.type
-
-    if proptype == PD_PROP_DOOR:
-        padbbox = pdp.Bbox(*self.bbox)
-        bbox = pdp.Bbox(*self.model_bbox)
-        sx = (padbbox.ymax - padbbox.ymin) / (bbox.xmax - bbox.xmin)
-        sy = (padbbox.zmax - padbbox.zmin) / (bbox.ymax - bbox.ymin)
-        sz = (padbbox.xmax - padbbox.xmin) / (bbox.zmax - bbox.zmin)
-
-        if sx <= 0.000001 or sy <= 0.000001 or sz <= 0.000001:
-            sx = sy = sz = 1
-    else:
-        pd_prop = obj.pd_prop
-        pad_bbox = pdp.Bbox(*self.bbox)
-        model_bbox = pdp.Bbox(*self.model_bbox)
-        modelscale = pd_prop.modelscale * pd_prop.extrascale / (256 * 4096)
-        flags = pdu.flags_pack(pd_prop.flags1, [e[1] for e in flags1])
-        sx, sy, sz = stpi.obj_getscale(modelscale, pad_bbox, model_bbox, flags)
-
-    bbox_p = pdp.Bbox(*self.bbox_p)
-    bbox = pdp.Bbox(*self.bbox)
-    R = mtx.rot_doorinv() if proptype == PD_PROP_DOOR else Matrix()
-    center = obj.location
-
-    normal, up, look = mtx.mtx_basis(obj.matrix_world @ R)
-    newpos = pdp.pad_pos(center, bbox_p, look, up, normal)
-    pad = pdp.Pad(newpos, look, up, normal, bbox, None)
-    center = pdp.pad_center(pad)
-    normal, up, look = mtx.mtx_basis(obj.matrix_world)
-    stpi.obj_setup_mtx(obj, look, up, center)
-
-    self.pad_pos = newpos
-    for i, val in enumerate(self.bbox):
-        self.bbox_p[i] = val
-
-    obj.scale = (sx, sy, sz)
 
 flags1 = [
     (['Fall'],                  0x00000001),
@@ -371,6 +354,154 @@ flags3 = [
     (['80000000'],              0x80000000), # Not used in scripts
 ]
 
+
+class PDObject(PropertyGroup):
+    name: StringProperty(name='name', default='', options={'LIBRARY_EDITABLE'})
+    type: IntProperty(name='type', default=0, options={'LIBRARY_EDITABLE'})
+
+
+class PDObject_Model(PropertyGroup):
+    filename: StringProperty(name='filename', default='', options={'LIBRARY_EDITABLE'})
+    idx: IntProperty(name='idx', default=0, options={'LIBRARY_EDITABLE'})
+    layer: IntProperty(name='layer', default=0, options={'LIBRARY_EDITABLE'})
+
+
+blockparent_items = []
+
+def get_blockparent_items(scene, context):
+    bl_roomblock = context.active_object
+    if not bl_roomblock: return []
+
+    pd_room = bl_roomblock.pd_room
+    bl_room = pd_room.room
+
+    blockparent_items.clear()
+    name = bl_room.name
+    blockparent_items.append((name, name, name))
+
+    bsp_blocks = lambda parent: [b for b in parent.children if b.pd_room.blocktype == BLOCKTYPE_BSP]
+
+    blocks = bsp_blocks(bl_room)
+    for block in blocks: blocks += bsp_blocks(block)
+
+    for block in blocks:
+        e = block.name
+        blockparent_items.append((e, e, e))
+
+    return blockparent_items
+
+
+# both room and roomblock objects will use this class
+class PDObject_RoomBlock(PropertyGroup):
+    def update_parent(self, _context):
+        bl_block = self.id_data
+        name = self.parent_enum
+        bl_parent = bpy.data.objects[name]
+        layer = bl_parent.pd_room.layer
+        bl_block.parent = bl_parent
+
+        if pdu.pdtype(bl_parent) == PD_OBJTYPE_ROOMBLOCK:
+            bgu.roomblock_changelayer(bl_block, layer)
+
+    roomnum: IntProperty(name='roomnum', default=0, options={'LIBRARY_EDITABLE'})
+
+    blocknum: IntProperty(name='blocknum', default=0, options={'LIBRARY_EDITABLE'})
+    layer: EnumProperty(name="layer", description="Room Layer", items=BLOCK_LAYER)
+    blocktype: StringProperty(name='blocktype', default='', options={'LIBRARY_EDITABLE'})
+    bsp_pos: FloatVectorProperty(name='bsp_pos', default=(0,0,0), subtype='XYZ', options={'LIBRARY_EDITABLE'})
+    bsp_normal: FloatVectorProperty(name='bsp_normal', default=(1,0,0), subtype='DIRECTION', options={'LIBRARY_EDITABLE'})
+    # parent: PointerProperty(name='parent', type=Object, options={'LIBRARY_EDITABLE'})
+    parent_enum: EnumProperty(name="parent_enum", description="Parent Block", items=get_blockparent_items, update=update_parent)
+    room: PointerProperty(name='room', type=Object, options={'LIBRARY_EDITABLE'})
+
+
+class PDObject_RoomLight(PropertyGroup):
+    roomnum: IntProperty(name='roomnum', default=0, options={'LIBRARY_EDITABLE'})
+    color: FloatVectorProperty(name='color', default=(1,1,1), subtype='COLOR', options={'LIBRARY_EDITABLE'})
+    brightness: FloatProperty(name='brightness', default=0, min=0, options={'LIBRARY_EDITABLE'})
+    brightness_mult: FloatProperty(name='brightness_mult', default=0, min=0, options={'LIBRARY_EDITABLE'})
+    corona_dir: FloatVectorProperty(name='corona_dir', default=(1,0,0), subtype='DIRECTION', options={'LIBRARY_EDITABLE'})
+
+def check_isroom(_scene, obj):
+    return pdu.pdtype(obj) == PD_OBJTYPE_ROOM
+
+def check_isportal(_scene, obj):
+    return pdu.pdtype(obj) == PD_OBJTYPE_PORTAL
+
+class PDObject_Portal(PropertyGroup):
+    room1: PointerProperty(name='room1', type=bpy.types.Object, poll=check_isroom, options={'LIBRARY_EDITABLE'})
+    room2: PointerProperty(name='room2', type=bpy.types.Object, poll=check_isroom, options={'LIBRARY_EDITABLE'})
+
+
+class PDObject_Tile(PropertyGroup):
+    def update_scene_tiles(self, context):
+        src = repr(self)
+        if src.startswith('bpy.data.objects'):
+            if self.room: self.roomnum = self.room.pd_room.roomnum
+
+            scn = context.scene
+            mode = scn.pd_tile_hilightmode
+            flags = tile_flags(scn.pd_tile_hilight.flags) if mode in ['flags', 'wallfloor'] else None
+
+            if context.active_object:
+                tiles.bg_colortile(context.active_object, context, flags, scn.pd_tile_hilight.room)
+        elif src.startswith('bpy.data.scenes'):
+            numaffected = tiles.bg_colortiles(context)
+            msg = f'{numaffected} Tiles Affected'
+            bpy.ops.pdtools.messagebox(msg=msg)
+            # pd_utils.msg_box('Tiles', f'{numaffected} Tiles Affected')
+        else:
+            print(f'WARNING: update_flags() unknown source: {src}')
+
+
+    flags: BoolVectorProperty(name='flags', size=len(TILE_FLAGS), update=update_scene_tiles, options={'LIBRARY_EDITABLE'})
+    floorcol: FloatVectorProperty(name='floorcol', subtype='COLOR', size=4, min=0, max=1, update=update_scene_tiles, options={'LIBRARY_EDITABLE'})
+    floortype: ndu.make_prop('floortype', {'floortype': TILE_FLOORTYPES}, 'default', update_scene_tiles)
+    roomnum: IntProperty(name='roomnum', default=0, options={'LIBRARY_EDITABLE'})
+    room: PointerProperty(name='room', update=update_scene_tiles, type=bpy.types.Object, poll=check_isroom, options={'LIBRARY_EDITABLE'})
+
+# ---------------- SETUP OBJECTS ----------------
+def update_pad_bbox(self, _context):
+    obj = bpy.context.active_object
+    if pdu.pdtype(obj) != PD_OBJTYPE_PROP: return
+
+    proptype = obj.pd_obj.type
+
+    if proptype == PD_PROP_DOOR:
+        padbbox = pdp.Bbox(*self.bbox)
+        bbox = pdp.Bbox(*self.model_bbox)
+        sx = (padbbox.ymax - padbbox.ymin) / (bbox.xmax - bbox.xmin)
+        sy = (padbbox.zmax - padbbox.zmin) / (bbox.ymax - bbox.ymin)
+        sz = (padbbox.xmax - padbbox.xmin) / (bbox.zmax - bbox.zmin)
+
+        if sx <= 0.000001 or sy <= 0.000001 or sz <= 0.000001:
+            sx = sy = sz = 1
+    else:
+        pd_prop = obj.pd_prop
+        pad_bbox = pdp.Bbox(*self.bbox)
+        model_bbox = pdp.Bbox(*self.model_bbox)
+        modelscale = pd_prop.modelscale * pd_prop.extrascale / (256 * 4096)
+        flags = pdu.flags_pack(pd_prop.flags1, [e[1] for e in flags1])
+        sx, sy, sz = stpi.obj_getscale(modelscale, pad_bbox, model_bbox, flags)
+
+    bbox_p = pdp.Bbox(*self.bbox_p)
+    bbox = pdp.Bbox(*self.bbox)
+    R = mtx.rot_doorinv() if proptype == PD_PROP_DOOR else Matrix()
+    center = obj.location
+
+    normal, up, look = mtx.mtx_basis(obj.matrix_world @ R)
+    newpos = pdp.pad_pos(center, bbox_p, look, up, normal)
+    pad = pdp.Pad(newpos, look, up, normal, bbox, None)
+    center = pdp.pad_center(pad)
+    normal, up, look = mtx.mtx_basis(obj.matrix_world)
+    stpi.obj_setup_mtx(obj, look, up, center)
+
+    self.pad_pos = newpos
+    for i, val in enumerate(self.bbox):
+        self.bbox_p[i] = val
+
+    obj.scale = (sx, sy, sz)
+
 class PDObject_PadData(PropertyGroup):
     def update_flag(self, context):
         flagsval = 0
@@ -439,90 +570,6 @@ def check_isdoor(_scene, obj):
     return obj.pd_obj.type == PD_PROP_DOOR
 
 
-DOOR_FLAGS = [
-    ('DOORFLAG_0001',       0x0001),
-    ('Windowed',            0x0002),
-    ('DOORFLAG_0004',       0x0004),
-    ('Flip',                0x0008),
-    ('Automatic',           0x0010),
-    ('DOORFLAG_0020',       0x0020),
-    ('Rotated Pad',         0x0040),
-    ('DOORFLAG_0080',       0x0080),
-    ('DOORFLAG_0100',       0x0100),
-    ('Long Range',          0x0200),
-    ('Damage On Contact',   0x0400),
-    ('Unblockable Open',    0x0800),
-    ('DOORFLAG_4000',       0x4000),
-]
-
-DOOR_KEYFLAGS = [
-    ('10000000', 0x80),
-    ('01000000', 0x40),
-    ('00100000', 0x20),
-    ('00010000', 0x10),
-    ('00001000', 0x08),
-    ('00000100', 0x04),
-    ('00000010', 0x02),
-    ('00000001', 0x01),
-]
-
-DOORTYPES = [
-    ('Sliding',     'Sliding', 0x0),
-    ('Flexi1',      'Bunker Flexi Door (GE Only)', 0x1),
-    ('Flexi2',      'Bunker Flexi Door (GE Only)', 0x2),
-    ('Flexi3',      'Bunker Flexi Door (GE Only)', 0x3),
-    ('Vertical',    'Vertical', 0x4),
-    ('Swinging',    'Swinging', 0x5),
-    ('Eye',         'Caverns (GE Only)', 0x6),
-    ('Iris',        'Caverns (GE Only)', 0x7),
-    ('Fallaway',    'Surface Grate And Train Floor Panel (GE Only)', 0x8),
-    ('Aztec Chair', 'Aztec Door Effect', 0x9),
-    ('Hull',        'Attack Ship Windows', 0xa),
-    ('Laser',       'Laser Beam/Barricade', 0xb),
-]
-
-DOORTYPES_VALUES = { ndu.make_id(e[0]): e[2] for e in DOORTYPES }
-
-DOOR_SOUNDTYPES = [
-    ('00 None',                'None',                 0x00),
-    ('01 Electronic',          'Electronic',           0x01),
-    ('02 Target SFX',          'Target SFX',           0x02),
-    ('03 Hydraulic 1',         'Hydraulic 1',          0x03),
-    ('04 Skedar Ruins',        'Skedar Ruins',         0x04),
-    ('05 Skedar Elevator',     'Skedar Elevator',      0x05),
-    ('06 Wooden',              'Wooden',               0x06),
-    ('07 Target SFX',          'Target SFX',           0x07),
-    ('08 Sliding 1',           'Sliding 1',            0x08),
-    ('09 Wooden (Target SFX)', 'Wooden (Target SFX)',  0x09),
-    ('0A Roller',              'Roller',               0x0a),
-    ('0B Metal',               'Metal',                0x0b),
-    ('0C Target SFX/Latch',    'Target SFX/Latch',     0x0c),
-    ('0D Locker',              'Locker',               0x0d),
-    ('0E Target SFX',          'Target SFX',           0x0e),
-    ('0F Automatic 1',         'Automatic 1',          0x0f),
-    ('10 Stone',               'Stone',                0x10),
-    ('11 Automatic 2',         'Automatic 2',          0x11),
-    ('12 Elevator',            'Elevator',             0x12),
-    ('13 Lift 1',              'Lift 1',               0x13),
-    ('14 Lift 2',              'Lift 2',               0x14),
-    ('15 Lift 3',              'Lift 3',               0x15),
-    ('16 Lift 4',              'Lift 4',               0x16),
-    ('17 Hydraulic 2',         'Hydraulic 2',          0x17),
-    ('18 Blast Door',          'Blast Door',           0x18),
-    ('19 Automatic 1',         'Automatic 1',          0x19),
-    ('1A Lift 5',              'Lift 5',               0x1a),
-    ('1B Lift 6',              'Lift 6',               0x1b),
-    ('1C Sliding 2',           'Sliding 2',            0x1c),
-    ('1D Skedar Ship',         'Skedar Ship',          0x1d),
-    ('1E Blast Door (Alt)',    'Blast Door (Alt)',     0x1e),
-    ('1F Lift 7',              'Lift 7',               0x1f),
-    ('20 Lift 8',              'Lift 8',               0x20),
-    ('21 None',                'None',                 0x21),
-]
-
-DOOR_SOUNDTYPES_VALUES = { ndu.make_id(e[0]): e[2] for e in DOOR_SOUNDTYPES }
-
-
 # objtype 0x01
 class PDObject_SetupDoor(PropertyGroup):
     def update_doorflags(self, context):
@@ -563,16 +610,6 @@ class PDObject_SetupInterlinkObject(PropertyGroup):
     stopnum: IntProperty(name='stopnum', default=0, min=1, max=4, options={'LIBRARY_EDITABLE'})
     pd_obj: bpy.props.PointerProperty(type=PDObject)
 
-
-WAYPOINT_EDGETYPES = [
-    ('STD', 'Standard',        'Normal bidirectional connection between waypoints', 'ARROW_LEFTRIGHT',           0x0),
-    ('OWF', 'One Way Forward', 'Can only go from this waypoint to the neighbour',   'FORWARD',                   0x40),
-    ('OWB', 'One Way Blocked', 'Cant go away from this waypoint to the neighbour',  'TRACKING_FORWARDS_SINGLE',  0x80),
-]
-
-WAYPOINT_EDGEVALUES = {
-    item[0]: item[-1] for item in WAYPOINT_EDGETYPES
-}
 
 class PDObject_SetupWaypointNeighbour(PropertyGroup):
     name: StringProperty(name='name', default='', options={'LIBRARY_EDITABLE'})
@@ -640,31 +677,10 @@ class PDObject_SetupLift(PropertyGroup):
     active_interlink_idx: IntProperty(name='active_interlink_idx', default=0, options={'LIBRARY_EDITABLE'})
 
 
-classes = [
-    PDObject,
-    PDObject_Model,
-    PDObject_RoomBlock,
-    PDObject_Portal,
-    PDObject_Tile,
-    PDObject_PadData,
-    PDObject_SetupBaseObject,
-    PDObject_SetupDoor,
-    PDObject_SetupWeapon,
-    PDObject_SetupTintedGlass,
-    PDObject_SetupInterlinkObject,
-    PDObject_SetupLift,
-    PDObject_SetupWaypointNeighbour,
-    PDObject_SetupWaypoint,
-]
+class PDModelListItem(PropertyGroup):
+    name: StringProperty(name='name')
+    alias: StringProperty(name='alias')
 
-PD_COLLECTIONS = [
-    'Rooms',
-    'Portals',
-    'Tiles',
-    'Props',
-    'Intro',
-    'Waypoints',
-]
 
 def update_scene_vis(self, context):
     for idx, name in enumerate(PD_COLLECTIONS):
@@ -693,9 +709,6 @@ def update_scene_roomgoto(self, _context):
     look = Vector([V[2][i] for i in range(3)])
     region.view_location = room.location - look * region.view_distance
 
-
-vp_shader = gpu.shader.from_builtin('SMOOTH_COLOR')
-
 def collection_vis(coll_name):
     scn = bpy.context.scene
     return scn.collections_vis[PD_COLLECTIONS.index(coll_name)]
@@ -723,17 +736,6 @@ def offset_to_face(p0, p1, d, z):
         ofs = (0, -d, z)
 
     return Vector(ofs)
-
-c = 0.6
-group_colors = {
-    0: (1, 1, 1),
-    1: (c, 0, 0),
-    2: (0, c, 0),
-    3: (0, 0, c),
-    4: (0, c, c),
-    5: (c, 0, c),
-    6: (c, c, 0),
-}
 
 def draw_bsp(bl_obj):
     scn = bpy.context.scene
@@ -845,8 +847,8 @@ def draw_waypoints():
             if wp_vis == VIS_SELECTEDSET and pd_waypoint.groupnum != sel_group: continue
             if wp_vis == VIS_SELECTEDWP and bl_waypoint != bl_obj: continue
             if wp_vis == VIS_ISOLATEDSETS:
-                ncol = len(group_colors)
-                col = group_colors[pd_waypoint.groupnum % ncol]
+                ncol = len(WAYPOINT_GROUPCOLORS)
+                col = WAYPOINT_GROUPCOLORS[pd_waypoint.groupnum % ncol]
                 if neighbour_group != pd_waypoint.groupnum: continue
 
             verts.append(p_src + ofs_src)
@@ -859,6 +861,7 @@ def draw_waypoints():
     if verts_sel:
         drawlines(verts_sel, colors_sel, 3)
 
+vp_shader = gpu.shader.from_builtin('SMOOTH_COLOR')
 def drawlines(verts, colors, w, ontop=False):
     batch = batch_for_shader(
         vp_shader, 'LINES', {'pos': verts, 'color': colors}
@@ -866,6 +869,7 @@ def drawlines(verts, colors, w, ontop=False):
 
     if not ontop:
         gpu.state.depth_test_set('LESS_EQUAL')
+
     gpu.state.line_width_set(w)
     vp_shader.bind()
     batch.draw(vp_shader)
@@ -881,12 +885,90 @@ ENUM_DIRECTIONS = [
     (e, e, e) for e in ['+X', '-X', '+Y', '-Y', '+Z', '-Z']
 ]
 
+def on_select_model(self, context):
+    scn = context.scene
+    scn.pd_modelnames_idx = ModelNames.index(scn.pd_model)
+    # print(scn.pdmodelnames_index, '--', scn.pd_model)
+
+rom_bgs = []
+rom_pads = []
+rom_setups = []
+rom_tiles = []
+
+def items_rom_bgs(scene, context):
+    return rom_bgs
+
+def items_rom_pads(scene, context):
+    return rom_pads
+
+def items_rom_setups(scene, context):
+    return rom_setups
+
+def items_rom_tiles(scene, context):
+    return rom_tiles
+
+ITEMS_IMPORT_SRC = [
+    ('ROM', 'ROM', 'Import From ROM', 'ROM', 1),
+    ('File', 'File', 'Import From File', 'File', 2)
+]
+
+def on_select_bg(self, context):
+    scn = context.scene
+    lvcode = pdu.get_lvcode(scn.rom_bgs)
+    bgname = f'bg_{lvcode}'
+    scn.rom_pads = f'bg_{lvcode}_padsZ'
+    usetup = 'Ump_setup' if bgname in levelnames and levelnames[bgname][2] else 'Usetup'
+    scn.rom_setups = f'{usetup}{lvcode}Z'
+    scn.rom_tiles = f'bg_{lvcode}_tilesZ'
+
+def on_update_exportname(self, context):
+    scn = context.scene
+
+    if scn.export_bg:
+        scn.export_file_bg = f'bg_{scn.export_name}.seg'
+
+    if scn.export_pads:
+        scn.export_file_pads = f'bg_{scn.export_name}_padsZ'
+
+    if scn.export_setup:
+        scn.export_file_setup = f'Usetup{scn.export_name}Z'
+
+    if scn.export_tiles:
+        scn.export_file_tiles = f'bg_{scn.export_name}_tilesZ'
+
+FILENAME_EXCLUSIONS = '|\/<>:*?\"'
+
+def name_get(name):
+    val = bpy.context.scene.get(name)
+    return val if val else ''
+
+def name_set(val, name): bpy.context.scene[name] = pdu.str_remove(val, FILENAME_EXCLUSIONS)
+
+classes = [
+    PDObject,
+    PDObject_Model,
+    PDObject_RoomBlock,
+    PDObject_Portal,
+    PDObject_Tile,
+    PDObject_PadData,
+    PDObject_SetupBaseObject,
+    PDObject_SetupDoor,
+    PDObject_SetupWeapon,
+    PDObject_SetupTintedGlass,
+    PDObject_SetupInterlinkObject,
+    PDObject_SetupLift,
+    PDObject_SetupWaypointNeighbour,
+    PDObject_SetupWaypoint,
+    PDModelListItem,
+]
+
 def register():
     global vp_drawhandler
 
     for cls in classes:
         register_class(cls)
 
+    # object props
     Object.pd_obj = bpy.props.PointerProperty(type=PDObject)
     Object.pd_model = bpy.props.PointerProperty(type=PDObject_Model)
     Object.pd_room = bpy.props.PointerProperty(type=PDObject_RoomBlock)
@@ -913,6 +995,77 @@ def register():
     Scene.flags_toggle = BoolProperty(name="Flags Toggle", default=False, description='Show Flags As Toggle/Checkbox')
     Scene.pd_waypoint_vis = ndu.make_prop('pd_waypoint_vis', {'pd_waypoint_vis': WAYPOINTS_VISIBILITY}, 'allsets', update_scene_wp_vis)
     Scene.pd_bspwidth = IntProperty(name="pd_bspwidth", default=1000, min=1, options={'TEXTEDIT_UPDATE'})
+    Scene.pd_obj_type = ndu.make_prop('pd_obj_type', {'pd_obj_type': OBJ_TYPES}, 'standard')
+
+    Scene.pd_model = EnumProperty(items=ModelNames_Items, update=on_select_model)
+
+    # model files and names list
+    Scene.pd_modelfiles = CollectionProperty(type=PDModelListItem)
+    Scene.pd_modelfiles_idx = IntProperty(name='pd_modelfiles_idx', default=0)
+    Scene.pd_modelnames = CollectionProperty(type=PDModelListItem)
+    Scene.pd_modelnames_idx = IntProperty(name="pd_modelnames_idx", default=0)
+
+    Scene.rompath = StringProperty(name="rompath", default='')
+
+    # import source: ROM or File
+    Scene.import_src_bg = EnumProperty(items=ITEMS_IMPORT_SRC, name="src_bg", default="ROM")
+    Scene.import_src_pads = EnumProperty(items=ITEMS_IMPORT_SRC, name="src_pads", default="ROM")
+    Scene.import_src_setup = EnumProperty(items=ITEMS_IMPORT_SRC, name="src_setup", default="ROM")
+    Scene.import_src_tiles = EnumProperty(items=ITEMS_IMPORT_SRC, name="src_tiles", default="ROM")
+
+    # flags to indicate if each component will be imported or not
+    Scene.import_bg = BoolProperty(name='import_bg', default=True, description="Import Background File")
+    Scene.import_pads = BoolProperty(name='import_pads', default=True, description="Import Pads File")
+    Scene.import_setup = BoolProperty(name='import_setup', default=True, description="Import Setup File")
+    Scene.import_tiles = BoolProperty(name='import_tiles', default=True, description="Import Tiles File")
+
+    # list of items from the ROM
+    Scene.rom_bgs = EnumProperty(name='rom_bgs', items=items_rom_bgs, update=on_select_bg)
+    Scene.rom_pads = EnumProperty(name='rom_pads', items=items_rom_pads)
+    Scene.rom_setups = EnumProperty(name='rom_setups', items=items_rom_setups)
+    Scene.rom_tiles = EnumProperty(name='rom_tiles', items=items_rom_tiles)
+
+    # used when importing levels from an external file
+    Scene.file_bg = StringProperty(name='file_bg')
+    Scene.file_pads = StringProperty(name='file_pads')
+    Scene.file_setup = StringProperty(name='file_setup')
+    Scene.file_tiles = StringProperty(name='file_tiles')
+
+    # flags to indicate if each component will be exported or not
+    Scene.export_bg = BoolProperty(name='export_bg', default=True, description="Export Background File")
+    Scene.export_pads = BoolProperty(name='export_pads', default=True, description="Export Pads File")
+    Scene.export_setup = BoolProperty(name='export_setup', default=True, description="Export Setup File")
+    Scene.export_tiles = BoolProperty(name='export_tiles', default=True, description="Export Tiles File")
+
+    Scene.export_dir = StringProperty(name='export_dir', description="Folder To Export To", subtype='DIR_PATH')
+    Scene.export_name = StringProperty(name='export_name', description="Exported Level Name",
+                                       options={"TEXTEDIT_UPDATE"}, subtype='FILE_NAME', update=on_update_exportname,
+                                       get=lambda _: name_get('export_name'), set=lambda _, val: name_set(val, 'export_name'))
+    Scene.export_compress = BoolProperty(name='export_compress', default=True, description="Compress Exported Files")
+
+    Scene.export_file_bg = StringProperty(name='export_file_bg',
+                                          get=lambda _: name_get('export_file_bg'), set=lambda _, val: name_set(val, 'export_file_bg'))
+    Scene.export_file_pads = StringProperty(name='export_file_pads',
+                                            get=lambda _: name_get('export_file_pads'), set=lambda _, val: name_set(val, 'export_file_pads'))
+    Scene.export_file_setup = StringProperty(name='export_file_setup',
+                                             get=lambda _: name_get('export_file_setup'), set=lambda _, val: name_set(val, 'export_file_setup'))
+    Scene.export_file_tiles = StringProperty(name='export_file_tiles',
+                                             get=lambda _: name_get('export_file_tiles'), set=lambda _, val: name_set(val, 'export_file_tiles'))
+
+    # external textures
+    Scene.level_external_tex = BoolProperty(name='level_external_tex', default=False, description="")
+    Scene.external_tex_dir = StringProperty(name='external_tex_dir', description="")
+
+    Scene.level_loading = BoolProperty(name='level_loading', default=False)
+
+    # external models
+    Scene.level_external_models = BoolProperty(name='level_external_models', default=False, description="")
+    Scene.external_models_dir = StringProperty(name='external_models_dir', description="")
+
+    bpy.types.WindowManager.progress = bpy.props.FloatProperty()
+    bpy.types.WindowManager.progress_msg = bpy.props.StringProperty()
+    bpy.types.WindowManager.import_step = bpy.props.IntProperty()
+    bpy.types.WindowManager.import_numsteps = bpy.props.IntProperty()
 
     vp_drawhandler = SpaceView3D.draw_handler_add(draw_waypoints, (), 'WINDOW', 'POST_VIEW')
 

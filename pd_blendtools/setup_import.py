@@ -11,13 +11,11 @@ from mathutils import Vector, Euler, Matrix
 import pd_materials as pdm
 from pd_setupfile import PD_SetupFile
 import pd_padsfile as pdp
-from pd_padsfile import PD_PadsFile
 from decl_setupfile import *
 from decl_padsfile import *
 from typeinfo import TypeInfo
 import pd_utils as pdu
 import model_import as mdi
-import romdata as rom
 from filenums import ModelStates
 import template_mesh as tmesh
 import pd_blendprops as pdprops
@@ -25,6 +23,31 @@ import nodes.nodeutils as ndu
 
 
 M_BADPI = 3.141092641
+
+# these objects have a 'base' struct preceding the obj data
+obj_types1 = [
+    OBJTYPE_DOOR,
+    OBJTYPE_MULTIAMMOCRATE,
+    OBJTYPE_GLASS,
+    OBJTYPE_LIFT,
+    OBJTYPE_HOVERPROP,
+    OBJTYPE_HOVERCAR,
+    OBJTYPE_HOVERBIKE,
+    OBJTYPE_AMMOCRATE,
+    OBJTYPE_AUTOGUN,
+    OBJTYPE_TINTEDGLASS,
+    OBJTYPE_WEAPON,
+]
+
+obj_types2 = [
+    OBJTYPE_BASIC,
+    OBJTYPE_ALARM,
+    OBJTYPE_DEBRIS,
+    OBJTYPE_GASBOTTLE,
+    OBJTYPE_29,
+    OBJTYPE_SAFE,
+]
+
 
 def register():
     TypeInfo.register_all(setupfile_decls)
@@ -251,9 +274,8 @@ def obj_make_opaque(bl_obj):
     edit_mat(bl_obj)
     for child in bl_obj.children: edit_mat(child)
 
-def setup_create_obj(prop, romdata, paddata):
-    padnum = prop['pad']
-    if padnum == 0xffff:
+def setup_create_obj(prop, romdata, pad):
+    if not pad:
         print(f"TMP: skipping obj with no pad {prop['modelnum']:04X}")
         return None, None
 
@@ -268,6 +290,7 @@ def setup_create_obj(prop, romdata, paddata):
     }
 
     proptype = prop['type']
+    padnum = prop['pad']
     if proptype == OBJTYPE_WEAPON:
         bl_obj = tmesh.create_mesh(f'weapon {padnum:02X}', 'weapon')
         model = None
@@ -290,10 +313,13 @@ def setup_create_obj(prop, romdata, paddata):
     pd_pad.padnum = padnum
     pd_prop.modelnum = modelnum
 
-    fields = PADFIELD_POS | PADFIELD_LOOK | PADFIELD_UP | PADFIELD_NORMAL | PADFIELD_BBOX
-    pad = paddata.pad_unpack(padnum, fields)
+    scn = bpy.context.scene
+
+    # fields = PADFIELD_POS | PADFIELD_LOOK | PADFIELD_UP | PADFIELD_NORMAL | PADFIELD_BBOX
+    # pad = paddata.pad_unpack(padnum, fields)
     flags = prop['flags']
-    hasbbox = paddata.pad_hasbbox(padnum)
+    # hasbbox = paddata.pad_hasbbox(padnum)
+    hasbbox = pdp.pad_hasbbox(pad)
 
     modelscale = ModelStates[modelnum].scale if modelnum < len(ModelStates) else 0x1000
     pd_prop.modelscale = modelscale
@@ -308,7 +334,7 @@ def setup_create_obj(prop, romdata, paddata):
     pd_prop.flags2_packed = f"{prop['flags2']:08X}"
     pd_prop.flags3_packed = f"{prop['flags3']:08X}"
 
-    pad_setprops(bl_obj, paddata, pad, padnum)
+    pad_setprops(bl_obj, pad, padnum)
 
     modelscale *= prop['extrascale'] / (256 * 4096)
 
@@ -346,6 +372,7 @@ def setup_create_obj(prop, romdata, paddata):
         set_bbox(pd_pad.bbox, pad.bbox)
         set_bbox(pd_pad.bbox_p, pad.bbox)
 
+    bl_obj.pd_obj.type = pdprops.PD_OBJTYPE_PROP | proptype
     return bl_obj, model
 
 @cache
@@ -389,30 +416,6 @@ def setup_import(romdata, all_props, objnum, duration):
 
     return import_objects(romdata, pdsetup, pdpads, all_props, objnum, duration)
 
-# these objects have a 'base' struct preceding the obj data
-obj_types1 = [
-    OBJTYPE_DOOR,
-    OBJTYPE_MULTIAMMOCRATE,
-    OBJTYPE_GLASS,
-    OBJTYPE_LIFT,
-    OBJTYPE_HOVERPROP,
-    OBJTYPE_HOVERCAR,
-    OBJTYPE_HOVERBIKE,
-    OBJTYPE_AMMOCRATE,
-    OBJTYPE_AUTOGUN,
-    OBJTYPE_TINTEDGLASS,
-    OBJTYPE_WEAPON,
-]
-
-obj_types2 = [
-    OBJTYPE_BASIC,
-    OBJTYPE_ALARM,
-    OBJTYPE_DEBRIS,
-    OBJTYPE_GASBOTTLE,
-    OBJTYPE_29,
-    OBJTYPE_SAFE,
-]
-
 def import_objects(romdata, setupdata, paddata, all_props, objnum, duration):
     wm = bpy.context.window_manager
     stepmsg = pdu.msg_import_step(wm)
@@ -441,15 +444,15 @@ def import_objects(romdata, setupdata, paddata, all_props, objnum, duration):
             obj = prop['base'] if type1 else prop
 
             # print(f"OBJ1 p {obj['pad']:04X} m {obj['modelnum']:04X}")
-            bl_prop, model = setup_create_obj(obj, romdata, paddata)
+            fields = PADFIELD_POS | PADFIELD_LOOK | PADFIELD_UP | PADFIELD_NORMAL | PADFIELD_BBOX
+            pad = paddata.pad_unpack(obj['pad'], fields)
+            bl_prop, model = setup_create_obj(obj, romdata, pad)
             if not bl_prop:
                 all_props.append(None)
                 dt += time.time() - t_start
                 objnum += 1
                 continue
 
-            objtype = pdprops.PD_OBJTYPE_PROP | proptype
-            bl_prop.pd_obj.type = objtype
             if proptype == OBJTYPE_LIFT:
                 # pad = paddata.pad_unpack(padnum, PADFIELD_POS | PADFIELD_BBOX)
                 init_lift(bl_prop, prop, paddata, model)
@@ -590,9 +593,9 @@ def import_intro(introcmds, paddata):
         name = cfg.name
         pdtype = cfg.pdtype
         pad = paddata.pad_unpack(padnum, PADFIELD_POS | PADFIELD_LOOK | PADFIELD_UP)
-        create_intro_obj(name, pad, paddata, padnum, pdtype)
+        create_intro_obj(name, pad, padnum, pdtype)
 
-def create_intro_obj(name, pad, paddata, padnum, objtype, sc=16):
+def create_intro_obj(name, pad, padnum, objtype, sc=16):
     meshname = name.lower()
     name = f'{name}_{padnum:02X}'
     intro_obj = tmesh.create_mesh(name, meshname)
@@ -605,16 +608,16 @@ def create_intro_obj(name, pad, paddata, padnum, objtype, sc=16):
     intro_obj.rotation_euler[2] -= pi/2
 
     intro_obj.pd_obj.type = objtype
-    pad_setprops(intro_obj, paddata, pad, padnum)
+    pad_setprops(intro_obj, pad, padnum)
 
 
-def pad_setprops(bl_obj, paddata, pad, padnum):
+def pad_setprops(bl_obj, pad, padnum):
     pd_pad = bl_obj.pd_prop.pad
     pd_pad.padnum = padnum
-    pd_pad.hasbbox = paddata.pad_hasbbox(padnum)
+    pd_pad.hasbbox = pdp.pad_hasbbox(pad)
     pd_pad.room = pdp.pad_room(pad)
     pd_pad.lift = pdp.pad_lift(pad)
-    padflags = paddata.pad_flags(padnum)
+    padflags = pdp.pad_flags(pad)
 
     # we need to clear these flags because they will be automatically set on export
     padflags &= ~PADFLAG_UPALIGNTOX
@@ -652,7 +655,7 @@ def import_waypoints(paddata):
         pd_waypoint = bl_waypoint.pd_waypoint
         bl_waypoint.pd_prop.pad.padnum = padnum  # TODO TMP
 
-        pad_setprops(bl_waypoint, paddata, pad, padnum)
+        pad_setprops(bl_waypoint, pad, padnum)
 
         pd_neighbours = pd_waypoint.neighbours_coll
         for block in wp['neighbours_list']:

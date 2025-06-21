@@ -286,6 +286,47 @@ class PDTOOLS_PT_RoomTools(Panel):
         row.enabled = nsel == 1 and pdtype in [pdprops.PD_OBJTYPE_ROOM, pdprops.PD_OBJTYPE_ROOMBLOCK]
 
 
+class PDTOOLS_PT_SetupObjectTools(Panel):
+    bl_label = 'Object Tools'
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_category = "PD Tools"
+
+    def draw(self, context):
+        scn = context.scene
+        layout = self.layout
+
+        box = layout.box()
+        box.label(text='Create Object')
+        box.prop(scn, 'pd_obj_type', text='Type')
+
+        if not scn.pd_modelnames:
+            box.label(text='No ROM Loaded', icon='ERROR')
+            return
+
+        has_model = ['standard', 'door', 'glass', 'tinted_glass']
+        if scn.pd_obj_type in has_model:
+            box2 = box.box()
+            box2.label(text=f'Model: {scn.pd_model[:4]}')
+            row = box2.row().split(factor=0.9)
+            model = scn.pd_model
+            item = scn.pd_modelnames[scn.pd_modelnames_idx]
+
+            row.prop(scn, 'pd_model', text='')
+            op = row.operator('pdtools.select_model', text='...')
+            # box.separator(type='LINE')
+
+        ops = bpy.context.window.modal_operators
+        if 'PDTOOLS_OT_op_setup_object_create' in ops:
+            box2 = box.box()
+            box.alignment = 'CENTER'
+            box.scale_x = 2.0
+            box2.label(text='', icon='INFO')
+            box2.label(text='Click to create. Right click/ESC to end.')
+        else:
+            box.operator('pdtools.op_setup_object_create')
+
+
 class PDTOOLS_PT_SetupDoorFlags(bpy.types.Panel):
     bl_label       = "Door Flags"
     bl_space_type  = "VIEW_3D"
@@ -683,11 +724,12 @@ class PDTOOLS_PT_Scene(Panel):
 
 
 class PDModelListItem(PropertyGroup):
-    filename: StringProperty(name='filename')
-    alias: StringProperty(name='alias')
+    modelname: StringProperty(name='modelname')
 
 
-class PDTOOLS_UL_ModelList(UIList):
+class PDTOOLS_UL_ListModels(UIList):
+    bl_idname = "pdtools.list_models"
+
     #note: only in v4.2+ the filter will update as you type
     filter_name: StringProperty(name="filter_name", options={"TEXTEDIT_UPDATE"})
     filter_type: EnumProperty(
@@ -701,7 +743,7 @@ class PDTOOLS_UL_ModelList(UIList):
 
     def draw_item(self, _context, layout, _data, item, icon, _active_data, _active_propname):
         if self.layout_type in {'DEFAULT', 'COMPACT'}:
-            text = item.filename
+            text = item.name
             if item.alias: text += f' ({item.alias})'
             layout.label(text=text, translate=False, icon_value=icon)
         elif self.layout_type == 'GRID':
@@ -711,10 +753,12 @@ class PDTOOLS_UL_ModelList(UIList):
     def draw_filter(self, _context, layout):
         row = layout.row(align=True)
         row.prop(self, "filter_name", text="Filter", icon="VIEWZOOM")
-        row = layout.row(align=True)
-        row.prop(self, "filter_type", expand=True)
 
-    def filter_items(self, _context, data, prop):
+        if self['dofilter']:
+            row = layout.row(align=True)
+            row.prop(self, "filter_type", expand=True)
+
+    def filter_items(self, context, data, prop):
         items = getattr(data, prop)
         if not len(items):
             return [], []
@@ -724,14 +768,18 @@ class PDTOOLS_UL_ModelList(UIList):
                 self.filter_name,
                 self.bitflag_filter_item,
                 items,
-                propname="filename")
+                propname="name")
         else:
             flt_flags = [self.bitflag_filter_item] * len(items)
 
-        for idx, item in enumerate(items):
-            name = item.filename
-            f_type = flt_flags[idx] if name[0] == self.filter_type[0] else 0
-            flt_flags[idx] &= f_type
+        # annoyingly, for some reason context_pointer_set is not working here
+        # so we manually set this dofilter prop to determine whether or not to show the extra filters
+        self['dofilter'] = prop in ['pd_modelfiles']
+        if self['dofilter']:
+            for idx, item in enumerate(items):
+                name = item.name
+                f_type = flt_flags[idx] if name[0] == self.filter_type[0] else 0
+                flt_flags[idx] &= f_type
 
         return flt_flags, []
 
@@ -741,149 +789,31 @@ classes = [
     PDTOOLS_PT_TileTools,
     PDTOOLS_PT_RoomTools,
     PDTOOLS_PT_WaypointTools,
-    PDTOOLS_UL_ModelList,
+    PDTOOLS_PT_SetupObjectTools,
     PDTOOLS_PT_Room,
     PDTOOLS_PT_Portal,
     PDTOOLS_PT_Tile,
-    PDModelListItem,
     PDTOOLS_PT_SetupDoor,
     PDTOOLS_PT_SetupDoorFlags,
     PDTOOLS_PT_SetupDoorSound,
     PDTOOLS_PT_SetupTintedGlass,
     PDTOOLS_PT_SetupLift,
     PDTOOLS_PT_SetupWaypoint,
+    PDTOOLS_UL_ListModels,
     PD_SETUPLIFT_UL_interlinks,
     PD_SETUPWAYPOINT_UL_neighbours,
 ]
-
-rom_bgs = []
-rom_pads = []
-rom_setups = []
-rom_tiles = []
-
-def items_rom_bgs(scene, context):
-    return rom_bgs
-
-def items_rom_pads(scene, context):
-    return rom_pads
-
-def items_rom_setups(scene, context):
-    return rom_setups
-
-def items_rom_tiles(scene, context):
-    return rom_tiles
-
-ITEMS_IMPORT_SRC = [
-    ('ROM', 'ROM', 'Import From ROM', 'ROM', 1),
-    ('File', 'File', 'Import From File', 'File', 2)
-]
-
-def on_select_bg(self, context):
-    scn = context.scene
-    lvcode = pdu.get_lvcode(scn.rom_bgs)
-    bgname = f'bg_{lvcode}'
-    scn.rom_pads = f'bg_{lvcode}_padsZ'
-    usetup = 'Ump_setup' if bgname in levelnames and levelnames[bgname][2] else 'Usetup'
-    scn.rom_setups = f'{usetup}{lvcode}Z'
-    scn.rom_tiles = f'bg_{lvcode}_tilesZ'
-
-def on_update_exportname(self, context):
-    scn = context.scene
-
-    if scn.export_bg:
-        scn.export_file_bg = f'bg_{scn.export_name}.seg'
-
-    if scn.export_pads:
-        scn.export_file_pads = f'bg_{scn.export_name}_padsZ'
-
-    if scn.export_setup:
-        scn.export_file_setup = f'Usetup{scn.export_name}Z'
-
-    if scn.export_tiles:
-        scn.export_file_tiles = f'bg_{scn.export_name}_tilesZ'
-
-FILENAME_EXCLUSIONS = '|\/<>:*?\"'
-
-def name_get(name):
-    val = bpy.context.scene.get(name)
-    return val if val else ''
-
-def name_set(val, name): bpy.context.scene[name] = pdu.str_remove(val, FILENAME_EXCLUSIONS)
 
 def register():
     for cl in classes:
         bpy.utils.register_class(cl)
 
-    Scene.pdmodel_list = CollectionProperty(type=PDModelListItem)
-    Scene.pdmodel_listindex = IntProperty(name="ModelList item index", default=0)
-    Scene.rompath = StringProperty(name="ROM file path", default='')
-
-    # import source: ROM or File
-    Scene.import_src_bg = EnumProperty(items=ITEMS_IMPORT_SRC, name="src_bg", default="ROM")
-    Scene.import_src_pads = EnumProperty(items=ITEMS_IMPORT_SRC, name="src_pads", default="ROM")
-    Scene.import_src_setup = EnumProperty(items=ITEMS_IMPORT_SRC, name="src_setup", default="ROM")
-    Scene.import_src_tiles = EnumProperty(items=ITEMS_IMPORT_SRC, name="src_tiles", default="ROM")
-
-    # flags to indicate if each component will be imported or not
-    Scene.import_bg = BoolProperty(name='import_bg', default=True, description="Import Background File")
-    Scene.import_pads = BoolProperty(name='import_pads', default=True, description="Import Pads File")
-    Scene.import_setup = BoolProperty(name='import_setup', default=True, description="Import Setup File")
-    Scene.import_tiles = BoolProperty(name='import_tiles', default=True, description="Import Tiles File")
-
-    # list of items from the ROM
-    Scene.rom_bgs = EnumProperty(name='rom_bgs', items=items_rom_bgs, update=on_select_bg)
-    Scene.rom_pads = EnumProperty(name='rom_pads', items=items_rom_pads)
-    Scene.rom_setups = EnumProperty(name='rom_setups', items=items_rom_setups)
-    Scene.rom_tiles = EnumProperty(name='rom_tiles', items=items_rom_tiles)
-
-    # used when importing levels from an external file
-    Scene.file_bg = StringProperty(name='file_bg')
-    Scene.file_pads = StringProperty(name='file_pads')
-    Scene.file_setup = StringProperty(name='file_setup')
-    Scene.file_tiles = StringProperty(name='file_tiles')
-
-    # flags to indicate if each component will be exported or not
-    Scene.export_bg = BoolProperty(name='export_bg', default=True, description="Export Background File")
-    Scene.export_pads = BoolProperty(name='export_pads', default=True, description="Export Pads File")
-    Scene.export_setup = BoolProperty(name='export_setup', default=True, description="Export Setup File")
-    Scene.export_tiles = BoolProperty(name='export_tiles', default=True, description="Export Tiles File")
-
-    Scene.export_dir = StringProperty(name='export_dir', description="Folder To Export To", subtype='DIR_PATH')
-    Scene.export_name = StringProperty(name='export_name', description="Exported Level Name",
-        options={"TEXTEDIT_UPDATE"}, subtype='FILE_NAME', update=on_update_exportname,
-        get=lambda _: name_get('export_name'), set=lambda _, val: name_set(val, 'export_name'))
-    Scene.export_compress = BoolProperty(name='export_compress', default=True, description="Compress Exported Files")
-
-    Scene.export_file_bg = StringProperty(name='export_file_bg',
-        get=lambda _: name_get('export_file_bg'), set=lambda _, val: name_set(val, 'export_file_bg'))
-    Scene.export_file_pads = StringProperty(name='export_file_pads',
-        get=lambda _: name_get('export_file_pads'), set=lambda _, val: name_set(val, 'export_file_pads'))
-    Scene.export_file_setup = StringProperty(name='export_file_setup',
-        get=lambda _: name_get('export_file_setup'), set=lambda _, val: name_set(val, 'export_file_setup'))
-    Scene.export_file_tiles = StringProperty(name='export_file_tiles',
-        get=lambda _: name_get('export_file_tiles'), set=lambda _, val: name_set(val, 'export_file_tiles'))
-
-    # external textures
-    Scene.level_external_tex = BoolProperty(name='level_external_tex', default=False, description="")
-    Scene.external_tex_dir = StringProperty(name='external_tex_dir', description="")
-
-    Scene.level_loading = BoolProperty(name='level_loading', default=False)
-
-    # external models
-    Scene.level_external_models = BoolProperty(name='level_external_models', default=False, description="")
-    Scene.external_models_dir = StringProperty(name='external_models_dir', description="")
-
-    bpy.types.WindowManager.progress = bpy.props.FloatProperty()
-    bpy.types.WindowManager.progress_msg = bpy.props.StringProperty()
-    bpy.types.WindowManager.import_step = bpy.props.IntProperty()
-    bpy.types.WindowManager.import_numsteps = bpy.props.IntProperty()
-
 def unregister():
     for cl in reversed(classes):
         bpy.utils.unregister_class(cl)
 
-    del Scene.pdmodel_list
-    del Scene.pdmodel_listindex
+    del Scene.pd_modelfiles
+    del Scene.pd_modelfiles_idx
     del Scene.rompath
 
 if __name__ == '__main__':

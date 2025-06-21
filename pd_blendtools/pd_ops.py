@@ -28,6 +28,10 @@ import bg_utils as bgu
 from decl_setupfile import OBJTYPE_LINKLIFTDOOR
 from mtxpalette_panel import gen_icons
 from bpy_extras import view3d_utils
+from filenums import ModelNames
+import pd_padsfile as pdpads
+import setup_export as stpi
+from pd_padsfile import Vec3, Bbox
 
 import model_import as mdi
 import bg_import as bgi
@@ -110,35 +114,37 @@ class PDTOOLS_OT_LoadRom(Operator, ImportHelper):
         pda.pref_save(pda.PD_PREF_ROMPATH, filepath)
 
         # fill the scene's list of models
-        scn.pdmodel_list.clear()
-        pdp.rom_bgs.clear()
-        pdp.rom_pads.clear()
-        pdp.rom_setups.clear()
-        pdp.rom_tiles.clear()
+        scn.pd_modelfiles.clear()
+        scn.pd_modelnames.clear()
+        pdprops.rom_bgs.clear()
+        pdprops.rom_pads.clear()
+        pdprops.rom_setups.clear()
+        pdprops.rom_tiles.clear()
 
         bg_idx = 0
+        modelfiles = []
         for filename in romdata.fileoffsets.keys():
-            if filename.startswith('bgdata'):
+            if filename.startswith('bgdata') or filename.startswith('ob'):
                 if filename.endswith('.seg'):
                     lvcode = pdu.get_lvcode(filename)
                     bgname = f'bg_{lvcode}'
                     lvname = pdu.get_lvname(lvcode, levelnames)
                     fullname = f'{lvname} ({bgname})' if lvname else bgname
                     idx = f'{bg_idx:02X}: '
-                    pdp.rom_bgs.append((bgname, idx+fullname, bgname))
+                    pdprops.rom_bgs.append((bgname, idx+fullname, bgname))
                     bg_idx += 1
                 elif 'pads' in filename:
                     filename = filename.replace('bgdata/', '')
                     lvcode = pdu.get_lvcode(filename)
                     lvname = pdu.get_lvname(lvcode, levelnames)
                     fullname = f'{lvname} ({filename})' if lvname else filename
-                    pdp.rom_pads.append((filename, fullname, filename))
+                    pdprops.rom_pads.append((filename, fullname, filename))
                 elif 'tiles' in filename:
                     filename = filename.replace('bgdata/', '')
                     lvcode = pdu.get_lvcode(filename)
                     lvname = pdu.get_lvname(lvcode, levelnames)
                     fullname = f'{lvname} ({filename})' if lvname else filename
-                    pdp.rom_tiles.append((filename, fullname, filename))
+                    pdprops.rom_tiles.append((filename, fullname, filename))
             elif filename[0] == 'U':
                 lvcode = pdu.get_lvcode(filename)
                 bgname = f'bg_{lvcode}'
@@ -146,15 +152,23 @@ class PDTOOLS_OT_LoadRom(Operator, ImportHelper):
                 cs = ' CS' if bgname in levelnames and levelnames[bgname][2] else ''
                 lvname = pdu.get_lvname(lvcode, levelnames, False)
                 fullname = f'{lvname}{cs}{mp}({filename})' if lvname else filename
-                pdp.rom_setups.append((filename, fullname, bgname))
+                pdprops.rom_setups.append((filename, fullname, bgname))
+            elif filename[0] in ['P', 'C', 'G']:
+                modelfiles.append(filename)
+                # if item.alias: # TODO
 
-            item = scn.pdmodel_list.add()
-            item.filename = filename
-            # if item.alias: # TODO
+        modelfiles.sort()
+        for filename in modelfiles:
+            item = scn.pd_modelfiles.add()
+            item.name = filename
 
-        pdp.rom_pads.sort(key=lambda e: e[1])
-        pdp.rom_setups.sort(key=lambda e: e[1])
-        pdp.rom_tiles.sort(key=lambda e: e[1])
+        for modelname in ModelNames:
+            item = scn.pd_modelnames.add()
+            item.name = modelname
+
+        pdprops.rom_pads.sort(key=lambda e: e[1])
+        pdprops.rom_setups.sort(key=lambda e: e[1])
+        pdprops.rom_tiles.sort(key=lambda e: e[1])
 
 
 class PDTOOLS_OT_ExportModel(Operator, ExportHelper):
@@ -372,16 +386,6 @@ class PDTOOLS_OT_ImportModelFromROM(Operator):
         else:
             return 'ROM not loaded. Go to Preferences > Add-ons > pd_blendtools'
 
-    message = bpy.props.StringProperty(
-        name = "message",
-        description = "message",
-        default = ''
-    )
-
-    guns: bpy.props.BoolProperty(default=True)
-    props: bpy.props.BoolProperty(default=False)
-    chars: bpy.props.BoolProperty(default=False)
-
     def execute(self, context):
         scn = context.scene
 
@@ -390,8 +394,8 @@ class PDTOOLS_OT_ImportModelFromROM(Operator):
         if len(scn.color_collection) == 0:
             gen_icons(context)
 
-        item = scn.pdmodel_list[scn.pdmodel_listindex]
-        load_model(context, modelname=item.filename)
+        item = scn.pd_modelfiles[scn.pd_modelfiles_idx]
+        load_model(context, modelname=item.name)
         return {'FINISHED'}
 
     def invoke(self, context, event):
@@ -399,8 +403,32 @@ class PDTOOLS_OT_ImportModelFromROM(Operator):
 
     def draw(self, context):
         scn = context.scene
-        self.layout.template_list("PDTOOLS_UL_ModelList", "", scn, "pdmodel_list",
-                                  scn, "pdmodel_listindex", rows=20)
+        layout = self.layout
+        layout.template_list('pdtools.list_models', '', scn, 'pd_modelfiles', scn, 'pd_modelfiles_idx', rows=20)
+
+
+class PDTOOLS_OT_SelectModel(Operator):
+    bl_idname = "pdtools.select_model"
+    bl_label = "Select Model"
+    bl_description = "Select Model"
+
+    def execute(self, context):
+        scn = context.scene
+
+        if len(scn.color_collection) == 0:
+            gen_icons(context)
+
+        item = scn.pd_modelnames[scn.pd_modelnames_idx]
+        scn.pd_model = item.name
+        return {'FINISHED'}
+
+    def invoke(self, context, event):
+        return context.window_manager.invoke_props_dialog(self, width=300)
+
+    def draw(self, context):
+        scn = context.scene
+        self.layout.template_list('pdtools.list_models', '', scn, 'pd_modelnames',
+            scn, 'pd_modelnames_idx', rows=20)
 
 class PDTOOLS_OT_ImportLevel(Operator):
     bl_idname = "pdtools.import_level"
@@ -1520,6 +1548,98 @@ class PDTOOLS_OT_SetupDoorPlaySound(Operator):
         return {'FINISHED'}
 
 
+class PDTOOLS_OT_SetupObjectCreate(Operator):
+    bl_idname = "pdtools.op_setup_object_create"
+    bl_label = 'Create Object'
+    bl_description = 'Click on the viewport to create an object'
+
+    def raycast(self, context, event):
+        scn = context.scene
+        region = context.region
+        rv3d = context.region_data
+        coord = event.mouse_region_x, event.mouse_region_y
+
+        # get the ray from the viewport and mouse
+        view_vector = view3d_utils.region_2d_to_vector_3d(region, rv3d, coord)
+        ray_origin = view3d_utils.region_2d_to_origin_3d(region, rv3d, coord)
+
+        ray_target = ray_origin + view_vector
+
+        best_length_squared = -1.0
+        picked_obj = None
+        hit_pos = None
+
+        coll = bpy.data.collections['Rooms']
+        for obj in coll.objects:
+            if obj.pd_obj.type != pdprops.PD_OBJTYPE_ROOMBLOCK: continue
+            if obj.pd_room.blocktype == pdprops.BLOCKTYPE_BSP: continue
+
+            M = obj.matrix_world
+            hit, normal, face_index = pdu.obj_ray_cast(obj, M, ray_origin, ray_target)
+
+            if hit is None: continue
+
+            hit_world = M @ hit
+            scn.cursor.location = hit_world
+            length_squared = (hit_world - ray_origin).length_squared
+            if picked_obj is None or length_squared < best_length_squared:
+                best_length_squared = length_squared
+                picked_obj = obj
+                hitpos = hit_world
+
+        if hitpos:
+            self.create_obj(hitpos)
+
+    def next_pad(self, type):
+        pad = -1
+        coll = bpy.data.collections['Props'].objects
+        for obj in coll:
+            if obj.pd_obj.type == type:
+                pad = max(pad, obj.pd_prop.pad.padnum)
+
+        return pad + 1
+
+    def create_obj(self, pos):
+        scn = bpy.context.scene
+        pos = Vec3(pos.y, pos.z, pos.x)
+        up, look, normal, bbox = Vec3(0,1,0), Vec3(1,0,0), Vec3(0,0,1), Bbox(*[0]*6)
+        pad = pdpads.Pad(pos, look, up, normal, bbox, 0)
+        modelnum = scn.pd_modelnames_idx
+        padnum = self.next_pad(pdprops.PD_OBJTYPE_PROP | 0x03)
+        prop = {
+            'pad': padnum,
+            'type': 3,
+            'modelnum': modelnum,
+            'flags': 0,
+            'flags2': 0,
+            'flags3': 0,
+            'extrascale': 0x100,
+            'maxdamage': 0x03e8,
+            'floorcol': 0,
+        }
+        romdata = rom.load()
+        bl_obj, model = stpi.setup_create_obj(prop, romdata, pad)
+
+    def modal(self, context, event):
+        if event.type in {'MIDDLEMOUSE', 'WHEELUPMOUSE', 'WHEELDOWNMOUSE'}:
+            return {'PASS_THROUGH'}
+        elif event.type == 'LEFTMOUSE' and event.value == 'PRESS':
+            self.raycast(context, event)
+            return {'RUNNING_MODAL'}
+        elif event.type in {'RIGHTMOUSE', 'ESC'}:
+            pdu.redraw_ui()
+            return {'CANCELLED'}
+
+        return {'RUNNING_MODAL'}
+
+    def invoke(self, context, event):
+        if context.space_data.type == 'VIEW_3D':
+            context.window_manager.modal_handler_add(self)
+            return {'RUNNING_MODAL'}
+        else:
+            self.report({'WARNING'}, "Active space must be a View3d")
+            return {'CANCELLED'}
+
 class PDTOOLS_OT_MessageBox(Operator):
     bl_idname = "pdtools.messagebox"
     bl_label = "Message Box"
@@ -1539,6 +1659,7 @@ classes = [
     PDTOOLS_OT_LoadRom,
     PDTOOLS_OT_ImportModelFromROM,
     PDTOOLS_OT_ImportModelFromFile,
+    PDTOOLS_OT_SelectModel,
     PDTOOLS_OT_ImportLevel,
     PDTOOLS_OT_ImportSelectFile,
     PDTOOLS_OT_AssignMtxToVerts,
@@ -1570,6 +1691,7 @@ classes = [
     PDTOOLS_OT_SetupWaypointCreateNeighbours,
     PDTOOLS_OT_SetupWaypointCreate,
     PDTOOLS_OT_SetupWaypointDelete,
+    PDTOOLS_OT_SetupObjectCreate,
     PDTOOLS_OT_MessageBox,
 ]
 

@@ -283,6 +283,9 @@ class PD_PadsFile:
 
     @cache
     def pad_unpack(self, padnum, fields):
+        if padnum == 0xffff:
+            return None
+
         # padoffset = self.header['padoffsets'][padnum]
         # print(f'ofs {padoffset:04X}')
 
@@ -405,5 +408,13 @@ def pad_room(pad):
 def pad_lift(pad):
     return pad.header & 0xf
 
+def pad_flags(pad):
+    return pad.header >> 14
+
+def pad_hasbbox(pad):
+    flags = pad_flags(pad)
+    return bool(flags & PADFLAG_HASBBOXDATA)
+
 def pad_makeheader(flags, room, lift):
     return (flags << 14) | (room << 4) | lift
+

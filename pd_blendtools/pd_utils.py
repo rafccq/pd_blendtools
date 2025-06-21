@@ -670,3 +670,18 @@ def str_remove(src, items):
 def msg_import_step(wm):
     step, nsteps = wm.import_step, wm.import_numsteps
     return f'({step}/{nsteps}) '
+
+def obj_ray_cast(obj, matrix, ray_origin, ray_target):
+    # get the ray relative to the object
+    matrix_inv = matrix.inverted()
+    ray_origin_obj = matrix_inv @ ray_origin
+    ray_target_obj = matrix_inv @ ray_target
+    ray_direction_obj = ray_target_obj - ray_origin_obj
+
+    # cast the ray
+    success, location, normal, face_index = obj.ray_cast(ray_origin_obj, ray_direction_obj)
+
+    if success:
+        return location, normal, face_index
+    else:
+        return None, None, None
