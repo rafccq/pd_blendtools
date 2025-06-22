@@ -10,13 +10,14 @@ from gpu_extras.batch import batch_for_shader
 
 import nodes.nodeutils as ndu
 import pd_utils as pdu
+import setup_utils as stu
 import tiles_import as tiles
-import setup_import as stpi
 from decl_bgtiles import *
+from decl_setupfile import *
 import pd_padsfile as pdp
 import pd_mtx as mtx
 import bg_utils as bgu
-from filenums import ModelNames_Items, ModelNames
+from model_info import ModelNames_Items, ModelNames
 
 
 PD_OBJTYPE_MODEL        = 0x0100
@@ -35,15 +36,35 @@ PD_OBJTYPE_COVER        = 0x0b00
 PD_PROP_LIFT_STOP       = 0x0c00
 
 #### Setup:Props
-PD_PROP_DOOR            = PD_OBJTYPE_PROP | 0x01
-PD_PROP_STANDARD        = PD_OBJTYPE_PROP | 0x03
-PD_PROP_TINTED_GLASS    = PD_OBJTYPE_PROP | 0x2f
-PD_PROP_LIFT            = PD_OBJTYPE_PROP | 0x30
+PD_PROP_DOOR            = PD_OBJTYPE_PROP | OBJTYPE_DOOR
+PD_PROP_STANDARD        = PD_OBJTYPE_PROP | OBJTYPE_BASIC
+PD_PROP_WEAPON          = PD_OBJTYPE_PROP | OBJTYPE_WEAPON
+PD_PROP_MULTIAMMOCRATE  = PD_OBJTYPE_PROP | OBJTYPE_MULTIAMMOCRATE
+PD_PROP_GLASS           = PD_OBJTYPE_PROP | OBJTYPE_GLASS
+PD_PROP_TINTEDGLASS     = PD_OBJTYPE_PROP | OBJTYPE_TINTEDGLASS
+PD_PROP_LIFT            = PD_OBJTYPE_PROP | OBJTYPE_LIFT
+
 #### Setup:Intro Objs
 PD_INTRO_SPAWN          = PD_OBJTYPE_INTRO | 0x00
 PD_INTRO_CASE           = PD_OBJTYPE_INTRO | 0x09
 PD_INTRO_CASERESPAWN    = PD_OBJTYPE_INTRO | 0x0a
 PD_INTRO_HILL           = PD_OBJTYPE_INTRO | 0x0b
+
+# Object Tools > Create Object (Type)
+OBJ_NAMES = {
+    PD_PROP_STANDARD:       'Standard',
+    PD_PROP_DOOR:           'Door',
+    PD_PROP_WEAPON:         'Weapon',
+    PD_PROP_MULTIAMMOCRATE: 'Multi-Ammo Crate',
+    PD_PROP_GLASS:          'Glass',
+    PD_PROP_TINTEDGLASS:    'Tinted Glass',
+    PD_PROP_LIFT:           'Lift',
+    PD_INTRO_SPAWN:         'Spawn',
+    PD_INTRO_CASE:          'Case',
+    PD_INTRO_CASERESPAWN:   'CaseRespawn',
+}
+
+OBJ_TYPES_ITEMS = [(e, e, e, id) for id, e in OBJ_NAMES.items()]
 
 PD_COLLECTIONS = [
     'Rooms',
@@ -134,16 +155,6 @@ TILE_HIGHLIGHT_MODE = [
     ('Wall/Floor',  'Highlight Wall or Floor Tiles',         3),
     ('Flags',       'Highlight Tiles Based On Flags',        4),
     ('Room',        'Highlight All Tiles From Room',         5),
-]
-
-OBJ_TYPES = [
-    ('Standard',          'Standard',         0),
-    ('Door',              'Door',             1),
-    ('Weapon',            'Weapon',           2),
-    ('Multi-Ammo Crate',  'Multi-Ammo Crate', 3),
-    ('Glass',             'Glass',            4),
-    ('Tinted Glass',      'Tinted Glass',     5),
-    ('Lift',              'Lift',             6),
 ]
 
 DOOR_FLAGS = [
@@ -354,6 +365,48 @@ OBJ_FLAGS3 = [
     (['80000000'],              0x80000000), # Not used in scripts
 ]
 
+LEVELNAMES = {
+    'bg_sev':   ('Maian SOS',               0x09, 0),
+    'bg_stat':  ('WAR!',                    0x16, 0),
+    'bg_arec':  ('Ravine',                  0x17, 1),
+    'bg_tra':   ('A51 Escape',              0x19, 0),
+    'bg_sevb':  ('Retaking the Institute',  0x1b, 0),
+    'bg_azt':   ('Crash Site',              0x1c, 0),
+    'bg_pete':  ('Chicago',                 0x1d, 0),
+    'bg_depo':  ('G5 Building',             0x1e, 0),
+    'bg_ref':   ('Complex',                 0x1f, 1),
+    'bg_cryp':  ('G5 Building',             0x20, 1),
+    'bg_dam':   ('Pelagic II',              0x21, 0),
+    'bg_ark':   ('Datadyne Extraction',     0x22, 0),
+    'bg_jun':   ('Temple',                  0x25, 1),
+    'bg_dish':  ('CI Training',             0x26, 0),
+    'bg_cave':  ('Air Base',                0x27, 0),
+    'bg_crad':  ('Pipes',                   0x29, 1),
+    'bg_sho':   ('Skedar Ruins',            0x2a, 0),
+    'bg_eld':   ('Villa',                   0x2c, 0),
+    'bg_imp':   ('Datadyne Defense',        0x2d, 0),
+    'bg_lue':   ('A51 Infiltration',        0x2f, 0),
+    'bg_ame':   ('Datadyne Defection',      0x30, 0),
+    'bg_rit':   ('Air Force One',           0x31, 0),
+    'bg_oat':   ('Skedar',                  0x32, 1),
+    'bg_ear':   ('Datadyne Investigation',  0x33, 0),
+    'bg_lee':   ('Attack Ship',             0x34, 0),
+    'bg_lip':   ('A51 Rescue',              0x35, 0),
+    'bg_wax':   ('Mr. Blonde Revenge',      0x37, 0),
+    'bg_pam':   ('Deep Sea',                0x38, 0),
+    'bg_mp1':   ('Base',                    0x39, 1),
+    'bg_mp3':   ('Area 52',                 0x3b, 1),
+    'bg_mp4':   ('Warehouse',               0x3c, 1),
+    'bg_mp5':   ('Car Park',                0x3d, 1),
+    'bg_mp9':   ('Ruins',                   0x41, 1),
+    'bg_mp10':  ('Sewers',                  0x42, 1),
+    'bg_mp11':  ('Felicity',                0x43, 1),
+    'bg_mp12':  ('Fortress',                0x44, 1),
+    'bg_mp13':  ('Villa',                   0x45, 1),
+    'bg_mp15':  ('Grid',                    0x47, 1),
+    'bg_ate':   ('Duel',                    0x4f, 0),
+}
+
 
 class PDObject(PropertyGroup):
     name: StringProperty(name='name', default='', options={'LIBRARY_EDITABLE'})
@@ -482,7 +535,7 @@ def update_pad_bbox(self, _context):
         model_bbox = pdp.Bbox(*self.model_bbox)
         modelscale = pd_prop.modelscale * pd_prop.extrascale / (256 * 4096)
         flags = pdu.flags_pack(pd_prop.flags1, [e[1] for e in OBJ_FLAGS1])
-        sx, sy, sz = stpi.obj_getscale(modelscale, pad_bbox, model_bbox, flags)
+        sx, sy, sz = stu.obj_getscale(modelscale, pad_bbox, model_bbox, flags)
 
     bbox_p = pdp.Bbox(*self.bbox_p)
     bbox = pdp.Bbox(*self.bbox)
@@ -494,7 +547,7 @@ def update_pad_bbox(self, _context):
     pad = pdp.Pad(newpos, look, up, normal, bbox, None)
     center = pdp.pad_center(pad)
     normal, up, look = mtx.mtx_basis(obj.matrix_world)
-    stpi.obj_setup_mtx(obj, look, up, center)
+    stu.obj_setup_mtx(obj, look, up, center)
 
     self.pad_pos = newpos
     for i, val in enumerate(self.bbox):
@@ -917,7 +970,7 @@ def on_select_bg(self, context):
     lvcode = pdu.get_lvcode(scn.rom_bgs)
     bgname = f'bg_{lvcode}'
     scn.rom_pads = f'bg_{lvcode}_padsZ'
-    usetup = 'Ump_setup' if bgname in levelnames and levelnames[bgname][2] else 'Usetup'
+    usetup = 'Ump_setup' if bgname in LEVELNAMES and LEVELNAMES[bgname][2] else 'Usetup'
     scn.rom_setups = f'{usetup}{lvcode}Z'
     scn.rom_tiles = f'bg_{lvcode}_tilesZ'
 
@@ -936,13 +989,26 @@ def on_update_exportname(self, context):
     if scn.export_tiles:
         scn.export_file_tiles = f'bg_{scn.export_name}_tilesZ'
 
-FILENAME_EXCLUSIONS = '|\/<>:*?\"'
-
 def name_get(name):
     val = bpy.context.scene.get(name)
     return val if val else ''
 
+FILENAME_EXCLUSIONS = '|\/<>:*?\"'
+
 def name_set(val, name): bpy.context.scene[name] = pdu.str_remove(val, FILENAME_EXCLUSIONS)
+
+def on_select_pdtype(self, context):
+    scn = context.scene
+    objtype = scn['pd_obj_type']
+    if objtype in [PD_PROP_MULTIAMMOCRATE, PD_PROP_GLASS, PD_PROP_TINTEDGLASS, PD_PROP_LIFT]:
+        models = {
+            PD_PROP_MULTIAMMOCRATE: 0xc1,
+            PD_PROP_GLASS: 0x04,
+            PD_PROP_TINTEDGLASS: 0x04,
+            PD_PROP_LIFT: 0xe5,
+        }
+        scn.pd_modelnames_idx = models[objtype]
+        scn.pd_model = ModelNames[scn.pd_modelnames_idx]
 
 classes = [
     PDObject,
@@ -995,9 +1061,12 @@ def register():
     Scene.flags_toggle = BoolProperty(name="Flags Toggle", default=False, description='Show Flags As Toggle/Checkbox')
     Scene.pd_waypoint_vis = ndu.make_prop('pd_waypoint_vis', {'pd_waypoint_vis': WAYPOINTS_VISIBILITY}, 'allsets', update_scene_wp_vis)
     Scene.pd_bspwidth = IntProperty(name="pd_bspwidth", default=1000, min=1, options={'TEXTEDIT_UPDATE'})
-    Scene.pd_obj_type = ndu.make_prop('pd_obj_type', {'pd_obj_type': OBJ_TYPES}, 'standard')
+    Scene.pd_obj_type = EnumProperty(items=OBJ_TYPES_ITEMS, name="pd_obj_type", default=OBJ_NAMES[PD_PROP_STANDARD], update=on_select_pdtype)
+    Scene.pd_model = EnumProperty(items=ModelNames_Items, default=ModelNames[0], update=on_select_model)
 
-    Scene.pd_model = EnumProperty(items=ModelNames_Items, update=on_select_model)
+    scn = bpy.context.scene
+    scn['pd_obj_type'] = PD_PROP_STANDARD
+    scn.pd_model = ModelNames[0]
 
     # model files and names list
     Scene.pd_modelfiles = CollectionProperty(type=PDModelListItem)

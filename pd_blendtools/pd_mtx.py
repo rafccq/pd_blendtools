@@ -1,8 +1,9 @@
 from math import pi
 
 from mathutils import Euler, Vector, Matrix
-from setup_import import M_BADPI
 
+
+M_BADPI = 3.141092641
 
 def rotM(e):
     return Euler(e).to_matrix().to_4x4()

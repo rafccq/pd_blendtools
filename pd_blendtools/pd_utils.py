@@ -356,6 +356,12 @@ def select_obj(bl_obj, clear_selection=True):
     bpy.context.view_layer.objects.active = bl_obj
     bl_obj.select_set(True)
 
+def select_objects(bl_objs):
+    if not bl_objs: return
+
+    for idx, obj in enumerate(bl_objs):
+        select_obj(obj, idx == 0)
+
 def show_normals():
     mesh = active_mesh()
     if not mesh:

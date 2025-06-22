@@ -4,11 +4,10 @@ from mathutils import Euler, Vector, Matrix
 import pd_utils as pdu
 import bg_utils as bgu
 import pd_blendprops as pdprops
-from decl_setupfile import OBJTYPE_LIFT
+import setup_utils as stu
 from pd_blendprops import WAYPOINT_EDGEVALUES
 import pd_mtx as mtx
 import pd_padsfile as pdp
-import setup_import as stpi
 import decl_setupfile as dst
 from decl_padsfile import decl_padsfileheader
 from bytereader import ByteReader, add_padding
@@ -18,6 +17,8 @@ from typeinfo import TypeInfo
 ux = Vector((1, 0, 0))
 uy = Vector((0, 1, 0))
 uz = Vector((0, 0, 1))
+
+M_BADPI = mtx.M_BADPI
 
 def vec_alignment(v):
     if pdu.vec_comp(v, ux):
@@ -112,13 +113,12 @@ def pad_inv_pos(objpos, look, up, flags=None, scale=None, rotation=None, bbox=No
         elif bbox is not None:
             ymin, ymax = bbox.ymin, bbox.ymax
             if flags & dst.OBJFLAG_UPSIDEDOWN:
-                rot = Euler((0, 0, -stpi.M_BADPI)).to_matrix().to_4x4()
+                rot = Euler((0, 0, -M_BADPI)).to_matrix().to_4x4()
                 T = T @ rot
                 pos = tuple([objpos[i] + T[i][1] * ymax for i in range(3)])
             elif flags & dst.OBJFLAG_00000008:
                 MT = M @ T
                 pos = tuple([objpos[i] + MT[i][1] * ymin for i in range(3)])
-                # print(f'  OBJFLAG_00000008 {pos} {objpos} {ymin} {bbox}')
 
     return Vector(pos)
 
@@ -145,7 +145,7 @@ def pad_initial_pos(bl_obj):
     model_bbox = pdp.Bbox(*pd_pad.model_bbox)
     modelscale = pd_prop.modelscale * pd_prop.extrascale / (256 * 4096)
     flags = pdu.flags_pack(pd_prop.flags1, [e[1] for e in pdprops.OBJ_FLAGS1])
-    sx, sy, sz = stpi.obj_getscale(modelscale, pad_bbox, model_bbox, flags)
+    sx, sy, sz = stu.obj_getscale(modelscale, pad_bbox, model_bbox, flags)
 
     # invert the rotation caused by FLAG00000002
     R = mtx.rot_FLAG00000002inv() if flags & dst.OBJFLAG_00000002 else Matrix.Identity(4)

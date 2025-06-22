@@ -10,7 +10,6 @@ import pd_utils as pdu
 import pd_ops as pdops
 import bg_import as bgi
 import nodes.nodeutils as ndu
-from pd_ops import levelnames
 
 
 class PDTOOLS_PT_ImportExport(Panel):
@@ -304,8 +303,8 @@ class PDTOOLS_PT_SetupObjectTools(Panel):
             box.label(text='No ROM Loaded', icon='ERROR')
             return
 
-        has_model = ['standard', 'door', 'glass', 'tinted_glass']
-        if scn.pd_obj_type in has_model:
+        has_model = ['standard', 'door', 'glass', 'tinted glass', 'lift', 'multi-ammo crate']
+        if scn.pd_obj_type.lower() in has_model:
             box2 = box.box()
             box2.label(text=f'Model: {scn.pd_model[:4]}')
             row = box2.row().split(factor=0.9)
@@ -321,8 +320,7 @@ class PDTOOLS_PT_SetupObjectTools(Panel):
             box2 = box.box()
             box.alignment = 'CENTER'
             box.scale_x = 2.0
-            box2.label(text='', icon='INFO')
-            box2.label(text='Click to create. Right click/ESC to end.')
+            box2.label(text='Click: create. Right click/ESC: end.', icon='INFO')
         else:
             box.operator('pdtools.op_setup_object_create')
 
@@ -453,7 +451,7 @@ class PDTOOLS_PT_SetupTintedGlass(Panel):
     @classmethod
     def poll(cls, context):
         obj = context.object
-        return obj and obj.pd_obj.type == pdprops.PD_PROP_TINTED_GLASS
+        return obj and obj.pd_obj.type == pdprops.PD_PROP_TINTEDGLASS
 
     def draw(self, context):
         # if multiple selected, choose the first object selected (always the first to last in the list)
@@ -478,8 +476,8 @@ class PDTOOLS_PT_SetupTintedGlass(Panel):
             lmin = labels[idx][0]
             lmax = labels[idx][1]
             row = column.row()
-            row.prop(props_prop, 'pad_bbox', index=2*idx, text=lmin)
-            row.prop(props_prop, 'pad_bbox', index=2*idx+1, text=lmax)
+            row.prop(props_prop.pad, 'bbox', index=2*idx, text=lmin)
+            row.prop(props_prop.pad, 'bbox', index=2*idx+1, text=lmax)
 
         column.separator(type='LINE')
         column.prop(props_glass, 'opadist', text='Opa Dist')

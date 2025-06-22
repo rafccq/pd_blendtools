@@ -76,8 +76,8 @@ def export_objects(rd, dataout):
     for idx, bl_obj in enumerate(objects):
         bl_obj['setup_index'] = idx
         objtype = bl_obj.pd_obj.type & 0xff
-        type1 = objtype in stpi.obj_types1
-        type2 = objtype in stpi.obj_types2
+        type1 = objtype in stpi.OBJ_TYPES1
+        type2 = objtype in stpi.OBJ_TYPES2
 
         objname = OBJ_NAMES[objtype]
         count = ObjCount[objtype] if objtype in ObjCount else 0
@@ -95,8 +95,8 @@ def export_objects(rd, dataout):
 
 def set_props(bl_obj, block):
     objtype = bl_obj.pd_obj.type & 0xff
-    type1 = objtype in stpi.obj_types1
-    type2 = objtype in stpi.obj_types2
+    type1 = objtype in stpi.OBJ_TYPES1
+    type2 = objtype in stpi.OBJ_TYPES2
 
     setup_funcs = {
         OBJTYPE_DOOR: setup_door,

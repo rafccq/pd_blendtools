@@ -105,11 +105,17 @@ def cl_setup():
     pdu.clear_collection('Waypoints')
     pdu.clear_collection('Cover Pads')
 
+def loadrom():
+    rompath = f'{blend_dir}/pd.ntsc-final.z64'
+    pdops.PDTOOLS_OT_LoadRom.load_rom(bpy.context, rompath)
+    
+# ----------------------
+
 #clear()
 #cl_setup()
 register()
 cls()
-
+loadrom()
 
 #loadmodel('ProofgunZ')
 

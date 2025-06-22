@@ -28,10 +28,12 @@ import bg_utils as bgu
 from decl_setupfile import OBJTYPE_LINKLIFTDOOR
 from mtxpalette_panel import gen_icons
 from bpy_extras import view3d_utils
-from filenums import ModelNames
+from model_info import ModelNames
 import pd_padsfile as pdpads
 import setup_export as stpi
 from pd_padsfile import Vec3, Bbox
+from pd_blendprops import LEVELNAMES
+from pd_padsfile import *
 
 import model_import as mdi
 import bg_import as bgi
@@ -43,48 +45,6 @@ STEP_BG = 'STEP_BG'
 STEP_SETUP = 'STEP_SETUP'
 STEP_TILES = 'STEP_TILES'
 TILE_BATCH_SIZE = 100
-
-levelnames = {
-    'bg_sev':   ('Maian SOS',               0x09, 0),
-    'bg_stat':  ('WAR!',                    0x16, 0),
-    'bg_arec':  ('Ravine',                  0x17, 1),
-    'bg_tra':   ('A51 Escape',              0x19, 0),
-    'bg_sevb':  ('Retaking the Institute',  0x1b, 0),
-    'bg_azt':   ('Crash Site',              0x1c, 0),
-    'bg_pete':  ('Chicago',                 0x1d, 0),
-    'bg_depo':  ('G5 Building',             0x1e, 0),
-    'bg_ref':   ('Complex',                 0x1f, 1),
-    'bg_cryp':  ('G5 Building',             0x20, 1),
-    'bg_dam':   ('Pelagic II',              0x21, 0),
-    'bg_ark':   ('Datadyne Extraction',     0x22, 0),
-    'bg_jun':   ('Temple',                  0x25, 1),
-    'bg_dish':  ('CI Training',             0x26, 0),
-    'bg_cave':  ('Air Base',                0x27, 0),
-    'bg_crad':  ('Pipes',                   0x29, 1),
-    'bg_sho':   ('Skedar Ruins',            0x2a, 0),
-    'bg_eld':   ('Villa',                   0x2c, 0),
-    'bg_imp':   ('Datadyne Defense',        0x2d, 0),
-    'bg_lue':   ('A51 Infiltration',        0x2f, 0),
-    'bg_ame':   ('Datadyne Defection',      0x30, 0),
-    'bg_rit':   ('Air Force One',           0x31, 0),
-    'bg_oat':   ('Skedar',                  0x32, 1),
-    'bg_ear':   ('Datadyne Investigation',  0x33, 0),
-    'bg_lee':   ('Attack Ship',             0x34, 0),
-    'bg_lip':   ('A51 Rescue',              0x35, 0),
-    'bg_wax':   ('Mr. Blonde Revenge',      0x37, 0),
-    'bg_pam':   ('Deep Sea',                0x38, 0),
-    'bg_mp1':   ('Base',                    0x39, 1),
-    'bg_mp3':   ('Area 52',                 0x3b, 1),
-    'bg_mp4':   ('Warehouse',               0x3c, 1),
-    'bg_mp5':   ('Car Park',                0x3d, 1),
-    'bg_mp9':   ('Ruins',                   0x41, 1),
-    'bg_mp10':  ('Sewers',                  0x42, 1),
-    'bg_mp11':  ('Felicity',                0x43, 1),
-    'bg_mp12':  ('Fortress',                0x44, 1),
-    'bg_mp13':  ('Villa',                   0x45, 1),
-    'bg_mp15':  ('Grid',                    0x47, 1),
-    'bg_ate':   ('Duel',                    0x4f, 0),
-}
 
 list_bgs = []
 list_setups = []
@@ -128,7 +88,7 @@ class PDTOOLS_OT_LoadRom(Operator, ImportHelper):
                 if filename.endswith('.seg'):
                     lvcode = pdu.get_lvcode(filename)
                     bgname = f'bg_{lvcode}'
-                    lvname = pdu.get_lvname(lvcode, levelnames)
+                    lvname = pdu.get_lvname(lvcode, LEVELNAMES)
                     fullname = f'{lvname} ({bgname})' if lvname else bgname
                     idx = f'{bg_idx:02X}: '
                     pdprops.rom_bgs.append((bgname, idx+fullname, bgname))
@@ -136,21 +96,21 @@ class PDTOOLS_OT_LoadRom(Operator, ImportHelper):
                 elif 'pads' in filename:
                     filename = filename.replace('bgdata/', '')
                     lvcode = pdu.get_lvcode(filename)
-                    lvname = pdu.get_lvname(lvcode, levelnames)
+                    lvname = pdu.get_lvname(lvcode, LEVELNAMES)
                     fullname = f'{lvname} ({filename})' if lvname else filename
                     pdprops.rom_pads.append((filename, fullname, filename))
                 elif 'tiles' in filename:
                     filename = filename.replace('bgdata/', '')
                     lvcode = pdu.get_lvcode(filename)
-                    lvname = pdu.get_lvname(lvcode, levelnames)
+                    lvname = pdu.get_lvname(lvcode, LEVELNAMES)
                     fullname = f'{lvname} ({filename})' if lvname else filename
                     pdprops.rom_tiles.append((filename, fullname, filename))
             elif filename[0] == 'U':
                 lvcode = pdu.get_lvcode(filename)
                 bgname = f'bg_{lvcode}'
                 mp = ' MP ' if filename.startswith('Ump_') else ' '
-                cs = ' CS' if bgname in levelnames and levelnames[bgname][2] else ''
-                lvname = pdu.get_lvname(lvcode, levelnames, False)
+                cs = ' CS' if bgname in LEVELNAMES and LEVELNAMES[bgname][2] else ''
+                lvname = pdu.get_lvname(lvcode, LEVELNAMES, False)
                 fullname = f'{lvname}{cs}{mp}({filename})' if lvname else filename
                 pdprops.rom_setups.append((filename, fullname, bgname))
             elif filename[0] in ['P', 'C', 'G']:
@@ -1553,6 +1513,8 @@ class PDTOOLS_OT_SetupObjectCreate(Operator):
     bl_label = 'Create Object'
     bl_description = 'Click on the viewport to create an object'
 
+    created_objs = []
+
     def raycast(self, context, event):
         scn = context.scene
         region = context.region
@@ -1588,11 +1550,13 @@ class PDTOOLS_OT_SetupObjectCreate(Operator):
                 hitpos = hit_world
 
         if hitpos:
-            self.create_obj(hitpos)
+            bl_obj = self.create_obj(hitpos)
+            if bl_obj:
+                self.created_objs.append(bl_obj)
 
-    def next_pad(self, type):
+    def next_pad(self, coll_name, type):
         pad = -1
-        coll = bpy.data.collections['Props'].objects
+        coll = bpy.data.collections[coll_name].objects
         for obj in coll:
             if obj.pd_obj.type == type:
                 pad = max(pad, obj.pd_prop.pad.padnum)
@@ -1601,24 +1565,90 @@ class PDTOOLS_OT_SetupObjectCreate(Operator):
 
     def create_obj(self, pos):
         scn = bpy.context.scene
+        sel_type = scn['pd_obj_type']
+
         pos = Vec3(pos.y, pos.z, pos.x)
         up, look, normal, bbox = Vec3(0,1,0), Vec3(1,0,0), Vec3(0,0,1), Bbox(*[0]*6)
-        pad = pdpads.Pad(pos, look, up, normal, bbox, 0)
-        modelnum = scn.pd_modelnames_idx
-        padnum = self.next_pad(pdprops.PD_OBJTYPE_PROP | 0x03)
+        flag = 0 if sel_type == pdprops.PD_PROP_WEAPON else PADFLAG_HASBBOXDATA
+        header = pdpads.pad_makeheader(flag, 0, 0)
+
+        pad = pdpads.Pad(pos, look, up, normal, bbox, header)
+
+        pdtype = sel_type & 0xff00
+        if pdtype == pdprops.PD_OBJTYPE_PROP:
+            modelnum = scn.pd_modelnames_idx
+            padnum = self.next_pad('Props', sel_type)
+
+            prop_base = {
+                'pad': padnum,
+                'type': sel_type & 0xff,
+                'modelnum': modelnum,
+                'flags': 0,
+                'flags2': 0,
+                'flags3': 0,
+                'extrascale': 0x100,
+                'maxdamage': 0x03e8,
+                'floorcol': 0,
+            }
+
+            romdata = rom.load()
+            basic_objs = [
+                pdprops.PD_PROP_STANDARD,
+                pdprops.PD_PROP_GLASS,
+                pdprops.PD_PROP_MULTIAMMOCRATE,
+            ]
+            if sel_type in basic_objs:
+                return stpi.setup_create_obj({}, prop_base, romdata, pad)
+            elif sel_type == pdprops.PD_PROP_WEAPON:
+                prop = {'weaponnum': 0}
+                return stpi.setup_create_obj(prop, prop_base, romdata, pad)
+            elif sel_type == pdprops.PD_PROP_TINTEDGLASS:
+                prop = {
+                    'opadist': 0,
+                    'xludist': 0,
+                }
+                return stpi.setup_create_obj(prop, prop_base, romdata, pad)
+            elif sel_type == pdprops.PD_PROP_LIFT:
+                prop = {
+                    'accel': 0,
+                    'maxspeed': 0,
+                    'pads': [],
+                }
+                return stpi.setup_create_obj(prop, prop_base, romdata, pad)
+            elif sel_type == pdprops.PD_PROP_DOOR:
+                return self.create_door(prop_base, pos, romdata)
+        elif pdtype == pdprops.PD_OBJTYPE_INTRO:
+            padnum = self.next_pad('Intro', sel_type)
+            ofs = 0 if pdtype == pdprops.PD_INTRO_CASE else 24
+            pos = Vec3(pos.x, pos.y + ofs, pos.z)
+            pad = pdpads.Pad(pos, look, up, normal, bbox, 0)
+            return stpi.create_intro_obj(scn.pd_obj_type, pad, padnum, sel_type)
+
+        return None
+
+    def create_door(self, prop_base, pos, romdata):
         prop = {
-            'pad': padnum,
-            'type': 3,
-            'modelnum': modelnum,
-            'flags': 0,
-            'flags2': 0,
-            'flags3': 0,
-            'extrascale': 0x100,
-            'maxdamage': 0x03e8,
-            'floorcol': 0,
+            'doortype': 0x0,
+            'soundtype': 0x0,
+            'laserfade': 0x0,
+            'doorflags': 0x0,
+            'keyflags': 0x0,
+            'maxfrac': 0xE666,
+            'perimfrac': 0x010000,
+            'accel': 0x3333,
+            'decel': 0x4000,
+            'maxspeed': 0x1333,
+            'autoclosetime': 0x0384,
         }
-        romdata = rom.load()
-        bl_obj, model = stpi.setup_create_obj(prop, romdata, pad)
+        bbox = Bbox(-6, 6, -50, 50, -100, 100)
+        up, look, normal = Vec3(0,1,0), Vec3(1,0,0), Vec3(0,0,1)
+        pos = Vec3(pos.x, pos.y + 100, pos.z)
+        pad = pdpads.Pad(pos, look, up, normal, bbox, 0)
+        return stpi.setup_create_door(prop, prop_base, romdata, pad, False)
+
+    def done(self):
+        pdu.redraw_ui()
+        pdu.select_objects(self.created_objs)
 
     def modal(self, context, event):
         if event.type in {'MIDDLEMOUSE', 'WHEELUPMOUSE', 'WHEELDOWNMOUSE'}:
@@ -1627,13 +1657,14 @@ class PDTOOLS_OT_SetupObjectCreate(Operator):
             self.raycast(context, event)
             return {'RUNNING_MODAL'}
         elif event.type in {'RIGHTMOUSE', 'ESC'}:
-            pdu.redraw_ui()
-            return {'CANCELLED'}
+            self.done()
+            return {'FINISHED'}
 
         return {'RUNNING_MODAL'}
 
     def invoke(self, context, event):
         if context.space_data.type == 'VIEW_3D':
+            self.created_objs.clear()
             context.window_manager.modal_handler_add(self)
             return {'RUNNING_MODAL'}
         else:

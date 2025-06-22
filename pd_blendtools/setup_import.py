@@ -6,26 +6,28 @@ import glob
 from functools import cache
 
 import bpy
-from mathutils import Vector, Euler, Matrix
+from mathutils import Vector, Euler
 
 import pd_materials as pdm
+from pd_mtx import M_BADPI
 from pd_setupfile import PD_SetupFile
 import pd_padsfile as pdp
 from decl_setupfile import *
 from decl_padsfile import *
+import setup_utils as stu
 from typeinfo import TypeInfo
 import pd_utils as pdu
 import model_import as mdi
-from filenums import ModelStates
+from model_info import ModelStates
 import template_mesh as tmesh
 import pd_blendprops as pdprops
+from pd_blendprops import OBJ_NAMES
 import nodes.nodeutils as ndu
 
-
-M_BADPI = 3.141092641
+OBJ_NAMES = pdprops.OBJ_NAMES
 
 # these objects have a 'base' struct preceding the obj data
-obj_types1 = [
+OBJ_TYPES1 = [
     OBJTYPE_DOOR,
     OBJTYPE_MULTIAMMOCRATE,
     OBJTYPE_GLASS,
@@ -39,7 +41,7 @@ obj_types1 = [
     OBJTYPE_WEAPON,
 ]
 
-obj_types2 = [
+OBJ_TYPES2 = [
     OBJTYPE_BASIC,
     OBJTYPE_ALARM,
     OBJTYPE_DEBRIS,
@@ -53,50 +55,6 @@ def register():
     TypeInfo.register_all(setupfile_decls)
     TypeInfo.register_all(padsfile_decls)
     mdi.register()
-
-def obj_setup_mtx(obj, look, up, pos, rotation=None, scale=None, flags=None, bbox=None):
-    side = up.cross(look).normalized()
-    up = look.cross(side).normalized()
-
-    M = Matrix([
-        [side.x, up.x, look.x, 0],
-        [side.y, up.y, look.y, 0],
-        [side.z, up.z, look.z, 0],
-        [0, 0, 0, 1]
-    ])
-
-    T = Matrix.Identity(4)
-    if scale:
-        sx = Matrix.Scale(scale.x, 4, (1.0, 0.0, 0.0))
-        sy = Matrix.Scale(scale.y, 4, (0.0, 1.0, 0.0))
-        sz = Matrix.Scale(scale.z, 4, (0.0, 0.0, 1.0))
-        T = T @ sx @ sy @ sz
-
-    if rotation:
-        rot_mat = Euler(rotation).to_matrix().to_4x4()
-        T = T @ rot_mat
-
-    newpos = pos
-    if flags is not None:
-        if flags & OBJFLAG_00000002:
-            newpos = tuple([pos[i] - T[i][2] * bbox.zmin for i in range(3)])
-            # print(f'  OBJFLAG_00000002')
-        elif bbox is not None:
-            ymin, ymax = bbox.ymin, bbox.ymax
-            if flags & OBJFLAG_UPSIDEDOWN:
-                rot = Euler((0, 0, M_BADPI)).to_matrix().to_4x4()
-                T = T @ rot
-                newpos = tuple([pos[i] - T[i][1] * ymax for i in range(3)])
-                # print(f'  OBJFLAG_UPSIDEDOWN')
-            elif flags & OBJFLAG_00000008:
-                TMP = M @ T
-                newpos = tuple([pos[i] - TMP[i][1] * ymin for i in range(3)])
-                # print(f'  OBJFLAG_00000008 {pos} {newpos} {ymin} {bbox}')
-
-    obj.matrix_world = M @ T
-    obj.matrix_world.translation = newpos
-
-    # print(f'  newpos {newpos}')
 
 
 def obj_load_model(romdata, modelnum):
@@ -122,7 +80,7 @@ def set_bbox(dst_bbox, src_bbox):
     for i, val in enumerate(bbox):
         dst_bbox[i] = val
 
-def init_door(bl_door, prop, pad, bbox):
+def init_door(bl_door, prop, prop_base, pad, bbox):
     bl_door.pd_obj.type = pdprops.PD_PROP_DOOR
 
     pd_door = bl_door.pd_door
@@ -130,14 +88,14 @@ def init_door(bl_door, prop, pad, bbox):
     pd_pad = pd_prop.pad
 
     # base obj props
-    pd_prop.modelnum = prop['base']['modelnum']
-    pd_prop.extrascale = prop['base']['extrascale']
-    pd_prop.maxdamage = prop['base']['maxdamage']
-    pd_prop.floorcol = prop['base']['floorcol']
+    pd_prop.modelnum = prop_base['modelnum']
+    pd_prop.extrascale = prop_base['extrascale']
+    pd_prop.maxdamage = prop_base['maxdamage']
+    pd_prop.floorcol = prop_base['floorcol']
 
-    pdu.flags_unpack(pd_prop.flags1, prop['base']['flags'], [e[1] for e in pdprops.OBJ_FLAGS1])
-    pdu.flags_unpack(pd_prop.flags2, prop['base']['flags2'], [e[1] for e in pdprops.OBJ_FLAGS2])
-    pdu.flags_unpack(pd_prop.flags3, prop['base']['flags3'], [e[1] for e in pdprops.OBJ_FLAGS3])
+    pdu.flags_unpack(pd_prop.flags1, prop_base['flags'], [e[1] for e in pdprops.OBJ_FLAGS1])
+    pdu.flags_unpack(pd_prop.flags2, prop_base['flags2'], [e[1] for e in pdprops.OBJ_FLAGS2])
+    pdu.flags_unpack(pd_prop.flags3, prop_base['flags3'], [e[1] for e in pdprops.OBJ_FLAGS3])
 
     # door props
     door_type = ndu.item_from_value(pdprops.DOORTYPES, prop['doortype'])
@@ -154,7 +112,7 @@ def init_door(bl_door, prop, pad, bbox):
 
     pd_door.laserfade = prop['laserfade']
 
-    pd_pad.padnum = prop['base']['pad']
+    pd_pad.padnum = prop_base['pad']
     pd_pad.pos = pad.pos
     pd_pad.room = pdp.pad_room(pad)
     pd_pad.lift = pdp.pad_lift(pad)
@@ -171,77 +129,15 @@ def init_door(bl_door, prop, pad, bbox):
     for idx, flag in enumerate(pdprops.DOOR_KEYFLAGS):
         pd_door.key_flags[idx] = bool(keyflags & flag[1])
 
-def obj_getscale(modelscale, padbbox, bbox, flags):
-    sx = sy = sz = 1.0
+def setup_create_door(prop, prop_base, romdata, pad, rotated=True):
+    padnum = prop_base['pad']
 
-    flag40 = OBJFLAG_YTOPADBOUNDS
-
-    if flags & OBJFLAG_XTOPADBOUNDS:
-        if bbox.xmin < bbox.xmax:
-            if flags & OBJFLAG_00000002:
-                sx = (padbbox.xmax - padbbox.xmin) / ((bbox.xmax - bbox.xmin) * modelscale)
-            else:
-                sx = (padbbox.xmax - padbbox.xmin) / ((bbox.xmax - bbox.xmin) * modelscale)
-
-    if flags & flag40:
-        if bbox.ymin < bbox.ymax:
-            if flags & OBJFLAG_00000002:
-                sz = (padbbox.zmax - padbbox.zmin) / ((bbox.ymax - bbox.ymin) * modelscale)
-            else:
-                sy = (padbbox.ymax - padbbox.ymin) / ((bbox.ymax - bbox.ymin) * modelscale)
-
-    if flags & OBJFLAG_ZTOPADBOUNDS:
-        if bbox.zmin < bbox.zmax:
-            if flags & OBJFLAG_00000002:
-                sy = (padbbox.ymax - padbbox.ymin) / ((bbox.zmax - bbox.zmin) * modelscale)
-            else:
-                sz = (padbbox.zmax - padbbox.zmin) / ((bbox.zmax - bbox.zmin) * modelscale)
-
-    maxscale = max(sx, sy, sz)
-
-    if (flags & OBJFLAG_XTOPADBOUNDS) == 0:
-        if flags & OBJFLAG_00000002 and bbox.xmax == bbox.xmin:
-            sx = maxscale
-        elif bbox.xmax == bbox.xmin:
-            sx = maxscale
-
-    if (flags & flag40) == 0:
-        if flags & OBJFLAG_00000002 and bbox.ymax == bbox.ymin:
-            sz = maxscale
-        elif bbox.ymax == bbox.ymin:
-            sy = maxscale
-
-    if (flags & OBJFLAG_ZTOPADBOUNDS) == 0:
-        if flags & OBJFLAG_00000002:
-            if bbox.zmax == bbox.zmin:
-                sy = maxscale
-        elif bbox.zmax == bbox.zmin:
-            sz = maxscale
-
-    sx /= maxscale
-    sy /= maxscale
-    sz /= maxscale
-
-    if sx <= 0.000001 or sy <= 0.000001 or sz <= 0.000001:
-        sx = sy = sz = 1
-
-    m = modelscale * maxscale
-    return m*sx, m*sy, m*sz
-
-def setup_create_door(prop, romdata, paddata):
-    padnum = prop['base']['pad']
-    # print(f"{padnum:02X} {prop['base']['modelnum']:04X}")
-    bl_door, model = obj_load_model(romdata, prop['base']['modelnum'])
+    bl_door, model = obj_load_model(romdata, prop_base['modelnum'])
     bl_door.name = f'door {padnum:02X}'
 
     pdu.add_to_collection(bl_door, 'Props')
-    padnum = prop['base']['pad']
 
-    fields = PADFIELD_POS | PADFIELD_LOOK | PADFIELD_UP | PADFIELD_NORMAL | PADFIELD_BBOX
-    pad = paddata.pad_unpack(padnum, fields)
-    hasbbox = paddata.pad_hasbbox(padnum)
-
-    # print(f'prop {prop} pad {padnum:02X} pad {pad} fnum: {filenum:04X} fname {romdata.filenames[filenum]}')
+    hasbbox = pdp.pad_hasbbox(pad)
 
     bbox = model.find_bbox()
 
@@ -255,12 +151,12 @@ def setup_create_door(prop, romdata, paddata):
     bl_door['pd_padnum'] = f'{padnum:02X}'
 
     center = pdp.pad_center(pad) if hasbbox else pad.pos
-    rotation = (pi/2, 0, pi/2)
-    obj_setup_mtx(bl_door, Vector(pad.look), Vector(pad.up), center, rotation)
+    rotation = (pi/2, 0, pi/2) if rotated else None
+    stu.obj_setup_mtx(bl_door, Vector(pad.look), Vector(pad.up), center, rotation)
 
     blender_align(bl_door)
     bl_door.scale = (sx, sy, sz)
-    init_door(bl_door, prop, pad, bbox)
+    init_door(bl_door, prop, prop_base, pad, bbox)
     bl_door.pd_prop.pad.padnum = padnum # TODO TMP
 
     return bl_door
@@ -276,23 +172,15 @@ def obj_make_opaque(bl_obj):
     edit_mat(bl_obj)
     for child in bl_obj.children: edit_mat(child)
 
-def setup_create_obj(prop, romdata, pad):
+def setup_create_obj(prop, prop_base, romdata, pad, paddata=None):
     if not pad:
-        print(f"TMP: skipping obj with no pad {prop['modelnum']:04X}")
-        return None, None
+        print(f"TMP: skipping obj with no pad {prop_base['modelnum']:04X}")
+        return None
 
-    modelnum = prop['modelnum']
-    OBJNAMES = {
-        0x01: 'door',
-        0x08: 'weapon',
-        0x14: 'multi ammo crate',
-        0x2a: 'glass',
-        0x2f: 'tinted glass',
-        0x30: 'lift',
-    }
+    modelnum = prop_base['modelnum']
+    proptype = prop_base['type']
+    padnum = prop_base['pad']
 
-    proptype = prop['type']
-    padnum = prop['pad']
     if proptype == OBJTYPE_WEAPON:
         bl_obj = tmesh.create_mesh(f'weapon {padnum:02X}', 'weapon')
         model = None
@@ -302,9 +190,12 @@ def setup_create_obj(prop, romdata, pad):
 
     pdu.add_to_collection(bl_obj, 'Props')
 
-    name = OBJNAMES[proptype] if proptype in OBJNAMES else 'object'
     if proptype in [OBJTYPE_TINTEDGLASS, OBJTYPE_GLASS]:
         obj_make_opaque(bl_obj)
+
+    pdtype = pdprops.PD_OBJTYPE_PROP | proptype
+    name = OBJ_NAMES[pdtype] if pdtype in OBJ_NAMES and proptype != OBJTYPE_BASIC else 'object'
+    name = name.replace('-', ' ').lower()
 
     bl_obj.name = f'{name} {padnum:02X}'
     bl_obj['modelnum'] = f'{modelnum:04X}'
@@ -315,30 +206,25 @@ def setup_create_obj(prop, romdata, pad):
     pd_pad.padnum = padnum
     pd_prop.modelnum = modelnum
 
-    scn = bpy.context.scene
-
-    # fields = PADFIELD_POS | PADFIELD_LOOK | PADFIELD_UP | PADFIELD_NORMAL | PADFIELD_BBOX
-    # pad = paddata.pad_unpack(padnum, fields)
-    flags = prop['flags']
-    # hasbbox = paddata.pad_hasbbox(padnum)
+    flags = prop_base['flags']
     hasbbox = pdp.pad_hasbbox(pad)
 
     modelscale = ModelStates[modelnum].scale if modelnum < len(ModelStates) else 0x1000
     pd_prop.modelscale = modelscale
-    pd_prop.extrascale = prop['extrascale']
-    pd_prop.maxdamage = prop['maxdamage']
-    pd_prop.floorcol = prop['floorcol']
-    pdu.flags_unpack(pd_prop.flags1, prop['flags'], [e[1] for e in pdprops.OBJ_FLAGS1])
-    pdu.flags_unpack(pd_prop.flags2, prop['flags2'], [e[1] for e in pdprops.OBJ_FLAGS2])
-    pdu.flags_unpack(pd_prop.flags3, prop['flags3'], [e[1] for e in pdprops.OBJ_FLAGS3])
+    pd_prop.extrascale = prop_base['extrascale']
+    pd_prop.maxdamage = prop_base['maxdamage']
+    pd_prop.floorcol = prop_base['floorcol']
+    pdu.flags_unpack(pd_prop.flags1, prop_base['flags'], [e[1] for e in pdprops.OBJ_FLAGS1])
+    pdu.flags_unpack(pd_prop.flags2, prop_base['flags2'], [e[1] for e in pdprops.OBJ_FLAGS2])
+    pdu.flags_unpack(pd_prop.flags3, prop_base['flags3'], [e[1] for e in pdprops.OBJ_FLAGS3])
 
-    pd_prop.flags1_packed = f"{prop['flags']:08X}"
-    pd_prop.flags2_packed = f"{prop['flags2']:08X}"
-    pd_prop.flags3_packed = f"{prop['flags3']:08X}"
+    pd_prop.flags1_packed = f"{prop_base['flags']:08X}"
+    pd_prop.flags2_packed = f"{prop_base['flags2']:08X}"
+    pd_prop.flags3_packed = f"{prop_base['flags3']:08X}"
 
     pad_setprops(bl_obj, pad, padnum)
 
-    modelscale *= prop['extrascale'] / (256 * 4096)
+    modelscale *= prop_base['extrascale'] / (256 * 4096)
 
     rotation = None
     s = modelscale
@@ -355,7 +241,7 @@ def setup_create_obj(prop, romdata, pad):
     if hasbbox:
         bbox = model.find_bbox()
         set_bbox(pd_pad.model_bbox, bbox)
-        sx, sy, sz = obj_getscale(modelscale, pad.bbox, bbox, flags)
+        sx, sy, sz = stu.obj_getscale(modelscale, pad.bbox, bbox, flags)
         scale = pdp.Vec3(sx, sy, sz)
 
         cx, cy, cz = pdp.pad_center(pad)
@@ -366,7 +252,7 @@ def setup_create_obj(prop, romdata, pad):
 
         # print(f'  c {center}')
 
-    obj_setup_mtx(bl_obj, Vector(pad.look), Vector(pad.up), center, rotation, scale, flags, bbox)
+    stu.obj_setup_mtx(bl_obj, Vector(pad.look), Vector(pad.up), center, rotation, scale, flags, bbox)
     blender_align(bl_obj)
 
     if hasbbox:
@@ -375,7 +261,15 @@ def setup_create_obj(prop, romdata, pad):
         set_bbox(pd_pad.bbox_p, pad.bbox)
 
     bl_obj.pd_obj.type = pdprops.PD_OBJTYPE_PROP | proptype
-    return bl_obj, model
+
+    if proptype == OBJTYPE_LIFT:
+        init_lift(bl_obj, prop, paddata, model)
+    elif proptype == OBJTYPE_TINTEDGLASS:
+        init_tintedglass(bl_obj, prop)
+    elif proptype == OBJTYPE_WEAPON:
+        init_weapon(bl_obj, prop)
+
+    return bl_obj
 
 @cache
 def get_setupdata(romdata):
@@ -434,35 +328,19 @@ def import_objects(romdata, setupdata, paddata, all_props, objnum, duration):
 
         proptype = prop['_type_']
         # name = OBJ_NAMES[proptype]
-        type1 = proptype in obj_types1
-        type2 = proptype in obj_types2
+        type1 = proptype in OBJ_TYPES1
+        type2 = proptype in OBJ_TYPES2
 
-        # print(f'{idx} TYPE {proptype:02X}')
         if proptype == OBJTYPE_DOOR:
-            # print(f"DOOR p {b['pad']:04X} m {b['modelnum']:04X}")
-            bl_door = setup_create_door(prop, romdata, paddata)
+            fields = PADFIELD_POS | PADFIELD_LOOK | PADFIELD_UP | PADFIELD_NORMAL | PADFIELD_BBOX
+            pad = paddata.pad_unpack(prop['base']['pad'], fields)
+            bl_door = setup_create_door(prop, prop['base'], romdata, pad)
             all_props.append(bl_door)
         elif type1 or type2:
-            obj = prop['base'] if type1 else prop
-
-            # print(f"OBJ1 p {obj['pad']:04X} m {obj['modelnum']:04X}")
+            prop_base = prop['base'] if type1 else prop
             fields = PADFIELD_POS | PADFIELD_LOOK | PADFIELD_UP | PADFIELD_NORMAL | PADFIELD_BBOX
-            pad = paddata.pad_unpack(obj['pad'], fields)
-            bl_prop, model = setup_create_obj(obj, romdata, pad)
-            if not bl_prop:
-                all_props.append(None)
-                dt += time.time() - t_start
-                objnum += 1
-                continue
-
-            if proptype == OBJTYPE_LIFT:
-                # pad = paddata.pad_unpack(padnum, PADFIELD_POS | PADFIELD_BBOX)
-                init_lift(bl_prop, prop, paddata, model)
-            elif proptype == OBJTYPE_TINTEDGLASS:
-                init_tintedglass(bl_prop, prop)
-            elif proptype == OBJTYPE_WEAPON:
-                init_weapon(bl_prop, prop)
-
+            pad = paddata.pad_unpack(prop_base['pad'], fields)
+            bl_prop = setup_create_obj(prop, prop_base, romdata, pad, paddata)
             all_props.append(bl_prop)
         else:
             # to make sure both lists have the same size
@@ -480,7 +358,7 @@ def import_objects(romdata, setupdata, paddata, all_props, objnum, duration):
 def init_lift(bl_prop, prop, paddata, model):
     bl_prop.pd_lift.accel = prop['accel'] / 0x10000
     bl_prop.pd_lift.maxspeed = prop['maxspeed'] / 0x10000
-    # ## Create lift stops
+    # Create lift stops
     for idxpad, pad_stop in enumerate(prop['pads']):
         padnum = pdu.s16(pad_stop)
         if padnum < 0: continue
@@ -604,13 +482,14 @@ def create_intro_obj(name, pad, padnum, objtype, sc=16):
     intro_obj.show_wire = True
     collection = pdu.new_collection('Intro')
     collection.objects.link(intro_obj)
-    obj_setup_mtx(intro_obj, Vector(pad.look), Vector(pad.up), pad.pos, scale = pdp.Vec3(sc, sc, sc))
+    stu.obj_setup_mtx(intro_obj, Vector(pad.look), Vector(pad.up), pad.pos, scale = pdp.Vec3(sc, sc, sc))
     blender_align(intro_obj)
     intro_obj.rotation_euler[0] -= pi/2
     intro_obj.rotation_euler[2] -= pi/2
 
     intro_obj.pd_obj.type = objtype
     pad_setprops(intro_obj, pad, padnum)
+    return intro_obj
 
 
 def pad_setprops(bl_obj, pad, padnum):
@@ -699,7 +578,7 @@ def create_waypoint(pad_id, pos, groupnum, pad=None):
     bl_waypoint.matrix_world.translation = pos
 
     if pad:
-        obj_setup_mtx(bl_waypoint, Vector(pad.look), Vector(pad.up), pad.pos, scale=pdp.Vec3(7,7,7))
+        stu.obj_setup_mtx(bl_waypoint, Vector(pad.look), Vector(pad.up), pad.pos, scale=pdp.Vec3(7, 7, 7))
         blender_align(bl_waypoint)
     else:
         bl_waypoint.scale = (7, 7, 7)
@@ -732,7 +611,7 @@ def create_coverpad(cover, idx):
     look = [pdu.f32(cover['look'][key]) for key in ['x', 'y', 'z']]
     up = (0, 1, 0)
 
-    obj_setup_mtx(bl_cover, Vector(look), Vector(up), pos, scale=pdp.Vec3(7,7,7))
+    stu.obj_setup_mtx(bl_cover, Vector(look), Vector(up), pos, scale=pdp.Vec3(7, 7, 7))
     blender_align(bl_cover)
 
     return bl_cover
