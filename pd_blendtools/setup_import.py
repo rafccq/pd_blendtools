@@ -210,6 +210,7 @@ def setup_create_obj(prop, prop_base, romdata, pad, paddata=None):
     hasbbox = pdp.pad_hasbbox(pad)
 
     modelscale = ModelStates[modelnum].scale if modelnum < len(ModelStates) else 0x1000
+
     pd_prop.modelscale = modelscale
     pd_prop.extrascale = prop_base['extrascale']
     pd_prop.maxdamage = prop_base['maxdamage']
@@ -441,7 +442,7 @@ def init_tintedglass(bl_prop, prop):
 
 def init_weapon(bl_prop, prop):
     pd_weapon = bl_prop.pd_weapon
-    pd_weapon.weaponnum = prop['weaponnum']
+    pd_weapon.weaponnum = pdprops.WEAPONS_NUMS[prop['weaponnum']]
 
 def setup_fix_refs(all_props, setup_props):
     pad2obj = {prop.pd_prop.pad.padnum: prop for prop in all_props if prop}

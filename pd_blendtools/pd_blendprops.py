@@ -407,6 +407,119 @@ LEVELNAMES = {
     'bg_ate':   ('Duel',                    0x4f, 0),
 }
 
+WEAPONS_NUMS = {
+    0x00: '00 Nothing',
+    0x01: '01 Unarmed',
+    0x02: '02 Falcon 2',
+    0x03: '03 Falcon 2 (Silencer)',
+    0x04: '04 Falcon 2 (Scope)',
+    0x05: '05 Magsec 4',
+    0x06: '06 Mauler',
+    0x07: '07 Phoenix',
+    0x08: '08 DY357 Magnum',
+    0x09: '09 DY357-LX',
+    0x0A: '0A CMP 150',
+    0x0B: '0B Cyclone',
+    0x0C: '0C Callisto NTG',
+    0x0D: '0D RC-P120',
+    0x0E: '0E Laptop Gun',
+    0x0F: '0F Dragon',
+    0x10: '10 K7 Avenger',
+    0x11: '11 AR34',
+    0x12: '12 SuperDragon',
+    0x13: '13 Shotgun',
+    0x14: '14 Reaper',
+    0x15: '15 Sniper Rifle',
+    0x16: '16 Farsight XR-20',
+    0x17: '17 Devastator',
+    0x18: '18 Rocket Launcher',
+    0x19: '19 Slayer',
+    0x1A: '1A Combat Knife',
+    0x1B: '1B Crossbow',
+    0x1C: '1C Tranquilizer',
+    0x1D: '1D Laser',
+    0x1E: '1E Grenade',
+    0x1F: '1F N-Bomb',
+    0x20: '20 Timed Mine',
+    0x21: '21 Proximity Mine',
+    0x22: '22 Remote Mine',
+    0x23: '23 Combat Boost',
+    0x24: '24 PP9i (PP7)',
+    0x25: '25 CC13 (DD44) Dostovei',
+    0x26: '26 KLO1313 (Klobb)',
+    0x27: '27 KF7 Special (KF7 Soviet)',
+    0x28: '28 ZZT (9mm) (ZMG 9mm)',
+    0x29: '29 DMC (D5K) Deutsche',
+    0x2A: '2A AR53 (AR33) Assault Rifle',
+    0x2B: '2B RC-P45 (RC-P90)',
+    0x2C: '2C Pyschosis Gun',
+    0x2D: '2D Nightvision Goggles',
+    0x2E: '2E Camspy',
+    0x2F: '2F X-ray Scanner',
+    0x30: '30 IR-Scanner',
+    0x31: '31 Cloaking Device',
+    0x32: '32 Horizon Scanner',
+    0x33: '33 Tester',
+    0x34: '34 Big King Rocket',
+    0x35: '35 ECM Mine',
+    0x36: '36 Data Uplink',
+    0x37: '37 R-Tracker',
+    0x38: '38 President Scanner',
+    0x39: '39 Door Decoder',
+    0x3A: '3A AutoSurgeon',
+    0x3B: '3B Explosives',
+    0x3C: '3C Skedar Bomb',
+    0x3D: '3D Comms Rider',
+    0x3E: '3E Tracer Bug',
+    0x3F: '3F Target Amplifier',
+    0x40: '40 Disguise',
+    0x41: '41 Disguise',
+    0x42: '42 Flight Plans',
+    0x43: '43 Research Tape',
+    0x44: '44 Backup Disk',
+    0x45: '45 Key Card',
+    0x46: '46 Key Card',
+    0x47: '47 Key Card',
+    0x48: '48 Key Card',
+    0x49: '49 Key Card',
+    0x4A: '4A Key Card',
+    0x4B: '4B Key Card',
+    0x4C: '4C Key Card',
+    0x4D: '4D Suitcase',
+    0x4E: '4E Briefcase',
+    0x4F: '4F Solo Shield',
+    0x50: '50 Necklace',
+    0x51: '51 Nothing (Sonic Screwer)',
+    0x52: '52 Nothing (Lump Hammer)',
+    0x53: '53 Rocket',
+    0x54: '54 Homing Rocket',
+    0x55: '55 Grenade Round',
+    0x56: '56 Bolt',
+    0x57: '57 The Briefcase (From Multiplayer)',
+    0x58: '58 Slayer Rocket',
+    0x59: '59 AR27-BETA',
+    0x5A: '5A SMG27-BETA (G5-Bot)',
+    0x5B: '5B Multiplayer Shield',
+    0x5C: '5C Multiplayer Disabled',
+    0x5D: '5D Suicide pill',
+    0xF0: 'F0 MP Weapon 0',
+    0xF1: 'F1 MP Weapon 1',
+    0xF2: 'F2 MP Weapon 2',
+    0xF3: 'F3 MP Weapon 3',
+    0xF4: 'F4 MP Weapon 4',
+    0xF5: 'F5 MP Weapon 5',
+    0xF6: 'F6 MP Weapon 6',
+    0xF7: 'F7 MP Weapon 7',
+    0xF8: 'F8 MP Weapon 8',
+    0xF9: 'F9 MP Weapon 9',
+    0xFA: 'FA MP Weapon 10',
+    0xFB: 'FB MP Weapon 11',
+    0xFC: 'FC MP Weapon 12',
+    0xFD: 'FD MP Weapon 13',
+    0xFE: 'FE MP Weapon 14',
+}
+
+WEAPONS_NUMS_ITEMS = [(e, e, e, idx) for idx, e in WEAPONS_NUMS.items()]
 
 class PDObject(PropertyGroup):
     name: StringProperty(name='name', default='', options={'LIBRARY_EDITABLE'})
@@ -647,7 +760,7 @@ class PDObject_SetupDoor(PropertyGroup):
 
 # objtype 0x08
 class PDObject_SetupWeapon(PropertyGroup):
-    weaponnum: IntProperty(name='weaponnum', min=0, options={'LIBRARY_EDITABLE'})
+    weaponnum: EnumProperty(items = WEAPONS_NUMS_ITEMS, name='weaponnum')
 
 
 # objtype 0x2f
@@ -1061,6 +1174,9 @@ def register():
     Scene.flags_toggle = BoolProperty(name="Flags Toggle", default=False, description='Show Flags As Toggle/Checkbox')
     Scene.pd_waypoint_vis = ndu.make_prop('pd_waypoint_vis', {'pd_waypoint_vis': WAYPOINTS_VISIBILITY}, 'allsets', update_scene_wp_vis)
     Scene.pd_bspwidth = IntProperty(name="pd_bspwidth", default=1000, min=1, options={'TEXTEDIT_UPDATE'})
+
+    # object creation
+    Scene.weapon_num = EnumProperty(items=WEAPONS_NUMS_ITEMS, name="weapon_num", default=WEAPONS_NUMS[0])
     Scene.pd_obj_type = EnumProperty(items=OBJ_TYPES_ITEMS, name="pd_obj_type", default=OBJ_NAMES[PD_PROP_STANDARD], update=on_select_pdtype)
     Scene.pd_model = EnumProperty(items=ModelNames_Items, default=ModelNames[0], update=on_select_model)
 

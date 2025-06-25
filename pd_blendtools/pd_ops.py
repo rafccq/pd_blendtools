@@ -1568,9 +1568,10 @@ class PDTOOLS_OT_SetupObjectCreate(Operator):
         sel_type = scn['pd_obj_type']
 
         pos = Vec3(pos.y, pos.z, pos.x)
-        up, look, normal, bbox = Vec3(0,1,0), Vec3(1,0,0), Vec3(0,0,1), Bbox(*[0]*6)
-        flag = 0 if sel_type == pdprops.PD_PROP_WEAPON else PADFLAG_HASBBOXDATA
-        header = pdpads.pad_makeheader(flag, 0, 0)
+        bbox = Bbox(-10, 10, -10, 10, -10, 10)
+        up, look, normal = Vec3(0,1,0), Vec3(1,0,0), Vec3(0,0,1)
+        flags = 0 if sel_type == pdprops.PD_PROP_WEAPON else PADFLAG_HASBBOXDATA
+        header = pdpads.pad_makeheader(flags, 0, 0)
 
         pad = pdpads.Pad(pos, look, up, normal, bbox, header)
 
@@ -1579,11 +1580,16 @@ class PDTOOLS_OT_SetupObjectCreate(Operator):
             modelnum = scn.pd_modelnames_idx
             padnum = self.next_pad('Props', sel_type)
 
+            flags = 0
+
+            if sel_type == pdprops.PD_PROP_LIFT:
+                flags = pdprops.OBJFLAG_XTOPADBOUNDS | pdprops.OBJFLAG_YTOPADBOUNDS | pdprops.OBJFLAG_ZTOPADBOUNDS
+
             prop_base = {
                 'pad': padnum,
                 'type': sel_type & 0xff,
                 'modelnum': modelnum,
-                'flags': 0,
+                'flags': flags,
                 'flags2': 0,
                 'flags3': 0,
                 'extrascale': 0x100,
@@ -1610,10 +1616,12 @@ class PDTOOLS_OT_SetupObjectCreate(Operator):
                 return stpi.setup_create_obj(prop, prop_base, romdata, pad)
             elif sel_type == pdprops.PD_PROP_LIFT:
                 prop = {
-                    'accel': 0,
-                    'maxspeed': 0,
+                    'accel'   : 0x0000071C,
+                    'maxspeed': 0x0010AAAA,
                     'pads': [],
                 }
+                bbox = Bbox(-100, 100, -100, 100, -100, 100)
+                pad = pdpads.Pad(pos, look, up, normal, bbox, header)
                 return stpi.setup_create_obj(prop, prop_base, romdata, pad)
             elif sel_type == pdprops.PD_PROP_DOOR:
                 return self.create_door(prop_base, pos, romdata)

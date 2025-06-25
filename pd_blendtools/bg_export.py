@@ -282,7 +282,7 @@ def export_section1(out_gfxdatalens, out_bboxes, out_textures):
     header = DataBlock.New('primarydata')
     rd.write_block(primarydata, header)
 
-    # export sub sections and save the offsets
+    # export subsections and save the offsets
     ofs_rooms, rooms = export_rooms(rd, primarydata)
     ofs_lights = export_lights(rd, primarydata)
     ofs_cmds = export_bgcmds(rd, primarydata)

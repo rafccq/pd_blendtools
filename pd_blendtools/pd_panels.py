@@ -10,6 +10,10 @@ import pd_utils as pdu
 import pd_ops as pdops
 import bg_import as bgi
 import nodes.nodeutils as ndu
+import setup_utils as stu
+import pd_padsfile as pdpad
+
+from pd_blendprops import OBJFLAG_XTOPADBOUNDS, OBJFLAG_YTOPADBOUNDS, OBJFLAG_ZTOPADBOUNDS
 
 
 class PDTOOLS_PT_ImportExport(Panel):
@@ -285,6 +289,158 @@ class PDTOOLS_PT_RoomTools(Panel):
         row.enabled = nsel == 1 and pdtype in [pdprops.PD_OBJTYPE_ROOM, pdprops.PD_OBJTYPE_ROOMBLOCK]
 
 
+def draw_obj_base(layout, props_obj):
+    row = layout.row().split(factor=0.7)
+    row.prop(props_obj, 'extrascale', text='Scale')
+    row.label(text=f'{props_obj.extrascale:08X}')
+
+    row = layout.row().split(factor=0.7)
+    row.prop(props_obj, 'maxdamage', text='Health')
+    row.label(text=f'{props_obj.maxdamage:08X}')
+
+    layout.separator(type='LINE')
+
+    pad = props_obj.pad
+    hasbbox = pad.hasbbox
+    flags = int(props_obj.flags1_packed, 16)
+    row = layout.row().split(factor=0.04)
+    row.prop(pad, 'hasbbox', text='')
+    row.label(text='Bounds')
+    if hasbbox:
+        labels = [('xmin', 'xmax'), ('ymin', 'ymax'), ('zmin', 'zmax')]
+
+        for idx in range(3):
+            lmin = labels[idx][0]
+            lmax = labels[idx][1]
+            row = layout.row()
+            row.prop(props_obj.pad, 'bbox', index=2 * idx, text=lmin)
+            row.prop(props_obj.pad, 'bbox', index=2 * idx + 1, text=lmax)
+
+    layout.separator(type='LINE')
+    flags1 = props_obj.flags1_packed
+    flags2 = props_obj.flags2_packed
+    flags3 = props_obj.flags3_packed
+    layout.label(text=f'Flags: {flags1} | {flags2} | {flags3}')
+    layout.operator('pdtools.setupobj_editflags', text=f'Edit')
+
+
+def draw_door(props_door, layout, context, multiple):
+    column = layout.column()
+
+    column.separator(type='LINE')
+    row = column.row()
+    row.prop(props_door, 'door_type', text='Type')
+    sound = ndu.item_from_value(pdprops.DOOR_SOUNDTYPES, props_door.sound_type)
+    row.popover(panel="PDTOOLS_PT_SetupDoorSound", text=f'Sound: {sound}')
+
+    column.separator(type='LINE')
+    row = column.row().split(factor=0.45)
+    flags = pdu.flags_pack(props_door.door_flags, [e[1] for e in pdprops.DOOR_FLAGS])
+    row.popover(panel="PDTOOLS_PT_SetupDoorFlags", text=f'Door Flags: {flags:04X}')
+
+    # a little hack: we set this attr to indicate to the panel we're using the 'key_flags' prop
+    # all this because Blender won't allow us to pass any arbitrary data
+    row = row.column()
+    row.context_pointer_set(name='door_key_flags', data=None)
+    flags = pdu.flags_pack(props_door.key_flags, [e[1] for e in pdprops.DOOR_KEYFLAGS])
+    row.popover(panel="PDTOOLS_PT_SetupDoorFlags", text=f'Key Flags: {flags:08b}')
+
+    column.separator(type='LINE')
+    col = layout.grid_flow(columns=2)
+    col.prop(props_door, 'accel', text='Acceleration')
+    col.prop(props_door, 'maxfrac', text='Dist Travels')
+    col.prop(props_door, 'maxspeed', text='Max Speed')
+
+    col.prop(props_door, 'decel', text='Deceleration')
+    col.prop(props_door, 'perimfrac', text='Walkthru Dist')
+    col.prop(props_door, 'autoclosetime', text='Time Open (ms)')
+    col.prop(props_door, 'laserfade', text='Laser Opacity')
+
+    row = layout.row()
+    row.prop(props_door, 'sibling', text='Sibling')
+    col = row.column()
+    col.operator('pdtools.door_select_sibling', text='', icon='RESTRICT_SELECT_OFF')
+    col.enabled = props_door.sibling is not None
+
+def draw_lift(props_lift, layout, context, multiple):
+    column = layout.column()
+
+    column.separator(type='LINE')
+    column.label(text='Lift Doors')
+    column.prop(props_lift, 'door1', text='Door 1')
+    column.prop(props_lift, 'door2', text='Door 2')
+    column.prop(props_lift, 'door3', text='Door 3')
+    column.prop(props_lift, 'door4', text='Door 4')
+    column.separator(type='LINE')
+
+    row = column.row().split(factor=0.6)
+    row.prop(props_lift, 'accel', text='Min Speed')
+    accel = int(0x10000 * props_lift.accel)
+    row.label(text=f'hex: {pdu.s32(accel):08X}')
+
+    row = column.row().split(factor=0.6)
+    row.prop(props_lift, 'maxspeed', text='Max Speed')
+    maxspeed = int(0x10000 * props_lift.maxspeed)
+    row.label(text=f'hex: {pdu.s32(maxspeed):08X}')
+
+    #### Lift Stops
+    column.separator(type='LINE')
+    column.label(text='Lift Stops')
+    stops = [props_lift.stop1, props_lift.stop2, props_lift.stop3, props_lift.stop4]
+    for idx in range(4):
+        row = column.row()
+        row = row.split(factor=.2)
+        row.label(text=f'Stop {idx + 1}:')
+        if stops[idx]:
+            row = row.split(factor=.9)
+            row.label(text=f'{stops[idx].name}')
+            op = row.operator(pdops.PDTOOLS_OT_SetupLiftRemoveStop.bl_idname, icon='REMOVE', text='')
+            op.index = idx
+        else:
+            op = row.operator(pdops.PDTOOLS_OT_SetupLiftCreateStop.bl_idname, text='Create')
+            op.index = idx
+
+    column.separator(type='LINE')
+    column.label(text='Interlinks')
+
+    row = layout.row()
+
+    #### Interlinks
+    interlinks = props_lift.interlinks
+    row.template_list("PD_SETUPLIFT_UL_interlinks", "", props_lift, "interlinks", props_lift, "active_interlink_idx",
+                      rows=4)
+
+    col = row.column(align=True)
+    col.operator("pdtools.op_setup_interlink_create", icon='ADD', text='')
+    col_rem = col.column(align=True)
+    col_rem.operator("pdtools.op_setup_interlink_remove", icon='REMOVE', text='')
+    col_rem.enabled = len(interlinks) > 0
+
+    if len(interlinks) > 0:
+        row = layout.column()
+        row.separator(type='LINE')
+        sel_interlink = interlinks[props_lift.active_interlink_idx]
+        row.label(text=sel_interlink.name, icon='LINKED')
+        row.prop(sel_interlink, 'controller', text='Controller')
+        row = layout.column()
+        row.prop(sel_interlink, 'controlled', text='Controlled')
+        row.enabled = False
+        row = layout.column()
+        container = row.split(factor=.3)
+        container.label(text='Lift Stop:')
+        container.prop(sel_interlink, 'stopnum', text='')
+
+def draw_tintedglass(props_glass, layout, context, multiple):
+    column = layout.column()
+    column.separator(type='LINE')
+    column.prop(props_glass, 'opadist', text='Opa Dist')
+
+def draw_weapon(props_weapon, layout, context, multiple):
+    column = layout.column()
+    column.separator(type='LINE')
+    column.prop(props_weapon, 'weaponnum', text='Weapon')
+
+
 class PDTOOLS_PT_SetupObjectTools(Panel):
     bl_label = 'Object Tools'
     bl_space_type = 'VIEW_3D'
@@ -303,8 +459,9 @@ class PDTOOLS_PT_SetupObjectTools(Panel):
             box.label(text='No ROM Loaded', icon='ERROR')
             return
 
+        obj_type = scn.pd_obj_type.lower()
         has_model = ['standard', 'door', 'glass', 'tinted glass', 'lift', 'multi-ammo crate']
-        if scn.pd_obj_type.lower() in has_model:
+        if obj_type in has_model:
             box2 = box.box()
             box2.label(text=f'Model: {scn.pd_model[:4]}')
             row = box2.row().split(factor=0.9)
@@ -313,7 +470,11 @@ class PDTOOLS_PT_SetupObjectTools(Panel):
 
             row.prop(scn, 'pd_model', text='')
             op = row.operator('pdtools.select_model', text='...')
-            # box.separator(type='LINE')
+
+        if obj_type == 'weapon':
+            box.separator(type='LINE')
+            row = box.row()
+            row.prop(scn, 'weapon_num', text='Weapon Pickup')
 
         ops = bpy.context.window.modal_operators
         if 'PDTOOLS_OT_op_setup_object_create' in ops:
@@ -369,8 +530,8 @@ class PDTOOLS_PT_SetupDoorSound(bpy.types.Panel):
         flow.prop(props_door, 'sound_type', text='Sound', expand=1)
 
 
-class PDTOOLS_PT_SetupDoor(Panel):
-    bl_label = 'Door'
+class PDTOOLS_PT_SetupObject(Panel):
+    bl_label = 'Object'
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
     bl_category = "PD Tools"
@@ -378,7 +539,7 @@ class PDTOOLS_PT_SetupDoor(Panel):
     @classmethod
     def poll(cls, context):
         obj = context.object
-        return obj and obj.pd_obj.type == pdprops.PD_PROP_DOOR
+        return obj and pdu.pdtype(obj) == pdprops.PD_OBJTYPE_PROP
 
     def draw(self, context):
         # if multiple selected, choose the first object selected (always the first to last in the list)
@@ -388,99 +549,32 @@ class PDTOOLS_PT_SetupDoor(Panel):
         if not obj: return
 
         layout = self.layout
-
         column = layout.column()
 
         props_obj = obj.pd_prop
-        props_door = obj.pd_door
         txt = 'Multiple Selected' if multiple else f'{obj.name}'
         column.label(text=txt, icon='OBJECT_DATA')
         column.separator(type='LINE')
 
-        column.label(text='Bounds')
-        labels = [('xmin', 'xmax'), ('ymin', 'ymax'), ('zmin', 'zmax')]
-        for idx in range(3):
-            lmin = labels[idx][0]
-            lmax = labels[idx][1]
-            row = column.row()
-            row.prop(props_obj.pad, 'bbox', index=2*idx,   text=lmin)
-            row.prop(props_obj.pad, 'bbox', index=2*idx+1, text=lmax)
+        draw_obj_base(column, props_obj)
 
-        column.separator(type='LINE')
-        row = column.row()
-        row.prop(props_door, 'door_type', text='Type')
-        sound = ndu.item_from_value(pdprops.DOOR_SOUNDTYPES, props_door.sound_type)
-        row.popover(panel="PDTOOLS_PT_SetupDoorSound", text=f'Sound: {sound}')
-
-        column.separator(type='LINE')
-        row = column.row().split(factor=0.45)
-        flags = pdu.flags_pack(props_door.door_flags, [e[1] for e in pdprops.DOOR_FLAGS])
-        row.popover(panel="PDTOOLS_PT_SetupDoorFlags", text=f'Door Flags: {flags:04X}')
-
-        # a little hack: we set this attr to indicate to the panel we're using the 'key_flags' prop
-        # all this because Blender won't allow us to pass any arbitrary data
-        row = row.column()
-        row.context_pointer_set(name='door_key_flags', data=None)
-        flags = pdu.flags_pack(props_door.key_flags, [e[1] for e in pdprops.DOOR_KEYFLAGS])
-        row.popover(panel="PDTOOLS_PT_SetupDoorFlags", text=f'Key Flags: {flags:08b}')
-
-        column.separator(type='LINE')
-        col = layout.grid_flow(columns=2)
-        col.prop(props_door, 'accel', text='Acceleration')
-        col.prop(props_door, 'maxfrac', text='Dist Travels')
-        col.prop(props_door, 'maxspeed', text='Max Speed')
-
-        col.prop(props_door, 'decel', text='Deceleration')
-        col.prop(props_door, 'perimfrac', text='Walkthru Dist')
-        col.prop(props_door, 'autoclosetime', text='Time Open (ms)')
-        col.prop(props_door, 'laserfade', text='Laser Opacity')
-
-        row = layout.row()
-        row.prop(props_door, 'sibling', text='Sibling')
-        col = row.column()
-        col.operator('pdtools.door_select_sibling', text='', icon='RESTRICT_SELECT_OFF')
-        col.enabled = props_door.sibling is not None
-
-
-class PDTOOLS_PT_SetupTintedGlass(Panel):
-    bl_label = 'Tinted Glass'
-    bl_space_type = 'VIEW_3D'
-    bl_region_type = 'UI'
-    bl_category = "PD Tools"
-
-    @classmethod
-    def poll(cls, context):
-        obj = context.object
-        return obj and obj.pd_obj.type == pdprops.PD_PROP_TINTEDGLASS
-
-    def draw(self, context):
-        # if multiple selected, choose the first object selected (always the first to last in the list)
-        multiple = len(context.selected_objects) > 1
-        obj = context.selected_objects[-2] if multiple else context.active_object
-
-        if not obj: return
-
-        layout = self.layout
-
-        column = layout.column()
-
-        props_prop = obj.pd_prop
-        props_glass = obj.pd_tintedglass
-        txt = 'Multiple Selected' if multiple else f'{obj.name}'
-        column.label(text=txt, icon='OBJECT_DATA')
-        column.separator(type='LINE')
-
-        column.label(text='Bounds')
-        labels = [('xmin', 'xmax'), ('ymin', 'ymax'), ('zmin', 'zmax')]
-        for idx in range(3):
-            lmin = labels[idx][0]
-            lmax = labels[idx][1]
-            row = column.row()
-            row.prop(props_prop.pad, 'bbox', index=2*idx, text=lmin)
-            row.prop(props_prop.pad, 'bbox', index=2*idx+1, text=lmax)
-
-        column.separator(type='LINE')
-        column.prop(props_glass, 'opadist', text='Opa Dist')
+        self.bl_label = 'Object'
+        if obj.pd_obj.type == pdprops.PD_PROP_DOOR:
+            self.bl_label = 'Door'
+            props_door = obj.pd_door
+            draw_door(props_door, layout, context, multiple)
+        elif obj.pd_obj.type == pdprops.PD_PROP_LIFT:
+            self.bl_label = 'Lift'
+            props_lift = obj.pd_lift
+            draw_lift(props_lift, layout, context, multiple)
+        elif obj.pd_obj.type == pdprops.PD_PROP_TINTEDGLASS:
+            self.bl_label = 'Tinted Glass'
+            props_glass = obj.pd_tintedglass
+            draw_lift(props_glass, layout, context, multiple)
+        elif obj.pd_obj.type == pdprops.PD_PROP_WEAPON:
+            self.bl_label = 'Weapon'
+            props_weapon = obj.pd_weapon
+            draw_weapon(props_weapon, layout, context, multiple)
 
 
 class PDTOOLS_PT_SetupWaypoint(Panel):
@@ -601,103 +695,6 @@ class PD_SETUPWAYPOINT_UL_neighbours(UIList):
         layout.label(text=text, icon=icon)
 
 
-class PDTOOLS_PT_SetupLift(Panel):
-    bl_label = 'Lift'
-    bl_space_type = 'VIEW_3D'
-    bl_region_type = 'UI'
-    bl_category = "PD Tools"
-
-    @classmethod
-    def poll(cls, context):
-        obj = context.object
-        return obj and obj.pd_obj.type == pdprops.PD_PROP_LIFT
-
-    def draw(self, context):
-        # if multiple selected, choose the first object selected (always the first to last in the list)
-        multiple = len(context.selected_objects) > 1
-        obj = context.selected_objects[-2] if multiple else context.active_object
-
-        if not obj: return
-
-        layout = self.layout
-
-        column = layout.column()
-
-        props_obj = obj.pd_prop
-        props_lift = obj.pd_lift
-        txt = 'Multiple Selected' if multiple else f'{obj.name}'
-        column.label(text=txt, icon='OBJECT_DATA')
-        column.separator(type='LINE')
-
-        column.label(text='Bounds')
-        labels = [('xmin', 'xmax'), ('ymin', 'ymax'), ('zmin', 'zmax')]
-        for idx in range(3):
-            lmin = labels[idx][0]
-            lmax = labels[idx][1]
-            row = column.row()
-            row.prop(props_obj.pad, 'bbox', index=2*idx, text=lmin)
-            row.prop(props_obj.pad, 'bbox', index=2*idx+1, text=lmax)
-
-        column.separator(type='LINE')
-        column.operator('pdtools.setupobj_editflags')
-
-        column.separator(type='LINE')
-        column.label(text='Lift Doors')
-        column.prop(props_lift, 'door1', text='Door 1')
-        column.prop(props_lift, 'door2', text='Door 2')
-        column.prop(props_lift, 'door3', text='Door 3')
-        column.prop(props_lift, 'door4', text='Door 4')
-        column.separator(type='LINE')
-        column.prop(props_lift, 'accel', text='Acceleration')
-        column.prop(props_lift, 'maxspeed', text='Max Speed')
-
-        #### Lift Stops
-        column.separator(type='LINE')
-        column.label(text='Lift Stops')
-        stops = [props_lift.stop1, props_lift.stop2, props_lift.stop3, props_lift.stop4]
-        for idx in range(4):
-            row = column.row()
-            row = row.split(factor=.2)
-            row.label(text=f'Stop {idx + 1}:')
-            if stops[idx]:
-                row = row.split(factor=.9)
-                row.label(text=f'{stops[idx].name}')
-                op = row.operator(pdops.PDTOOLS_OT_SetupLiftRemoveStop.bl_idname, icon='REMOVE', text='')
-                op.index = idx
-            else:
-                op = row.operator(pdops.PDTOOLS_OT_SetupLiftCreateStop.bl_idname, text='Create')
-                op.index = idx
-
-        column.separator(type='LINE')
-        column.label(text='Interlinks')
-
-        row = layout.row()
-
-        #### Interlinks
-        interlinks = props_lift.interlinks
-        row.template_list("PD_SETUPLIFT_UL_interlinks", "", props_lift, "interlinks", props_lift, "active_interlink_idx", rows=4)
-
-        col = row.column(align=True)
-        col.operator("pdtools.op_setup_interlink_create", icon='ADD', text='')
-        col_rem = col.column(align=True)
-        col_rem.operator("pdtools.op_setup_interlink_remove", icon='REMOVE', text='')
-        col_rem.enabled = len(interlinks) > 0
-
-        if len(interlinks) > 0:
-            row = layout.column()
-            row.separator(type='LINE')
-            sel_interlink = interlinks[props_lift.active_interlink_idx]
-            row.label(text=sel_interlink.name, icon='LINKED')
-            row.prop(sel_interlink, 'controller', text='Controller')
-            row = layout.column()
-            row.prop(sel_interlink, 'controlled', text='Controlled')
-            row.enabled = False
-            row = layout.column()
-            container = row.split(factor=.3)
-            container.label(text='Lift Stop:')
-            container.prop(sel_interlink, 'stopnum', text='')
-
-
 class PDTOOLS_PT_Scene(Panel):
     bl_label = 'Scene'
     bl_space_type = 'VIEW_3D'
@@ -791,11 +788,9 @@ classes = [
     PDTOOLS_PT_Room,
     PDTOOLS_PT_Portal,
     PDTOOLS_PT_Tile,
-    PDTOOLS_PT_SetupDoor,
+    PDTOOLS_PT_SetupObject,
     PDTOOLS_PT_SetupDoorFlags,
     PDTOOLS_PT_SetupDoorSound,
-    PDTOOLS_PT_SetupTintedGlass,
-    PDTOOLS_PT_SetupLift,
     PDTOOLS_PT_SetupWaypoint,
     PDTOOLS_UL_ListModels,
     PD_SETUPLIFT_UL_interlinks,

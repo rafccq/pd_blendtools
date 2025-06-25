@@ -237,6 +237,6 @@ def setup_tintedglass(bl_obj, block):
 def setup_weapon(bl_obj, block):
     pd_weapon = bl_obj.pd_weapon
 
-    block['weaponnum'] = pd_weapon.weaponnum
+    block['weaponnum'] = pd_weapon['weaponnum']
     block['dualweaponnum'] = -1
     block['timer240'] = -1
