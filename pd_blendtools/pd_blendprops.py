@@ -712,6 +712,15 @@ class PDObject_SetupBaseObject(PropertyGroup):
         update_array(self.flags2, self.flags2_packed)
         update_array(self.flags3, self.flags3_packed)
 
+    def on_select_model(self, context):
+        bl_obj = context.active_object
+        if not bl_obj: return
+
+        pd_prop = bl_obj.pd_prop
+        modelnum = ModelNames.index(pd_prop.modelname)
+        stu.change_model(bl_obj, modelnum)
+
+    type: IntProperty(name='type', default=0, options={'LIBRARY_EDITABLE'})
     extrascale: IntProperty(name='extrascale', default=0, options={'LIBRARY_EDITABLE'})
     maxdamage: IntProperty(name='maxdamage', default=0, options={'LIBRARY_EDITABLE'})
     floorcol: IntProperty(name='floorcol', default=0, options={'LIBRARY_EDITABLE'})
@@ -727,7 +736,7 @@ class PDObject_SetupBaseObject(PropertyGroup):
     padnum: IntProperty(name='padnum', default=0, options={'LIBRARY_EDITABLE'})
     modelscale: FloatProperty(name='modelscale', min=0, default=0, options={'LIBRARY_EDITABLE'})
     modelnum: IntProperty(name='modelnum', default=0, options={'LIBRARY_EDITABLE'})
-    modelname: StringProperty(name="modelname", options={'LIBRARY_EDITABLE'})
+    modelname: EnumProperty(items=ModelNames_Items, name='modelname', default=ModelNames[0], update=on_select_model)
 
     pad: PointerProperty(name='pad', type=PDObject_PadData, options={'LIBRARY_EDITABLE'})
 
@@ -1180,15 +1189,16 @@ def register():
     Scene.pd_obj_type = EnumProperty(items=OBJ_TYPES_ITEMS, name="pd_obj_type", default=OBJ_NAMES[PD_PROP_STANDARD], update=on_select_pdtype)
     Scene.pd_model = EnumProperty(items=ModelNames_Items, default=ModelNames[0], update=on_select_model)
 
-    scn = bpy.context.scene
-    scn['pd_obj_type'] = PD_PROP_STANDARD
-    scn.pd_model = ModelNames[0]
-
     # model files and names list
     Scene.pd_modelfiles = CollectionProperty(type=PDModelListItem)
     Scene.pd_modelfiles_idx = IntProperty(name='pd_modelfiles_idx', default=0)
     Scene.pd_modelnames = CollectionProperty(type=PDModelListItem)
     Scene.pd_modelnames_idx = IntProperty(name="pd_modelnames_idx", default=0)
+
+    scn = bpy.context.scene
+    scn['pd_obj_type'] = PD_PROP_STANDARD
+    scn.pd_model = ModelNames[0]
+    scn.pd_modelnames_idx = 0
 
     Scene.rompath = StringProperty(name="rompath", default='')
 

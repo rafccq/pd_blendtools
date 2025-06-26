@@ -23,6 +23,7 @@ import template_mesh as tmesh
 import pd_blendprops as pdprops
 from pd_blendprops import OBJ_NAMES
 import nodes.nodeutils as ndu
+from model_info import ModelNames
 
 OBJ_NAMES = pdprops.OBJ_NAMES
 
@@ -56,21 +57,6 @@ def register():
     TypeInfo.register_all(padsfile_decls)
     mdi.register()
 
-
-def obj_load_model(romdata, modelnum):
-    scn = bpy.context.scene
-
-    filenum = ModelStates[modelnum].filenum
-
-    modelname = romdata.filenames[filenum]
-    load_external = scn.level_external_models and modelname in scn['external_models']
-
-    if load_external:
-        filename = f'{scn.external_models_dir}/{modelname}'
-        return mdi.import_model(romdata, single_mesh=True, filename=filename)
-    else:
-        return mdi.import_model(romdata, single_mesh=True, modelname=modelname)
-
 def blender_align(obj):
     rot_mat = Euler((pi/2, 0, pi/2)).to_matrix().to_4x4()
     obj.matrix_world = rot_mat @ obj.matrix_world
@@ -88,7 +74,9 @@ def init_door(bl_door, prop, prop_base, pad, bbox):
     pd_pad = pd_prop.pad
 
     # base obj props
+    pd_prop.type = prop_base['type']
     pd_prop.modelnum = prop_base['modelnum']
+    pd_prop.modelname = ModelNames[pd_prop.modelnum]
     pd_prop.extrascale = prop_base['extrascale']
     pd_prop.maxdamage = prop_base['maxdamage']
     pd_prop.floorcol = prop_base['floorcol']
@@ -132,7 +120,7 @@ def init_door(bl_door, prop, prop_base, pad, bbox):
 def setup_create_door(prop, prop_base, romdata, pad, rotated=True):
     padnum = prop_base['pad']
 
-    bl_door, model = obj_load_model(romdata, prop_base['modelnum'])
+    bl_door, model = stu.obj_load_model(romdata, prop_base['modelnum'])
     bl_door.name = f'door {padnum:02X}'
 
     pdu.add_to_collection(bl_door, 'Props')
@@ -186,7 +174,7 @@ def setup_create_obj(prop, prop_base, romdata, pad, paddata=None):
         model = None
         bl_obj.show_wire = True
     else:
-        bl_obj, model = obj_load_model(romdata, modelnum)
+        bl_obj, model = stu.obj_load_model(romdata, modelnum)
 
     pdu.add_to_collection(bl_obj, 'Props')
 
@@ -204,7 +192,9 @@ def setup_create_obj(prop, prop_base, romdata, pad, paddata=None):
     pd_pad = pd_prop.pad
 
     pd_pad.padnum = padnum
+    pd_prop.type = proptype
     pd_prop.modelnum = modelnum
+    pd_prop.modelname = ModelNames[pd_prop.modelnum]
 
     flags = prop_base['flags']
     hasbbox = pdp.pad_hasbbox(pad)

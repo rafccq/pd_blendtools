@@ -323,6 +323,14 @@ def draw_obj_base(layout, props_obj):
     layout.label(text=f'Flags: {flags1} | {flags2} | {flags3}')
     layout.operator('pdtools.setupobj_editflags', text=f'Edit')
 
+    if stu.obj_hasmodel(props_obj):
+        box = layout.box()
+        box.label(text=f'Model: {props_obj.modelname[:4]}')
+        row = box.row().split(factor=0.9)
+
+        row.prop(props_obj, 'modelname', text='')
+        op = row.operator('pdtools.select_model', text='...')
+        op.type = 'model'
 
 def draw_door(props_door, layout, context, multiple):
     column = layout.column()
@@ -470,6 +478,7 @@ class PDTOOLS_PT_SetupObjectTools(Panel):
 
             row.prop(scn, 'pd_model', text='')
             op = row.operator('pdtools.select_model', text='...')
+            op.type = 'scene'
 
         if obj_type == 'weapon':
             box.separator(type='LINE')

@@ -21,6 +21,7 @@ import pads_export as pde
 import setup_export as stpe
 import tiles_export as tle
 import pd_utils as pdu
+import setup_utils as stu
 import pd_addonprefs as pda
 import pd_blendprops as pdprops
 import pd_panels as pdp
@@ -372,17 +373,35 @@ class PDTOOLS_OT_SelectModel(Operator):
     bl_label = "Select Model"
     bl_description = "Select Model"
 
+    type: StringProperty(name='type', options={'LIBRARY_EDITABLE', 'HIDDEN'})
+    saved_idx: IntProperty(name='saved_idx', options={'LIBRARY_EDITABLE', 'HIDDEN'})
+
     def execute(self, context):
         scn = context.scene
 
         if len(scn.color_collection) == 0:
             gen_icons(context)
 
-        item = scn.pd_modelnames[scn.pd_modelnames_idx]
-        scn.pd_model = item.name
+        if self.type == 'model':
+            bl_obj = context.active_object
+            pd_prop = bl_obj.pd_prop
+            stu.change_model(bl_obj, scn.pd_modelnames_idx)
+            scn.pd_modelnames_idx = self.saved_idx
+        else:
+            item = scn.pd_modelnames[scn.pd_modelnames_idx]
+            scn.pd_model = item.name
         return {'FINISHED'}
 
     def invoke(self, context, event):
+        scn = context.scene
+
+        if self.type == 'model':
+            pd_prop = context.active_object.pd_prop
+            self.saved_idx = scn.pd_modelnames_idx
+            scn.pd_modelnames_idx = pd_prop.modelnum
+        else:
+            scn.pd_modelnames_idx = ModelNames.index(scn.pd_model)
+
         return context.window_manager.invoke_props_dialog(self, width=300)
 
     def draw(self, context):
@@ -1552,6 +1571,9 @@ class PDTOOLS_OT_SetupObjectCreate(Operator):
         if hitpos:
             bl_obj = self.create_obj(hitpos)
             if bl_obj:
+                dim = bl_obj.dimensions
+                d = dim.y
+                bl_obj.location.z = hitpos.z + d * 0.5 + 1
                 self.created_objs.append(bl_obj)
 
     def next_pad(self, coll_name, type):
@@ -1566,6 +1588,8 @@ class PDTOOLS_OT_SetupObjectCreate(Operator):
     def create_obj(self, pos):
         scn = bpy.context.scene
         sel_type = scn['pd_obj_type']
+
+        bpy.context.view_layer.objects.active = None
 
         pos = Vec3(pos.y, pos.z, pos.x)
         bbox = Bbox(-10, 10, -10, 10, -10, 10)

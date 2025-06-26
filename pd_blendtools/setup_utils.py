@@ -1,8 +1,13 @@
+import bpy
 from mathutils import Matrix, Vector, Euler
 
 from decl_setupfile import *
-from decl_setupfile import OBJFLAG_YTOPADBOUNDS, OBJFLAG_XTOPADBOUNDS, OBJFLAG_00000002, OBJFLAG_ZTOPADBOUNDS
 from pd_mtx import M_BADPI
+import pd_blendprops as pdprops
+import model_import as mdi
+from model_info import ModelStates
+import romdata as rom
+from model_info import ModelNames
 
 
 def obj_setup_mtx(obj, look, up, pos, rotation=None, scale=None, flags=None, bbox=None):
@@ -100,3 +105,53 @@ def obj_getscale(modelscale, padbbox, bbox, flags):
 
     m = modelscale * maxscale
     return m*sx, m*sy, m*sz
+
+def check_flags(packedflags, *flags):
+    flagsval = 0
+    for flag in flags:
+        flagsval |= flag
+
+    return packedflags & flagsval
+
+def obj_hasmodel(pd_obj):
+    return pd_obj.type in [
+        pdprops.OBJTYPE_BASIC,
+        pdprops.OBJTYPE_DOOR,
+        pdprops.OBJTYPE_GLASS,
+        pdprops.OBJTYPE_TINTEDGLASS,
+        pdprops.OBJTYPE_LIFT,
+        pdprops.OBJTYPE_MULTIAMMOCRATE,
+    ]
+
+def obj_load_model(romdata, modelnum):
+    scn = bpy.context.scene
+
+    filenum = ModelStates[modelnum].filenum
+
+    modelname = romdata.filenames[filenum]
+    load_external = scn.level_external_models and modelname in scn['external_models']
+
+    if load_external:
+        filename = f'{scn.external_models_dir}/{modelname}'
+        return mdi.import_model(romdata, single_mesh=True, filename=filename)
+    else:
+        return mdi.import_model(romdata, single_mesh=True, modelname=modelname)
+
+def change_model(bl_obj, modelnum):
+    if not bl_obj: return
+
+    pd_prop = bl_obj.pd_prop
+
+    if pd_prop.modelnum == modelnum: return
+
+    romdata = rom.load()
+    new_obj, _ = obj_load_model(romdata, modelnum)
+    mesh = bl_obj.data
+    mesh.clear_geometry()
+    mesh.materials.clear()
+
+    bl_obj.data = new_obj.data
+    bpy.data.objects.remove(new_obj, do_unlink=True)
+    bpy.data.meshes.remove(mesh, do_unlink=True)
+    pd_prop.modelnum = modelnum
+    pd_prop.modelname = ModelNames[modelnum]
