@@ -351,7 +351,9 @@ def select(item, idx):
 
 def select_obj(bl_obj, clear_selection=True):
     if clear_selection:
-        bpy.ops.object.select_all(action='DESELECT')
+        selected_objects = bpy.context.selected_objects
+        for obj in selected_objects:
+            obj.select_set(False)
 
     bpy.context.view_layer.objects.active = bl_obj
     bl_obj.select_set(True)
