@@ -445,9 +445,10 @@ def draw_lift(props_lift, layout, context, multiple):
         container.prop(sel_interlink, 'stopnum', text='')
 
 def draw_tintedglass(props_glass, layout, context, multiple):
-    column = layout.column()
-    column.separator(type='LINE')
+    layout.separator(type='LINE')
+    column = layout.row()
     column.prop(props_glass, 'opadist', text='Opa Dist')
+    column.prop(props_glass, 'xludist', text='Xlu Dist')
 
 def draw_weapon(props_weapon, layout, context, multiple):
     column = layout.column()
@@ -488,8 +489,9 @@ class PDTOOLS_PT_SetupObjectTools(Panel):
 
         if obj_type == 'weapon':
             box.separator(type='LINE')
-            row = box.row()
-            row.prop(scn, 'weapon_num', text='Weapon Pickup')
+            row = box.row().split(factor=0.4)
+            row.label(text='Weapon Pickup:')
+            row.prop(scn, 'weapon_num', text='')
 
         ops = bpy.context.window.modal_operators
         if 'PDTOOLS_OT_op_setup_object_create' in ops:
@@ -585,7 +587,7 @@ class PDTOOLS_PT_SetupObject(Panel):
         elif obj.pd_obj.type == pdprops.PD_PROP_TINTEDGLASS:
             self.bl_label = 'Tinted Glass'
             props_glass = obj.pd_tintedglass
-            draw_lift(props_glass, layout, context, multiple)
+            draw_tintedglass(props_glass, layout, context, multiple)
         elif obj.pd_obj.type == pdprops.PD_PROP_WEAPON:
             self.bl_label = 'Weapon'
             props_weapon = obj.pd_weapon

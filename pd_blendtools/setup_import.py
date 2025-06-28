@@ -495,7 +495,7 @@ def pad_setprops(bl_obj, pad, padnum):
     padflags &= ~PADFLAG_LOOKALIGNTOZ
 
     pdu.flags_unpack(pd_pad.flags, padflags, [e[1] for e in pdprops.PAD_FLAGS])
-    stu.update_flagspacked(pd_pad, 'flags')
+    stu.update_flagspacked(pd_pad, 'flags', pdprops.PAD_FLAGS)
 
 def import_waypoints(paddata):
     scn = bpy.context.scene

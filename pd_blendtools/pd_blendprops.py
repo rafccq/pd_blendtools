@@ -60,6 +60,7 @@ OBJ_NAMES = {
     PD_PROP_TINTEDGLASS:    'Tinted Glass',
     PD_PROP_LIFT:           'Lift',
     PD_INTRO_SPAWN:         'Spawn',
+    PD_INTRO_HILL:          'Hill',
     PD_INTRO_CASE:          'Case',
     PD_INTRO_CASERESPAWN:   'CaseRespawn',
 }
@@ -678,7 +679,7 @@ def update_pad_bbox(self, _context):
 
 class PDObject_PadData(PropertyGroup):
     def on_update_flag(self, context):
-        stu.update_flagspacked(self, 'flags', pdprops.PAD_FLAGS)
+        stu.update_flagspacked(self, 'flags', PAD_FLAGS)
 
     def on_update_flagpacked(self, context):
         stu.update_flags(self.flags, self.flags_packed)
