@@ -61,11 +61,6 @@ def blender_align(obj):
     rot_mat = Euler((pi/2, 0, pi/2)).to_matrix().to_4x4()
     obj.matrix_world = rot_mat @ obj.matrix_world
 
-def set_bbox(dst_bbox, src_bbox):
-    bbox = [src_bbox.xmin, src_bbox.xmax, src_bbox.ymin, src_bbox.ymax, src_bbox.zmin, src_bbox.zmax]
-    for i, val in enumerate(bbox):
-        dst_bbox[i] = val
-
 def init_door(bl_door, prop, prop_base, pad, bbox):
     bl_door.pd_obj.type = pdprops.PD_PROP_DOOR
 
@@ -105,9 +100,9 @@ def init_door(bl_door, prop, prop_base, pad, bbox):
     pd_pad.room = pdp.pad_room(pad)
     pd_pad.lift = pdp.pad_lift(pad)
     pd_pad.hasbbox = True # assuming doors always have a bbox (TODO verify)
-    set_bbox(pd_pad.model_bbox, bbox)
-    set_bbox(pd_pad.bbox, pad.bbox)
-    set_bbox(pd_pad.bbox_p, pad.bbox)
+    stu.set_bbox(pd_pad.model_bbox, bbox)
+    stu.set_bbox(pd_pad.bbox, pad.bbox)
+    stu.set_bbox(pd_pad.bbox_p, pad.bbox)
 
     doorflags = prop['doorflags']
     for idx, flag in enumerate(pdprops.DOOR_FLAGS):
@@ -231,7 +226,7 @@ def setup_create_obj(prop, prop_base, romdata, pad, paddata=None):
     bbox = None
     if hasbbox:
         bbox = model.find_bbox()
-        set_bbox(pd_pad.model_bbox, bbox)
+        stu.set_bbox(pd_pad.model_bbox, bbox)
         sx, sy, sz = stu.obj_getscale(modelscale, pad.bbox, bbox, flags)
         scale = pdp.Vec3(sx, sy, sz)
 
@@ -247,9 +242,9 @@ def setup_create_obj(prop, prop_base, romdata, pad, paddata=None):
     blender_align(bl_obj)
 
     if hasbbox:
-        set_bbox(pd_pad.model_bbox, bbox)
-        set_bbox(pd_pad.bbox, pad.bbox)
-        set_bbox(pd_pad.bbox_p, pad.bbox)
+        stu.set_bbox(pd_pad.model_bbox, bbox)
+        stu.set_bbox(pd_pad.bbox, pad.bbox)
+        stu.set_bbox(pd_pad.bbox_p, pad.bbox)
 
     bl_obj.pd_obj.type = pdprops.PD_OBJTYPE_PROP | proptype
 
@@ -377,8 +372,8 @@ def init_lift(bl_prop, prop, paddata, model):
         pd_pad.room = pdp.pad_room(pad)
         pd_pad.lift = pdp.pad_lift(pad)
         pd_pad.hasbbox = True
-        set_bbox(pd_pad.model_bbox, bbox)
-        set_bbox(pd_pad.bbox, pad.bbox)
+        stu.set_bbox(pd_pad.model_bbox, bbox)
+        stu.set_bbox(pd_pad.bbox, pad.bbox)
 
 def door_setsibling(bl_door, prop, setup_props, pad2obj, idx):
     sibling_ofs = pdu.s32(prop['sibling'])
@@ -499,7 +494,8 @@ def pad_setprops(bl_obj, pad, padnum):
     padflags &= ~PADFLAG_LOOKALIGNTOY
     padflags &= ~PADFLAG_LOOKALIGNTOZ
 
-    pdu.flags_unpack(pd_pad.flags, padflags, [e[1] for e in pdprops.pad_flags])
+    pdu.flags_unpack(pd_pad.flags, padflags, [e[1] for e in pdprops.PAD_FLAGS])
+    stu.update_flagspacked(pd_pad, 'flags')
 
 def import_waypoints(paddata):
     scn = bpy.context.scene

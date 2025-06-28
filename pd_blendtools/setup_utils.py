@@ -2,11 +2,13 @@ import bpy
 from mathutils import Matrix, Vector, Euler
 
 from decl_setupfile import *
-from pd_mtx import M_BADPI
+import pd_utils as pdu
 import pd_blendprops as pdprops
 import model_import as mdi
-from model_info import ModelStates
 import romdata as rom
+import pd_padsfile as pdp
+from pd_mtx import M_BADPI
+from model_info import ModelStates
 from model_info import ModelNames
 
 
@@ -106,6 +108,14 @@ def obj_getscale(modelscale, padbbox, bbox, flags):
     m = modelscale * maxscale
     return m*sx, m*sy, m*sz
 
+def prop_getscale(pd_prop):
+    pad = pd_prop.pad
+    pad_bbox = pdp.Bbox(*pad.bbox)
+    model_bbox = pdp.Bbox(*pad.model_bbox)
+    modelscale = pd_prop.modelscale * pd_prop.extrascale / (256 * 4096)
+    flags = pdu.flags_pack(pd_prop.flags1, [e[1] for e in pdprops.OBJ_FLAGS1])
+    return obj_getscale(modelscale, pad_bbox, model_bbox, flags)
+
 def check_flags(packedflags, *flags):
     flagsval = 0
     for flag in flags:
@@ -127,7 +137,6 @@ def obj_load_model(romdata, modelnum):
     scn = bpy.context.scene
 
     filenum = ModelStates[modelnum].filenum
-
     modelname = romdata.filenames[filenum]
     load_external = scn.level_external_models and modelname in scn['external_models']
 
@@ -145,7 +154,7 @@ def change_model(bl_obj, modelnum):
     if pd_prop.modelnum == modelnum: return
 
     romdata = rom.load()
-    new_obj, _ = obj_load_model(romdata, modelnum)
+    new_obj, model = obj_load_model(romdata, modelnum)
     mesh = bl_obj.data
     mesh.clear_geometry()
     mesh.materials.clear()
@@ -155,3 +164,26 @@ def change_model(bl_obj, modelnum):
     bpy.data.meshes.remove(mesh, do_unlink=True)
     pd_prop.modelnum = modelnum
     pd_prop.modelname = ModelNames[modelnum]
+
+    # update the pad's model bbox
+    pd_pad = pd_prop.pad
+    bbox = model.find_bbox()
+    set_bbox(pd_pad.model_bbox, bbox)
+
+def set_bbox(dst_bbox, src_bbox):
+    bbox = [src_bbox.xmin, src_bbox.xmax, src_bbox.ymin, src_bbox.ymax, src_bbox.zmin, src_bbox.zmax]
+    for i, val in enumerate(bbox):
+        dst_bbox[i] = val
+
+def update_flagspacked(obj, propname, flags):
+    flagsval = 0
+    prop = obj[propname]
+    for i, f in enumerate(prop): flagsval |= flags[i][1] if f else 0
+    obj[f'{propname}_packed'] = f'{flagsval:08X}'
+
+def update_flags(array, flags_packed):
+    f = int(flags_packed, 16)
+    n = len(array)
+    for i in range(n):
+        array[i] = f & 1
+        f >>= 1

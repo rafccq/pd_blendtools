@@ -292,11 +292,11 @@ class PDTOOLS_PT_RoomTools(Panel):
 def draw_obj_base(layout, props_obj):
     row = layout.row().split(factor=0.7)
     row.prop(props_obj, 'extrascale', text='Scale')
-    row.label(text=f'{props_obj.extrascale:08X}')
+    row.label(text=f'Hex {props_obj.extrascale:04X}')
 
     row = layout.row().split(factor=0.7)
     row.prop(props_obj, 'maxdamage', text='Health')
-    row.label(text=f'{props_obj.maxdamage:08X}')
+    row.label(text=f'Hex {props_obj.maxdamage:04X}')
 
     layout.separator(type='LINE')
 
@@ -321,11 +321,17 @@ def draw_obj_base(layout, props_obj):
     flags2 = props_obj.flags2_packed
     flags3 = props_obj.flags3_packed
     layout.label(text=f'Flags: {flags1} | {flags2} | {flags3}')
-    layout.operator('pdtools.setupobj_editflags', text=f'Edit')
+    layout.operator('pdtools.setupobj_editflags', text=f'Edit Flags')
+    layout.operator('pdtools.setupobj_editpadflags', text='Edit Pad')
 
     if stu.obj_hasmodel(props_obj):
+        layout.separator(type='LINE')
         box = layout.box()
-        box.label(text=f'Model: {props_obj.modelname[:4]}')
+
+        scn = bpy.context.scene
+        modelnum = props_obj.modelnum
+        modelname = scn.pd_modelfilenames[modelnum].name
+        box.label(text=f'Model: {props_obj.modelname[:4]} ({modelname})')
         row = box.row().split(factor=0.9)
 
         row.prop(props_obj, 'modelname', text='')
@@ -587,7 +593,7 @@ class PDTOOLS_PT_SetupObject(Panel):
 
 
 class PDTOOLS_PT_SetupWaypoint(Panel):
-    bl_label = 'PD Waypoint'
+    bl_label = 'Waypoint'
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
     bl_category = "PD Tools"
@@ -605,13 +611,20 @@ class PDTOOLS_PT_SetupWaypoint(Panel):
         pd_neighbours_coll = props_waypoint.neighbours_coll
         index = props_waypoint.active_neighbour_idx
 
-        box = layout.box()
-        box.label(text=f'{obj.pd_obj.name}', icon='OBJECT_DATA')
-        row = box.row().split(factor=0.4)
+        layout.label(text=f'{obj.pd_obj.name}', icon='OBJECT_DATA')
+        layout.separator(type='LINE')
+
+        row = layout.row().split(factor=0.3)
         row.label(text=f'ID: {props_waypoint.id:02X}')
-        box.separator(type='LINE')
+        layout.separator(type='LINE')
         row.prop(props_waypoint, 'group_enum', text='')
-        # box.prop(props_waypoint, 'neighbours', text='Neighbours')
+
+        row = layout.row()
+        row.operator('pdtools.setupobj_editpadflags', text='Edit Pad')
+
+        layout.separator(type='LINE')
+
+        box = layout.box()
         row = box.row()
         row.label(text=f'Neighbours ({len(props_waypoint.neighbours_coll)}):')
         row = box.row()
@@ -631,11 +644,6 @@ class PDTOOLS_PT_SetupWaypoint(Panel):
 
         box.separator(type='LINE')
         row = box.row()
-        # col = row.column()
-        # col.operator('pdtools.op_setup_waypoint_addneighbour', text='Add Neighbours')
-        # col = row.column()
-        # col.operator('pdtools.op_setup_waypoint_removeneighbour', text='Remove Neighbour')
-        # row = box.row()
         row.operator('pdtools.op_setup_waypoint_createneighbours', text='Create Neighbours')
         row = box.row()
         row.operator('pdtools.op_setup_waypoint_delete', text='Delete Waypoint')

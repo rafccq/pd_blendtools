@@ -29,7 +29,7 @@ import bg_utils as bgu
 from decl_setupfile import OBJTYPE_LINKLIFTDOOR
 from mtxpalette_panel import gen_icons
 from bpy_extras import view3d_utils
-from model_info import ModelNames
+from model_info import ModelNames, ModelStates
 import pd_padsfile as pdpads
 import setup_export as stpi
 from pd_padsfile import Vec3, Bbox
@@ -62,7 +62,7 @@ class PDTOOLS_OT_LoadRom(Operator, ImportHelper):
     )
 
     def execute(self, context):
-        PDTOOLS_OT_LoadRom.load_rom(context, self.filepath)
+        load_rom(context, self.filepath)
         return {'FINISHED'}
 
     @staticmethod
@@ -130,6 +130,16 @@ class PDTOOLS_OT_LoadRom(Operator, ImportHelper):
         pdprops.rom_pads.sort(key=lambda e: e[1])
         pdprops.rom_setups.sort(key=lambda e: e[1])
         pdprops.rom_tiles.sort(key=lambda e: e[1])
+
+        scn.pd_modelfilenames.clear()
+        n = len(romdata.filenames)
+        for modelstate in ModelStates:
+            filenum = modelstate.filenum
+            # JPN ROM (currently not supported) has more models than the others
+            if filenum >= n: break
+
+            item = scn.pd_modelfilenames.add()
+            item.name = romdata.filenames[filenum]
 
 
 class PDTOOLS_OT_ExportModel(Operator, ExportHelper):
@@ -402,7 +412,7 @@ class PDTOOLS_OT_SelectModel(Operator):
         else:
             scn.pd_modelnames_idx = ModelNames.index(scn.pd_model)
 
-        return context.window_manager.invoke_props_dialog(self, width=300)
+        return context.window_manager.invoke_props_dialog(self, width=400)
 
     def draw(self, context):
         scn = context.scene
@@ -1441,12 +1451,18 @@ class PDTOOLS_OT_SetupDoorSelectSibling(Operator):
         return self.execute(context)
 
 
-def grid(obj, layout, propname, array, flagsfilter, flagstoggle):
+def grid(obj, layout, propname, array, flagsfilter, flagstoggle, multiple=True):
     layout.scale_y = .8
-    items = [e[0][0] if len(e[0]) < 2 else f'{e[0][0]} (+)' for e in array]
+
+    if multiple:
+        items = [e[0][0] if len(e[0]) < 2 else f'{e[0][0]} (+)' for e in array]
+    else:
+        items = [e[0] for e in array]
+
     for idx, item in enumerate(items):
         if len(flagsfilter) == 0 or flagsfilter in item.lower():
             layout.prop(obj, propname, index=idx, text=item, toggle=flagstoggle)
+
 
 class PDTOOLS_OT_SetupObjEditFlags(bpy.types.Operator):
     bl_label = "Flags"
@@ -1466,7 +1482,6 @@ class PDTOOLS_OT_SetupObjEditFlags(bpy.types.Operator):
         pd_obj = bl_obj.pd_prop
 
         layout = self.layout
-        # layout.template_texture_user()
         scn = context.scene
 
         row = layout.row().split(factor=0.07)
@@ -1501,6 +1516,46 @@ class PDTOOLS_OT_SetupObjEditFlags(bpy.types.Operator):
 
         col = row.column()
         grid(pd_obj, col, 'flags3', pdprops.OBJ_FLAGS3, scn.flags_filter, scn.flags_toggle)
+
+
+
+class PDTOOLS_OT_SetupObjEditPadFlags(bpy.types.Operator):
+    bl_label = "Edit Pad"
+    bl_idname = "pdtools.setupobj_editpadflags"
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_category = ""
+
+    def invoke(self, context, event):
+        return context.window_manager.invoke_popup(self, width=220)
+
+    def execute(self, context):
+        return {'FINISHED'}
+
+    def draw(self, context):
+        bl_obj = context.active_object
+        if not bl_obj: return
+
+        # pd_obj = bl_obj.pd_obj
+        objtype = pdu.pdtype(bl_obj)
+        pad = bl_obj.pd_prop.pad
+
+        layout = self.layout
+        scn = context.scene
+
+        layout.label(text='Pad Flags')
+
+        row = layout.row()
+        row = row.row()
+        row.prop(pad, "flags_packed", text='Value')
+        row.prop(pad, "lift", text='Lift')
+
+        layout.separator(type='LINE')
+
+        row = layout.row()
+        col = row.column()
+        for item in pdprops.PAD_FLAGS_EDIT:
+            layout.prop(pad, 'flags', index=item[1], text=item[0], toggle=scn.flags_toggle)
 
 
 class PDTOOLS_OT_SetupDoorPlaySound(Operator):
@@ -1569,7 +1624,7 @@ class PDTOOLS_OT_SetupObjectCreate(Operator):
                 hitpos = hit_world
 
         if hitpos:
-            bl_obj = self.create_obj(hitpos)
+            bl_obj = self.create_obj(hitpos, picked_obj)
             if bl_obj:
                 dim = bl_obj.dimensions
                 d = dim.y
@@ -1585,7 +1640,7 @@ class PDTOOLS_OT_SetupObjectCreate(Operator):
 
         return pad + 1
 
-    def create_obj(self, pos):
+    def create_obj(self, pos, picked_obj):
         scn = bpy.context.scene
         sel_type = scn['pd_obj_type']
 
@@ -1595,7 +1650,7 @@ class PDTOOLS_OT_SetupObjectCreate(Operator):
         bbox = Bbox(-10, 10, -10, 10, -10, 10)
         up, look, normal = Vec3(0,1,0), Vec3(1,0,0), Vec3(0,0,1)
         flags = 0 if sel_type == pdprops.PD_PROP_WEAPON else PADFLAG_HASBBOXDATA
-        header = pdpads.pad_makeheader(flags, 0, 0)
+        header = pdpads.pad_makeheader(flags, picked_obj.pd_room.roomnum, 0)
 
         pad = pdpads.Pad(pos, look, up, normal, bbox, header)
 
@@ -1679,8 +1734,8 @@ class PDTOOLS_OT_SetupObjectCreate(Operator):
         return stpi.setup_create_door(prop, prop_base, romdata, pad, False)
 
     def done(self):
-        pdu.redraw_ui()
         pdu.select_objects(self.created_objs)
+        pdu.redraw_ui()
 
     def modal(self, context, event):
         if event.type in {'MIDDLEMOUSE', 'WHEELUPMOUSE', 'WHEELDOWNMOUSE'}:
@@ -1742,6 +1797,7 @@ classes = [
     PDTOOLS_OT_TilesFromFaces,
     PDTOOLS_OT_TilesSelectSameRoom,
     PDTOOLS_OT_SetupObjEditFlags,
+    PDTOOLS_OT_SetupObjEditPadFlags,
     PDTOOLS_OT_SetupLiftCreateStop,
     PDTOOLS_OT_SetupLiftRemoveStop,
     PDTOOLS_OT_SetupInterlinkCreate,

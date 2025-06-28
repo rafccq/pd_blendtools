@@ -240,7 +240,7 @@ DOOR_SOUNDTYPES = [
 
 DOOR_SOUNDTYPES_VALUES = { ndu.make_id(e[0]): e[2] for e in DOOR_SOUNDTYPES }
 
-pad_flags = [
+PAD_FLAGS = [
     ('INTPOS'         , 0x0001),
     ('UPALIGNTOX'     , 0x0002),
     ('UPALIGNTOY'     , 0x0004),
@@ -261,6 +261,18 @@ pad_flags = [
     ('20000'          , 0x20000),
 ]
 
+PAD_FLAGS_EDIT = [
+    ('Scale to Bounds'      , 9),
+    ('Sim Wait Lift'        , 10),
+    ('Sim Ride Lift'        , 11),
+    ('Sim Walk Straight To' , 12),
+    ('Sims Drop (Mid-Air)'  , 13),
+    ('Sims Duck'            , 14),
+    ('8000'                 , 15),
+    ('10000'                , 16),
+    ('20000'                , 17),
+]
+
 OBJ_FLAGS1 = [
     (['Fall'],                  0x00000001),
     (['In Air Rotated 90 Deg Upside-Down'], 0x00000002), # Editor: "In Air Rotated 90 Deg Upside-Down"
@@ -270,7 +282,7 @@ OBJ_FLAGS1 = [
     (['X To Pad Bounds'],       0x00000020),
     (['Y To Pad Bounds'],       0x00000040),
     (['Z To Pad Bounds'],       0x00000080),
-    (['Force Collisions ?'],  0x00000100), # G5 mines, Air Base brown door, AF1 grate and escape door, Defense shuttle, Ruins mines, MBR lift door. Editor suggests "Force Collisions" but this seems wrong
+    (['Force Collisions ?'],    0x00000100), # G5 mines, Air Base brown door, AF1 grate and escape door, Defense shuttle, Ruins mines, MBR lift door. Editor suggests "Force Collisions" but this seems wrong
     (['Orthogonal'],            0x00000200),
     (['Ignore Floor Colour'],   0x00000400),
     (['Path Blocker'],          0x00000800), # Glass and explodable scenery which may be blocking a path segment
@@ -323,7 +335,7 @@ OBJ_FLAGS2 = [
     (['Exclude 3P'],              0x00800000),
     (['Exclude 4P'],              0x01000000),
     (['Throw Through'],           0x02000000), # Rockets/mines/grenades etc pass through object
-    (['Gravity ?'],             0x04000000), # Used quite a lot - gravity?
+    (['Gravity ?'],               0x04000000), # Used quite a lot - gravity?
     (['Locked Front'],            0x08000000), # One-way door lock
     (['Locked Back'],             0x10000000), # One-way door lock
     (['AI Cannot Use', 'Auto Gun Malfunctioning 2'], 0x20000000),
@@ -644,11 +656,7 @@ def update_pad_bbox(self, _context):
             sx = sy = sz = 1
     else:
         pd_prop = obj.pd_prop
-        pad_bbox = pdp.Bbox(*self.bbox)
-        model_bbox = pdp.Bbox(*self.model_bbox)
-        modelscale = pd_prop.modelscale * pd_prop.extrascale / (256 * 4096)
-        flags = pdu.flags_pack(pd_prop.flags1, [e[1] for e in OBJ_FLAGS1])
-        sx, sy, sz = stu.obj_getscale(modelscale, pad_bbox, model_bbox, flags)
+        sx, sy, sz = stu.prop_getscale(pd_prop)
 
     bbox_p = pdp.Bbox(*self.bbox_p)
     bbox = pdp.Bbox(*self.bbox)
@@ -669,48 +677,43 @@ def update_pad_bbox(self, _context):
     obj.scale = (sx, sy, sz)
 
 class PDObject_PadData(PropertyGroup):
-    def update_flag(self, context):
-        flagsval = 0
+    def on_update_flag(self, context):
+        stu.update_flagspacked(self, 'flags', pdprops.PAD_FLAGS)
+
+    def on_update_flagpacked(self, context):
+        stu.update_flags(self.flags, self.flags_packed)
 
     padnum: IntProperty(name='padnum', default=0, options={'LIBRARY_EDITABLE'})
     pos: FloatVectorProperty(name='pos', default=(0,0,0), size=3, options={'LIBRARY_EDITABLE'})
+
     bbox: FloatVectorProperty(name='bbox', default=(0,0,0,0,0,0), size=6, update=update_pad_bbox, options={'LIBRARY_EDITABLE'})
     # we need to save the "previous" (before it was changed) bbox, in order to derive
     # the original position/center of the new one
     bbox_p: FloatVectorProperty(name='bbox_p', default=(0,0,0,0,0,0), size=6, options={'LIBRARY_EDITABLE'})
     model_bbox: FloatVectorProperty(name='model_bbox', default=(0,0,0,0,0,0), size=6, options={'LIBRARY_EDITABLE'})
-    flags: BoolVectorProperty(name="flags", size=len(pad_flags), default=(False,) * len(pad_flags), update=update_flag)
+
+    flags: BoolVectorProperty(name="flags", size=len(PAD_FLAGS), default=(False,) * len(PAD_FLAGS), update=on_update_flag)
+    flags_packed: StringProperty(name="flags_packed", update=on_update_flagpacked)
+
     hasbbox: BoolProperty(name="hasbbox", default=False, options={'LIBRARY_EDITABLE'})
-    room: IntProperty(name='room', default=0, options={'LIBRARY_EDITABLE'})
-    lift: IntProperty(name='lift', default=0, options={'LIBRARY_EDITABLE'})
+    room: IntProperty(name='room', default=0, min=0, options={'LIBRARY_EDITABLE'})
+    lift: IntProperty(name='lift', default=0, min=0, options={'LIBRARY_EDITABLE'})
 
 
 class PDObject_SetupBaseObject(PropertyGroup):
-    def update_flag(self, prop, propname, flags):
-        flagsval = 0
-        for i, f in enumerate(prop): flagsval |= flags[i][1] if f else 0
-        self[f'{propname}_packed'] = f'{flagsval:08X}'
-
     def update_flag1(self, context):
-        self.update_flag(self.flags1, 'flags1', OBJ_FLAGS1)
+        stu.update_flagspacked(self, 'flags1', OBJ_FLAGS1)
 
     def update_flag2(self, context):
-        self.update_flag(self.flags2, 'flags2', OBJ_FLAGS2)
+        stu.update_flagspacked(self, 'flags2', OBJ_FLAGS2)
 
     def update_flag3(self, context):
-        self.update_flag(self.flags3, 'flags3', OBJ_FLAGS3)
+        stu.update_flagspacked(self, 'flags3', OBJ_FLAGS3)
 
     def update_flagpacked(self, context):
-        def update_array(array, flags):
-            f = int(f'0x{flags}', 16)
-            n = len(array)
-            for i in range(n):
-                array[i] = f & 1
-                f >>= 1
-
-        update_array(self.flags1, self.flags1_packed)
-        update_array(self.flags2, self.flags2_packed)
-        update_array(self.flags3, self.flags3_packed)
+        stu.update_flags(self.flags1, self.flags1_packed)
+        stu.update_flags(self.flags2, self.flags2_packed)
+        stu.update_flags(self.flags3, self.flags3_packed)
 
     def on_select_model(self, context):
         bl_obj = context.active_object
@@ -720,8 +723,16 @@ class PDObject_SetupBaseObject(PropertyGroup):
         modelnum = ModelNames.index(pd_prop.modelname)
         stu.change_model(bl_obj, modelnum)
 
+    def update_scale(self, context):
+        bl_obj = context.active_object
+        if not bl_obj: return
+
+        pd_prop = bl_obj.pd_prop
+        if pd_prop.type != OBJTYPE_DOOR:
+            bl_obj.scale = stu.prop_getscale(pd_prop)
+
     type: IntProperty(name='type', default=0, options={'LIBRARY_EDITABLE'})
-    extrascale: IntProperty(name='extrascale', default=0, options={'LIBRARY_EDITABLE'})
+    extrascale: IntProperty(name='extrascale', default=0, options={'LIBRARY_EDITABLE'}, update=update_scale)
     maxdamage: IntProperty(name='maxdamage', default=0, options={'LIBRARY_EDITABLE'})
     floorcol: IntProperty(name='floorcol', default=0, options={'LIBRARY_EDITABLE'})
 
@@ -827,7 +838,7 @@ class PDObject_SetupWaypoint(PropertyGroup):
     id: IntProperty(name='id', default=0, min=0, options={'LIBRARY_EDITABLE'})
     # used by export to keep the waypoints contiguous
     idx: IntProperty(name='idx', default=0, min=0, options={'LIBRARY_EDITABLE'})
-    group_enum: EnumProperty(name="group_enum", description="Waypoint Group", items=get_groupitems, update=update_group)
+    group_enum: EnumProperty(name="Set", description="Waypoint Group", items=get_groupitems, update=update_group)
     neighbours_coll: CollectionProperty(name='neighbours_coll', type=PDObject_SetupWaypointNeighbour)
     active_neighbour_idx: IntProperty(name='active_neighbour_idx', default=0, options={'LIBRARY_EDITABLE'})
 
@@ -1180,7 +1191,7 @@ def register():
     Scene.pd_room_goto = bpy.props.PointerProperty(type=bpy.types.Object, update=update_scene_roomgoto, poll=check_isroom)
     Scene.pd_portal = bpy.props.PointerProperty(type=bpy.types.Object, poll=check_isportal)
     Scene.flags_filter = StringProperty(name="Flags Filter", default='', options={'TEXTEDIT_UPDATE'})
-    Scene.flags_toggle = BoolProperty(name="Flags Toggle", default=False, description='Show Flags As Toggle/Checkbox')
+    Scene.flags_toggle = BoolProperty(name="Flags UI Style", default=False, description='Show Flags As Toggle/Checkbox')
     Scene.pd_waypoint_vis = ndu.make_prop('pd_waypoint_vis', {'pd_waypoint_vis': WAYPOINTS_VISIBILITY}, 'allsets', update_scene_wp_vis)
     Scene.pd_bspwidth = IntProperty(name="pd_bspwidth", default=1000, min=1, options={'TEXTEDIT_UPDATE'})
 
@@ -1194,6 +1205,7 @@ def register():
     Scene.pd_modelfiles_idx = IntProperty(name='pd_modelfiles_idx', default=0)
     Scene.pd_modelnames = CollectionProperty(type=PDModelListItem)
     Scene.pd_modelnames_idx = IntProperty(name="pd_modelnames_idx", default=0)
+    Scene.pd_modelfilenames = CollectionProperty(type=PDModelListItem)
 
     scn = bpy.context.scene
     scn['pd_obj_type'] = PD_PROP_STANDARD
