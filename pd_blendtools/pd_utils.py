@@ -13,7 +13,6 @@ from bl_ui.space_toolsystem_common import ToolSelectPanelHelper
 
 import mtxpalette as mtxp
 from gbi import GDLcodes
-import pd_blendprops as pdprops
 
 MAX_GDL_CMDS = 512
 
@@ -299,8 +298,8 @@ def new_collection(name):
     bpy.context.scene.collection.children.link(coll)
     return coll
 
-def clear_scene():
-    for coll in pdprops.PD_COLLECTIONS:
+def clear_scene(pd_collections):
+    for coll in pd_collections:
         clear_collection(coll)
 
     for group in bpy.data.node_groups:
@@ -578,28 +577,7 @@ def flags_unpack(flaglist, valuepacked, flagvalues):
     for idx in range(n):
         flaglist[idx] = bool(flagvalues[idx] & valuepacked)
 
-def waypoint_name(pad_id): return f'waypoint_{pad_id:02X}'
-
 def group_name(num): return f'Set {num:02X}'
-
-def add_neighbour(bl_waypoint, bl_neighbour):
-    pd_waypoint = bl_waypoint.pd_waypoint
-    pd_neighbour_wp = bl_neighbour.pd_waypoint
-
-    pd_neighbours = pd_waypoint.neighbours_coll
-
-    # check if the neighbour already exists
-    for neighbour in pd_neighbours:
-        if neighbour.id == pd_waypoint.id:
-            return
-
-    neighbour_item = pd_neighbours.add()
-    neighbour_item.name = waypoint_name(pd_neighbour_wp.id)
-    neighbour_item.groupnum = pd_waypoint.groupnum
-    neighbour_item.id = pd_neighbour_wp.id
-
-    edge = pdprops.WAYPOINT_EDGETYPES[0][0]
-    neighbour_item.edgetype = edge
 
 def waypoint_newgroup():
     groupnum = waypoint_maxgroup()

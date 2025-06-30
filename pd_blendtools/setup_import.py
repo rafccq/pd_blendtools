@@ -21,7 +21,6 @@ import model_import as mdi
 from model_info import ModelStates
 import template_mesh as tmesh
 import pd_blendprops as pdprops
-from pd_blendprops import OBJ_NAMES
 import nodes.nodeutils as ndu
 from model_info import ModelNames
 
@@ -51,11 +50,6 @@ OBJ_TYPES2 = [
     OBJTYPE_SAFE,
 ]
 
-
-def register():
-    TypeInfo.register_all(setupfile_decls)
-    TypeInfo.register_all(padsfile_decls)
-    mdi.register()
 
 def blender_align(obj):
     rot_mat = Euler((pi/2, 0, pi/2)).to_matrix().to_4x4()
@@ -455,13 +449,15 @@ def import_intro(introcmds, paddata):
         if key not in intro_cfg: continue
 
         cfg = intro_cfg[key]
-        padnum = cmd['params'][cfg.padidx]
+        params = cmd['params']
+        padnum = params[cfg.padidx]
         name = cfg.name
         pdtype = cfg.pdtype
+        case_set = params[2] if pdtype in [pdprops.PD_INTRO_CASE, pdprops.PD_INTRO_CASERESPAWN] else None
         pad = paddata.pad_unpack(padnum, PADFIELD_POS | PADFIELD_LOOK | PADFIELD_UP)
-        create_intro_obj(name, pad, padnum, pdtype)
+        create_intro_obj(name, pad, padnum, pdtype, case_set=case_set)
 
-def create_intro_obj(name, pad, padnum, objtype, sc=16):
+def create_intro_obj(name, pad, padnum, objtype, sc=16, case_set=None):
     meshname = name.lower()
     name = f'{name}_{padnum:02X}'
     intro_obj = tmesh.create_mesh(name, meshname)
@@ -474,6 +470,11 @@ def create_intro_obj(name, pad, padnum, objtype, sc=16):
     intro_obj.rotation_euler[2] -= pi/2
 
     intro_obj.pd_obj.type = objtype
+    intro_obj.pd_intro.type = objtype
+
+    if case_set:
+        intro_obj.pd_intro.case_setnum = case_set
+
     pad_setprops(intro_obj, pad, padnum)
     return intro_obj
 
@@ -532,7 +533,7 @@ def import_waypoints(paddata):
 
             neighbour_wp = waypoints[neighbour & 0x3fff]
             neighbour_item = pd_neighbours.add()
-            neighbour_item.name = pdu.waypoint_name(neighbour_wp['padnum'])
+            neighbour_item.name = stu.wp_name(neighbour_wp['padnum'])
             neighbour_item.groupnum = neighbour_wp['groupnum']
             neighbour_item.id = neighbour & 0x3fff
 
@@ -542,7 +543,7 @@ def import_waypoints(paddata):
             neighbour_item.edgetype = edge
 
 def create_waypoint(pad_id, pos, groupnum, pad=None):
-    objname = pdu.waypoint_name(pad_id)
+    objname = stu.wp_name(pad_id)
     groupname = pdu.group_name(groupnum)
     bl_group = bpy.data.objects[groupname]
     bl_waypoint = tmesh.create_mesh(objname, 'cube')
@@ -602,3 +603,11 @@ def create_coverpad(cover, idx):
     blender_align(bl_cover)
 
     return bl_cover
+
+def register():
+    TypeInfo.register_all(setupfile_decls)
+    TypeInfo.register_all(padsfile_decls)
+    mdi.register()
+
+def unregister():
+    pass

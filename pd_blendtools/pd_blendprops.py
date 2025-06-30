@@ -701,6 +701,11 @@ class PDObject_PadData(PropertyGroup):
     lift: IntProperty(name='lift', default=0, min=0, options={'LIBRARY_EDITABLE'})
 
 
+class PDObject_SetupIntro(PropertyGroup):
+    type: IntProperty(name='type', default=0, min=0, options={'LIBRARY_EDITABLE'})
+    case_setnum: IntProperty(name='case_setnum', default=0, min=0, options={'LIBRARY_EDITABLE'})
+
+
 class PDObject_SetupBaseObject(PropertyGroup):
     def update_flag1(self, context):
         stu.update_flagspacked(self, 'flags1', OBJ_FLAGS1)
@@ -1159,6 +1164,7 @@ classes = [
     PDObject_SetupLift,
     PDObject_SetupWaypointNeighbour,
     PDObject_SetupWaypoint,
+    PDObject_SetupIntro,
     PDModelListItem,
 ]
 
@@ -1183,6 +1189,7 @@ def register():
     Object.pd_tintedglass = bpy.props.PointerProperty(type=PDObject_SetupTintedGlass)
     Object.pd_lift = bpy.props.PointerProperty(type=PDObject_SetupLift)
     Object.pd_waypoint = bpy.props.PointerProperty(type=PDObject_SetupWaypoint)
+    Object.pd_intro = bpy.props.PointerProperty(type=PDObject_SetupIntro)
 
     n_coll = len(PD_COLLECTIONS)
     Scene.collections_vis = BoolVectorProperty(name='collections_vis', size=n_coll, default=[1]*n_coll, update=update_scene_vis, options={'LIBRARY_EDITABLE'})
@@ -1207,11 +1214,6 @@ def register():
     Scene.pd_modelnames = CollectionProperty(type=PDModelListItem)
     Scene.pd_modelnames_idx = IntProperty(name="pd_modelnames_idx", default=0)
     Scene.pd_modelfilenames = CollectionProperty(type=PDModelListItem)
-
-    scn = bpy.context.scene
-    scn['pd_obj_type'] = PD_PROP_STANDARD
-    scn.pd_model = ModelNames[0]
-    scn.pd_modelnames_idx = 0
 
     Scene.rompath = StringProperty(name="rompath", default='')
 

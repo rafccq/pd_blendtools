@@ -187,3 +187,24 @@ def update_flags(array, flags_packed):
     for i in range(n):
         array[i] = f & 1
         f >>= 1
+
+def wp_name(pad_id): return f'waypoint_{pad_id:02X}'
+
+def wp_addneighbour(bl_waypoint, bl_neighbour):
+    pd_waypoint = bl_waypoint.pd_waypoint
+    pd_neighbour_wp = bl_neighbour.pd_waypoint
+
+    pd_neighbours = pd_waypoint.neighbours_coll
+
+    # check if the neighbour already exists
+    for neighbour in pd_neighbours:
+        if neighbour.id == pd_waypoint.id:
+            return
+
+    neighbour_item = pd_neighbours.add()
+    neighbour_item.name = wp_name(pd_neighbour_wp.id)
+    neighbour_item.groupnum = pd_waypoint.groupnum
+    neighbour_item.id = pd_neighbour_wp.id
+
+    edge = pdprops.WAYPOINT_EDGETYPES[0][0]
+    neighbour_item.edgetype = edge

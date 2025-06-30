@@ -594,6 +594,39 @@ class PDTOOLS_PT_SetupObject(Panel):
             draw_weapon(props_weapon, layout, context, multiple)
 
 
+class PDTOOLS_PT_SetupIntro(Panel):
+    bl_label = 'Intro'
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_category = "PD Tools"
+
+    @classmethod
+    def poll(cls, context):
+        obj = context.object
+        return obj and obj.pd_obj.type in [pdprops.PD_INTRO_CASE, pdprops.PD_INTRO_CASERESPAWN]
+
+    def draw(self, context):
+        # if multiple selected, choose the first object selected (always the first to last in the list)
+        multiple = len(context.selected_objects) > 1
+        obj = context.selected_objects[-2] if multiple else context.active_object
+
+        if not obj: return
+
+        layout = self.layout
+        column = layout.column()
+
+        props_obj = obj.pd_prop
+        txt = 'Multiple Selected' if multiple else f'{obj.name}'
+        column.label(text=txt, icon='OBJECT_DATA')
+        column.separator(type='LINE')
+
+        column.operator('pdtools.setupobj_editpadflags', text=f'Edit Flags')
+
+        if obj.pd_obj.type in [pdprops.PD_INTRO_CASE, pdprops.PD_INTRO_CASERESPAWN]:
+            row = column.row()
+            row.prop(obj.pd_intro, 'case_setnum', text='Set')
+
+
 class PDTOOLS_PT_SetupWaypoint(Panel):
     bl_label = 'Waypoint'
     bl_space_type = 'VIEW_3D'
@@ -811,6 +844,7 @@ classes = [
     PDTOOLS_PT_SetupDoorFlags,
     PDTOOLS_PT_SetupDoorSound,
     PDTOOLS_PT_SetupWaypoint,
+    PDTOOLS_PT_SetupIntro,
     PDTOOLS_UL_ListModels,
     PD_SETUPLIFT_UL_interlinks,
     PD_SETUPWAYPOINT_UL_neighbours,

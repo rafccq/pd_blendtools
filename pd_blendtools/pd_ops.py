@@ -62,7 +62,7 @@ class PDTOOLS_OT_LoadRom(Operator, ImportHelper):
     )
 
     def execute(self, context):
-        load_rom(context, self.filepath)
+        PDTOOLS_OT_LoadRom.load_rom(context, self.filepath)
         return {'FINISHED'}
 
     @staticmethod
@@ -1150,8 +1150,8 @@ class PDTOOLS_OT_SetupWaypointAddNeighbour(Operator):
             if sel_obj == picked_obj:
                 return
 
-            pdu.add_neighbour(sel_obj, picked_obj)
-            pdu.add_neighbour(picked_obj, sel_obj)
+            stu.wp_addneighbour(sel_obj, picked_obj)
+            stu.wp_addneighbour(picked_obj, sel_obj)
 
     def modal(self, context, event):
         if event.type in {'MIDDLEMOUSE', 'WHEELUPMOUSE', 'WHEELDOWNMOUSE'}:
@@ -1311,8 +1311,8 @@ class PDTOOLS_OT_SetupWaypointCreateFromMesh(Operator):
             bl_waypoint0 = waypoints[v0.index]
             bl_waypoint1 = waypoints[v1.index]
 
-            pdu.add_neighbour(bl_waypoint0, bl_waypoint1)
-            pdu.add_neighbour(bl_waypoint1, bl_waypoint0)
+            stu.wp_addneighbour(bl_waypoint0, bl_waypoint1)
+            stu.wp_addneighbour(bl_waypoint1, bl_waypoint0)
 
         bm.free()
 
@@ -1366,8 +1366,8 @@ class PDTOOLS_OT_SetupWaypointCreateNeighbours(Operator):
             pd_neighbour.groupnum = groupnum
             pd_neighbour.group_enum = groupname
 
-            pdu.add_neighbour(bl_waypoint, bl_neighbour)
-            pdu.add_neighbour(bl_neighbour, bl_waypoint)
+            stu.wp_addneighbour(bl_waypoint, bl_neighbour)
+            stu.wp_addneighbour(bl_neighbour, bl_waypoint)
 
             angle += 2*math.pi / self.num
             padnum += 1

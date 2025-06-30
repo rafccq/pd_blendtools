@@ -1,12 +1,9 @@
 ﻿files
-pd_modeltool/.idea
-pd_modeltool/__pycache__
 tmp*.blend
 *.blend.0
 *.blend1
 *.log
 tex
-pd_modeltool/nodes/__pycache__
 *.png
 texbin
 texbmp
@@ -18,3 +15,5 @@ pd_blendtools/nodes/__pycache__
 .idea
 pd_blendtools/__pycache__
 config.ini
+modelbin2
+__pycache__
