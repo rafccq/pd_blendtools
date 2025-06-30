@@ -16,8 +16,6 @@ import pd_materials as pdm
 import romdata as rom
 import pd_blendprops as pdprops
 
-def register():
-    TypeInfo.register_all(bgfile_decls)
 
 def bg_import(romdata, roomnum, duration):
     bgdata, tex_configs = bg_load(romdata)
@@ -314,3 +312,9 @@ def bg_portals_unhide():
     for obj in scn.objects:
         if obj.name.startswith('portal'):
             obj.hide_set(False)
+
+def register():
+    TypeInfo.register_all(bgfile_decls)
+
+def unregister():
+    pass

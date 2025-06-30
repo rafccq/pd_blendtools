@@ -30,9 +30,6 @@ yellow = (.8, .8, 0, 1)
 red = (.8, 0, 0, 1)
 white = (1, 1, 1, 1)
 
-def register():
-    TypeInfo.register_all(bgtiles_decl)
-
 floortype_names = {
     0: 'default',
     1: 'wood',
@@ -159,3 +156,9 @@ def bg_colortiles(context):
         numaffected += bg_colortile(bl_tile, context, flags, room)
 
     return numaffected
+
+def register():
+    TypeInfo.register_all(bgtiles_decl)
+
+def unregister():
+    pass
