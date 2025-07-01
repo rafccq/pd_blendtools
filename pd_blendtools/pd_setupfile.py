@@ -1,4 +1,4 @@
-from bytereader import *
+from bytereader import ByteReader
 from decl_setupfile import *
 from typeinfo import TypeInfo
 

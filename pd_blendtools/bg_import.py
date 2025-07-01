@@ -9,8 +9,10 @@ from mathutils import Euler, Vector, Matrix
 from pd_bgfile import PatchBGFile as PDBGFile, ROOMBLOCKTYPE_LEAF, ROOMBLOCKTYPE_PARENT
 from decl_bgfile import bgfile_decls
 from typeinfo import TypeInfo
-import pd_utils as pdu
-import bg_utils as bgu
+from utils import (
+    pd_utils as pdu,
+    bg_utils as bgu
+)
 import model_import as mdi
 import pd_materials as pdm
 import romdata as rom
@@ -49,8 +51,9 @@ def bg_import(romdata, roomnum, duration):
 def bg_load(romdata):
     scn = bpy.context.scene
 
-    waypoints = scn['waypoints']
-    waypoints.clear()
+    if hasattr(scn, 'waypoints'):
+        waypoints = scn['waypoints']
+        waypoints.clear()
 
     if scn.import_src_bg == 'ROM':
         bgname = f'bgdata/{scn.rom_bgs}.seg'

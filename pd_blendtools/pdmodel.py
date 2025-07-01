@@ -1,9 +1,10 @@
 import struct
 from collections import namedtuple
 
-from bytereader import *
+from bytereader import ByteReader
 from decl_model import *
-import pd_utils as pdu
+from utils import pd_utils as pdu
+from typeinfo import TypeInfo
 
 NODETYPE_CHRINFO      = 0x01
 NODETYPE_POSITION     = 0x02
@@ -19,6 +20,7 @@ NODETYPE_DL           = 0x18
 def unmask(addr):
     return addr & 0x00ffffff if addr & 0x5000000 else addr
 
+enableLog = False
 def log(*args):
     if enableLog:
         print(''.join(args))
@@ -391,6 +393,6 @@ class PDModel:
 
 
 def read(path, filename, skipDLdata=False):
-    modeldata = read_file(f'{path}/{filename}')
-    modeldata = decompress(modeldata)
+    modeldata = pdu.read_file(f'{path}/{filename}')
+    modeldata = pdu.decompress(modeldata)
     return PDModel(modeldata, skipDLdata)

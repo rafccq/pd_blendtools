@@ -1,6 +1,4 @@
-from bpy.props import (
-    EnumProperty
-)
+from bpy.props import EnumProperty
 
 def make_id(name):
     for c in [' ', '(', ')', '[', ']', '{', '}', '.', '?', '/']:

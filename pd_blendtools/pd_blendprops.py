@@ -1,23 +1,25 @@
 import math
 
 import bpy
-from bpy.types import PropertyGroup, Object, Panel, Scene, SpaceView3D
+from bpy.types import PropertyGroup, Object, Scene, SpaceView3D
 from bpy.props import *
 from bpy.utils import register_class, unregister_class
-from mathutils import Euler, Vector, Matrix
+from mathutils import Vector, Matrix
 import gpu
 from gpu_extras.batch import batch_for_shader
 
-import nodes.nodeutils as ndu
-import pd_utils as pdu
-import setup_utils as stu
-import tiles_import as tiles
+from utils import (
+    pd_utils as pdu,
+    bg_utils as bgu,
+    setup_utils as stu,
+)
 from decl_bgtiles import *
 from decl_setupfile import *
+from model_info import ModelNames_Items, ModelNames
+import tiles_import as tiles
+import nodes.nodeutils as ndu
 import pd_padsfile as pdp
 import pd_mtx as mtx
-import bg_utils as bgu
-from model_info import ModelNames_Items, ModelNames
 
 
 PD_OBJTYPE_MODEL        = 0x0100

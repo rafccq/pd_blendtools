@@ -1,6 +1,4 @@
 import zlib
-import os
-import json
 from functools import cache
 from pathlib import Path
 from glob import glob
@@ -11,34 +9,8 @@ import bmesh
 from mathutils import Vector
 from bl_ui.space_toolsystem_common import ToolSelectPanelHelper
 
+from pd_blendtools import bl_info
 import mtxpalette as mtxp
-from gbi import GDLcodes
-
-MAX_GDL_CMDS = 512
-
-def printGDL(data, nspaces = 0, byte_order='big'):
-    spaces = ' ' * nspaces if nspaces > 0 else ''
-    addr = 0
-    for i in range(0, MAX_GDL_CMDS):
-        val = data[addr:addr+8]
-        cmd = int.from_bytes(val, byte_order)
-
-        # code = (cmd & 0xff00000000000000) >> 56
-        w0 = int.from_bytes(data[addr:addr+4], byte_order)
-        w1 = int.from_bytes(data[addr+4:addr+8], byte_order)
-        code = (w0 & (0xff << 24)) >> 24
-        # if byte_order != 'big':
-        #     code = (cmd & 0x000000ff00000000) >> 32
-
-        name = GDLcodes[code] if code in GDLcodes else '--'
-        # print(f'{spaces}{cmd:016X}: {name}')
-        print(f'{spaces}{w0:08X}{w1:08X}: {name}')
-
-        if name == 'G_ENDDL': break
-        addr += 8
-
-def is_cmd_ptr(cmd):
-    return cmd in [0x04, 0x06, 0x07, 0xFD]
 
 def decompress(buffer):
     if buffer[0:2] == b'\x11\x73':
@@ -61,10 +33,6 @@ def compress(data):
     stream += compressor.flush()
     return b'\x11\x73' + len(data).to_bytes(3, 'big') + stream
 
-def offsetpointer_x64(data, addr, offset, byteorder, signed=False):
-    val = int.from_bytes(data[addr: addr + 8], byteorder=byteorder)
-    data[addr: addr + 8] = (val + offset).to_bytes(8, byteorder=byteorder, signed=signed)
-
 def print_bin(title, data, start, nbytes, group_size=4, groups_per_row=4):
     if title: print(title)
 
@@ -83,60 +51,6 @@ def print_bin(title, data, start, nbytes, group_size=4, groups_per_row=4):
         i += 1
         g += 1
     print(s)
-
-
-def print_dict(dict, indent=4):
-    print(json.dumps(dict, indent=indent))
-
-def print_dict2(dict, name, declmap, sz, showdec=False, pad=0, numspaces=0):
-    spaces = ' ' * numspaces if numspaces > 0 else ''
-
-    decl = declmap[name]
-    for field in decl:
-        info = field_info(field)
-        # print(info)
-        if info['is_cmd']: continue # TODO TEMP
-
-        typename = info['typename']
-        fieldname = info['fieldname']
-        is_struct = info['is_struct']
-        is_pointer = info['is_pointer']
-        is_array = info['is_array']
-
-        if is_struct and not is_pointer and not is_array:
-            print(f'{spaces}{fieldname}:')
-            print_dict2(dict[fieldname], typename, declmap, sz, showdec, pad, numspaces+2)
-            continue
-
-        if info['is_array']:
-            arraysize = info['array_size']
-            arraysize = info[f'{fieldname}_len'] if arraysize == 0 else arraysize # TODO fieldname_len no longer exists
-            # arraysize = info
-            for i in range(0, arraysize):
-                if is_struct:
-                    print(f'{spaces}{fieldname}[{i}]:')
-                    print_dict2(dict[fieldname][i], typename, declmap, sz, showdec, pad, numspaces+2)
-                    continue
-
-                size = sz['pointer'] if info['is_pointer'] else sz[typename]
-                fmt = '0' + str(size*2) + 'X'
-                name = f'{fieldname}[{i}]'.ljust(pad)
-                val = dict[fieldname][i]
-                dec = f' ({val})' if showdec else ''
-                print(f'{spaces}{name}: {dict[fieldname][i]:{fmt}}{dec}')
-            continue
-        # elif info['is_struct'] and not info['is_pointer']:
-        #     name = fieldname.ljust(pad)
-        #     print(f'{spaces}{name}: {dict[fieldname]}')
-        #     continue
-
-        size = sz['pointer'] if info['is_pointer'] else sz[typename]
-        name = fieldname.ljust(pad)
-        fmt = '0' + str(size*2) + 'X'
-
-        val = dict[fieldname]
-        dec = f' ({val})' if showdec else ''
-        print(f'{spaces}{name}: {val:{fmt}}{dec}')
 
 def globs(path, *args):
     files = glob(f'{path}/{args[0]}')
@@ -494,10 +408,12 @@ def u32(value):
     return struct.unpack('I', value.to_bytes(4, 'little'))[0]
 
 def addon_path():
-    return os.path.dirname(os.path.realpath(__file__))
+    name = addon_name()
+    path = bpy.utils.user_resource('SCRIPTS')
+    return f'{path}/addons/{name}'
 
 def addon_name():
-    return os.path.basename(addon_path())
+    return bl_info['name']
 
 def addon_prefs():
     return bpy.context.preferences.addons[addon_name()].preferences
@@ -645,7 +561,6 @@ def get_lvname(lvcode, levelnames, addmp = True):
     bgname = f'bg_{lvcode}'
     lvname = f'{levelnames[bgname][0]}' if bgname in levelnames else ''
     mp = ' MP' if bgname in levelnames and levelnames[bgname][2] and addmp else ''
-    # fullname = f'{lvname}{mp} ({bgname})' if lvname else bgname
     fullname = f'{lvname}{mp}' if lvname else ''
     return fullname
 

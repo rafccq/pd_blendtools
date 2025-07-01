@@ -5,18 +5,19 @@ import glob
 
 import bpy
 import bmesh
-from mathutils import Euler, Vector, Matrix
+from mathutils import Vector
 
-import pd_materials as pdm
-import pd_utils as pdu
-from pd_materials import *
 from pdmodel import unmask, PDModel
 from gbi import *
-import texload as tex
-import mtxpalette as mtxp
-import log_util as log
 from decl_model import *
 from typeinfo import TypeInfo
+import pd_materials as pdm
+import texload as tex
+import mtxpalette as mtxp
+from utils import (
+    pd_utils as pdu,
+    log_util as log,
+)
 import pd_blendprops as pdprops
 
 logger = log.log_get(__name__)
@@ -273,7 +274,7 @@ def gdl_read_data(pdmeshdata, idx, apply_mtx, layer=MeshLayer.OPA):
 
     trinum = 0
 
-    mat_setup = PDMaterialSetup(idx)
+    mat_setup = pdm.PDMaterialSetup(idx)
     gdlnum = 0
     nverts = 0
 
@@ -362,7 +363,7 @@ def gdl_read_data(pdmeshdata, idx, apply_mtx, layer=MeshLayer.OPA):
             mesh.has_mtx = True
         elif op in MAT_CMDS:
             if mat_setup.applied:
-                mat_setup = PDMaterialSetup(idx, mat_setup)
+                mat_setup = pdm.PDMaterialSetup(idx, mat_setup)
             mat_setup.add_cmd(cmd)
 
         addr += 8

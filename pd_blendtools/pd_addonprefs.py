@@ -1,6 +1,6 @@
 import bpy
 
-import pd_utils as pdu
+from utils import pd_utils as pdu
 
 PD_PREF_ROMPATH = 'rompath'
 

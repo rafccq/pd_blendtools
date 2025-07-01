@@ -5,7 +5,7 @@ import bpy
 from mathutils import Vector, Matrix
 import bmesh
 
-import pd_utils as pdu
+from . import pd_utils as pdu
 import pd_materials as pdm
 import pd_blendprops as pdprops
 import pd_mtx as mtx
@@ -122,7 +122,6 @@ def init_portal(bl_portal, name):
     pdu.add_to_collection(bl_portal, 'Portals')
     bl_portal.pd_obj.name = name
     bl_portal.pd_obj.type = pdprops.PD_OBJTYPE_PORTAL
-    # bl_portal.display_type = 'WIRE'
 
 def new_room_with_block(bl_roomblock, layer, context):
     scn = context.scene

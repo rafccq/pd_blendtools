@@ -29,12 +29,15 @@ from decl_model import model_decls
 from pd_addonprefs import PD_AddonPreferences
 import pd_blendprops as pdprops
 
-import pd_shadernodes as pdn
-# import nodes.pd_shadernodes as pdn
+from nodes import pd_shadernodes as pdn
 import pd_panels
 import pd_ops as pdops
 import mtxpalette_panel as mtxp
 import pd_addonprefs as pdp
+import tiles_import as tiles
+import setup_import as sti
+import bg_import as bgi
+
 
 submodules = [
     pdn,
@@ -42,8 +45,32 @@ submodules = [
     pdops,
     mtxp,
     pdprops,
+    tiles,
+    sti,
+    bgi,
 ]
 
+if "bpy" in locals():
+    import importlib
+    import pkgutil
+
+    from utils import (
+        pd_utils as pdu,
+        bg_utils as bgu,
+        setup_utils as stu,
+        img_utils as imu
+    )
+
+    for modinfo in pkgutil.iter_modules(__path__):
+        if modinfo.name == 'nodes': continue
+        submod = __import__(modinfo.name, globals(), locals(), [], 0)
+        importlib.reload(submod)
+        print(f'SUBMOD {modinfo.name}.')
+
+    importlib.reload(pdu)
+    importlib.reload(bgu)
+    importlib.reload(stu)
+    importlib.reload(imu)
 
 class PDModelPropertyGroup(PropertyGroup):
     name: StringProperty(name='name', default='', options={'LIBRARY_EDITABLE'})
@@ -56,15 +83,10 @@ def register_types():
         TypeInfo.register(name, decl)
 
 def register():
-    try:
-        bpy.utils.register_class(PD_AddonPreferences)
-    except RuntimeError as err:
-        print('unregister error:', err)
-        pass
-
     print(f'---------------------------------')
     print(f'PD Blend Tools Register')
     print(f'---------------------------------')
+    bpy.utils.register_class(PD_AddonPreferences)
     bpy.utils.register_class(PDModelPropertyGroup)
     Object.pd_model = bpy.props.PointerProperty(type=PDModelPropertyGroup)
     register_types()

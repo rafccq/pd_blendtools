@@ -1,14 +1,18 @@
 import bmesh
-from mathutils import Vector, Matrix
+from mathutils import Vector
 
-import log_util as log
+from utils import (
+    pd_utils as pdu,
+    log_util as logu
+)
+from pdmodel import PDModel
+from typeinfo import TypeInfo
 import mtxpalette as mtxp
 import romdata as rom
-from pd_materials import *
-from pdmodel import PDModel
+import pd_materials as pdm
 
-logger = log.log_get(__name__)
-log.log_config(logger, log.LOG_FILE_EXPORT)
+logger = logu.log_get(__name__)
+logu.log_config(logger, logu.LOG_FILE_EXPORT)
 
 
 # col is a tuple (r,g,b,a) with each element in the range [0:1]
@@ -66,7 +70,7 @@ def vtx_data(mesh, bm):
         mat_idx = loops[0].face.material_index
         mat = mesh.materials[mat_idx]
 
-        has_lighting = material_has_lighting(mat)
+        has_lighting = pdm.material_has_lighting(mat)
 
         maprange = lambda e: int(127.5 * (e + 1) - 128)  # maps -1.0:1.0 to -128:127
         for loop in loops:
@@ -336,14 +340,14 @@ def mesh_to_gdl(mesh, vtx_start, nverts, segment_vtx, segment_col, env_enabled=F
 
     color_start = pdu.align(vtx_start + nverts * 12, 8) if vtx_start else  0
 
-    gdlbytes = cmd_G_RDPPIPESYNC()
+    gdlbytes = pdm.cmd_G_RDPPIPESYNC()
 
     for batch in mesh.batches:
         batch.vtx_start = vtx_start
         batch.color_start = color_start
 
     gdlbytes += create_gdl(mesh, segment_vtx, segment_col, env_enabled)
-    gdlbytes += cmd_G_END()
+    gdlbytes += pdm.cmd_G_END()
 
     return gdlbytes
 
@@ -360,7 +364,7 @@ def create_gdl(mesh: ExportMeshData, segment_vtx, segment_col, env_enabled=False
         # don't emmit the material cmds if this batch material is the same as the previous
         if batch.mat != prevmat:
             mat = materials[batch.mat]
-            mat_cmds, mat_geobits = material_cmds(mat)
+            mat_cmds, mat_geobits = pdm.material_cmds(mat)
 
             geobits |= mat_geobits
             for cmd in mat_cmds:
@@ -369,11 +373,11 @@ def create_gdl(mesh: ExportMeshData, segment_vtx, segment_col, env_enabled=False
         prevmat = batch.mat
 
         if env_enabled and not env_emitted:
-            gdlbytes += cmd_G_SETENVCOLOR(0xff)
+            gdlbytes += pdm.cmd_G_SETENVCOLOR(0xff)
             env_emitted = True
 
         colstart, colofs = batch.color_start, batch.color_offset
-        gdlbytes += cmd_G_COL(len(batch.colors), colstart + colofs, segment_col)
+        gdlbytes += pdm.cmd_G_COL(len(batch.colors), colstart + colofs, segment_col)
 
         vtx_ofs = batch.vtx_start + batch.vtx_offset
         vidx = 0
@@ -382,15 +386,15 @@ def create_gdl(mesh: ExportMeshData, segment_vtx, segment_col, env_enabled=False
         for mtx in batch.mtxs:
             nverts = batch.vtxbin_sizes[mtx]
 
-            gdlbytes += cmd_G_MTX(mtx)
-            gdlbytes += cmd_G_VTX(nverts, vtx_ofs, segment_vtx, vidx)
+            gdlbytes += pdm.cmd_G_MTX(mtx)
+            gdlbytes += pdm.cmd_G_VTX(nverts, vtx_ofs, segment_vtx, vidx)
 
             vtx_ofs += nverts * 12
             vidx += nverts
 
         # handle meshes with no matrix
         if not batch.mtxs:
-            gdlbytes += cmd_G_VTX(nverts, vtx_ofs, segment_vtx, vidx)
+            gdlbytes += pdm.cmd_G_VTX(nverts, vtx_ofs, segment_vtx, vidx)
             vtx_ofs += nverts * 12
 
         # flush triangles
@@ -398,15 +402,15 @@ def create_gdl(mesh: ExportMeshData, segment_vtx, segment_col, env_enabled=False
         for tri in batch.tris:
             trigroup.append(tri)
             if len(trigroup) == 4:
-                gdlbytes += cmd_G_TRI4(trigroup)
+                gdlbytes += pdm.cmd_G_TRI4(trigroup)
                 trigroup.clear()
 
         # flush remaining tris
         if len(trigroup) > 0:
-            gdlbytes += cmd_G_TRI4(trigroup)
+            gdlbytes += pdm.cmd_G_TRI4(trigroup)
 
     if geobits != 0:
-        gdlbytes += cmd_G_CLEARGEOMETRY(geobits)
+        gdlbytes += pdm.cmd_G_CLEARGEOMETRY(geobits)
 
     return gdlbytes
 
@@ -415,7 +419,7 @@ def loadmodel(romdata, modelname=None, filename=None):
     return PDModel(modeldata)
 
 def export_model(model_obj, filename):
-    log.log_clear(log.LOG_FILE_EXPORT)
+    logu.log_clear(logu.LOG_FILE_EXPORT)
 
     objmap = build_meshmap(model_obj)
     modelname = model_obj.pd_model.name
@@ -453,7 +457,7 @@ def export_model(model_obj, filename):
                 if batch.mat < 0: continue
 
                 mat = materials[batch.mat]
-                image = material_get_teximage(mat)
+                image = pdm.material_get_teximage(mat)
 
                 texsize = (1,1)
                 if image: texsize = image.size
@@ -508,7 +512,7 @@ def print_batches(mesh, tri_batches, matrices=None):
         m = mesh.materials[mat]
         matname = m.name
         newmat = ' NEWMAT' if mat != prevmat else ''
-        txtnorm = ' NORM' if material_has_lighting(m) else ''
+        txtnorm = ' NORM' if pdm.material_has_lighting(m) else ''
         logger.debug(f'batch_{bidx} mat {mat} {matname} '
                      f'nv {batch.nverts()} nt {batch.ntris} '
                      f'ncols {len(batch.colors)} {newmat}{txtnorm}')

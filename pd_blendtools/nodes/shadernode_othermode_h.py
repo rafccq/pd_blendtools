@@ -1,8 +1,6 @@
-from bpy.props import (
-    EnumProperty
-)
+from bpy.props import EnumProperty
 
-from nodes.nodeutils import make_prop, make_id
+from .nodeutils import make_prop, make_id
 from .shadernode_base import PD_ShaderNodeBase
 
 

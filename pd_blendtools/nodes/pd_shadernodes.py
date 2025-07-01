@@ -1,18 +1,18 @@
 import bpy
+from bpy.types import ShaderNodeCustomGroup
 from nodeitems_utils import NodeItem
-import nodeitems_utils as ndu
 from nodeitems_builtins import ShaderNodeCategory
 from bpy.types import Menu
 from bl_ui import node_add_menu
 from bpy.utils import register_class, unregister_class
+import nodeitems_utils as ndu
 
-from nodes.shadernode_base import PD_ShaderNodeBase
-from nodes.shadernode_othermode_h import PD_ShaderNodeSetOtherModeH
-from nodes.shadernode_othermode_l import PD_ShaderNodeSetOtherModeL
-from nodes.shadernode_geomode import PD_ShaderNodeSetGeoMode, PD_ShaderNodeClearGeoMode
-from nodes.shadernode_setcombine import PD_ShaderNodeSetCombine
-from nodes.shadernode_tex import PD_ShaderNodeTexConfig, PD_ShaderNodeTexLoad
-
+from .shadernode_base import PD_ShaderNodeBase
+from .shadernode_othermode_h import PD_ShaderNodeSetOtherModeH
+from .shadernode_othermode_l import PD_ShaderNodeSetOtherModeL
+from .shadernode_geomode import PD_ShaderNodeSetGeoMode, PD_ShaderNodeClearGeoMode
+from .shadernode_setcombine import PD_ShaderNodeSetCombine
+from .shadernode_tex import PD_ShaderNodeTexConfig, PD_ShaderNodeTexLoad, PD_ShaderNodeSetTImage
 
 class PD_ShaderNodeMaterialSetup(PD_ShaderNodeBase):
     bl_idname = 'pd.nodes.materialsetup'
@@ -23,7 +23,6 @@ class PD_ShaderNodeMaterialSetup(PD_ShaderNodeBase):
         self.pd_init(False, (.353, .233, .233))
 
 classes = [
-    PD_ShaderNodeBase,
     PD_ShaderNodeMaterialSetup,
     PD_ShaderNodeClearGeoMode,
     PD_ShaderNodeSetGeoMode,
@@ -33,6 +32,7 @@ classes = [
     PD_ShaderNodeTexLoad,
     PD_ShaderNodeSetCombine,
     PD_ShaderNodeSetTImage,
+    PD_ShaderNodeBase,
 ]
 
 node_categories = [
@@ -75,4 +75,3 @@ def unregister():
 
     if bpy.app.version < (4, 0, 0):
         ndu.unregister_node_categories('PDNODES')
-

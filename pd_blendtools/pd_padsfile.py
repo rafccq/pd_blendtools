@@ -1,10 +1,12 @@
 from collections import namedtuple
+from functools import cache
 
-from bytereader import *
+from bytereader import ByteReader
 from decl_padsfile import *
 from typeinfo import TypeInfo
-import pd_utils as pdu
+from utils import pd_utils as pdu
 
+enableLog = False
 
 def log(*args):
     if enableLog:

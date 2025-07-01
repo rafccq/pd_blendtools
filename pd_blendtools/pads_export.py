@@ -1,18 +1,20 @@
 import bpy
 from mathutils import Euler, Vector, Matrix
 
-import pd_utils as pdu
-import bg_utils as bgu
-import pd_blendprops as pdprops
-import setup_utils as stu
+from utils import (
+    pd_utils as pdu,
+    bg_utils as bgu,
+    setup_utils as stu
+)
 from pd_blendprops import WAYPOINT_EDGEVALUES
-import pd_mtx as mtx
-import pd_padsfile as pdp
-import decl_setupfile as dst
 from decl_padsfile import decl_padsfileheader
 from bytereader import ByteReader, add_padding
 from datablock import DataBlock
 from typeinfo import TypeInfo
+import pd_blendprops as pdprops
+import pd_mtx as mtx
+import pd_padsfile as pdp
+import decl_setupfile as dst
 
 ux = Vector((1, 0, 0))
 uy = Vector((0, 1, 0))

@@ -3,8 +3,6 @@ import logging
 
 import bpy
 
-import pd_utils as pdu
-
 LOG_FILE_IMPORT = 'pd_import.log'
 LOG_FILE_EXPORT = 'pd_export.log'
 LOG_FMT = '%(asctime)s [%(name)s] %(message)s'

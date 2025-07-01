@@ -1,11 +1,12 @@
 import bpy
-from bpy.types import SpaceNodeEditor
-from nodes.nodeutils import make_prop, item_from_value
-
-from .shadernode_base import PD_ShaderNodeBase
 from bpy.props import (
-    PointerProperty, EnumProperty, FloatProperty, BoolProperty
+    PointerProperty, BoolProperty
 )
+from bpy.types import SpaceNodeEditor
+
+from .nodeutils import make_prop, item_from_value
+from .shadernode_base import PD_ShaderNodeBase
+
 
 class PD_ShaderNodeSetTImage(PD_ShaderNodeBase):
     bl_idname = 'pd.nodes.settimg'

@@ -1,17 +1,13 @@
-import time
 from functools import cache
-
-import numpy
-import os
+from numpy import int16
 
 import bpy
 
 from pd_bgtiles import PatchBGTiles as PD_BGTiles
 from decl_bgtiles import *
 from typeinfo import TypeInfo
-import pd_utils as pdu
+from utils import pd_utils as pdu
 import mtxpalette as mtxp
-import romdata as rom
 import pd_blendprops as pdprops
 
 FLOORTYPE_COLORS = [
@@ -87,7 +83,7 @@ def tiles_import(romdata, tilenum, count):
             geoverts = geo['vertices']
             verts = []
             for v in range(0, numvtx * 3, 3):
-                x, y, z = [numpy.int16(geoverts[v+k]) for k in range(3)]
+                x, y, z = [int16(geoverts[v+k]) for k in range(3)]
                 verts.append((z, x, y))
 
             basename = f'Tile_{tilenum:02X}'

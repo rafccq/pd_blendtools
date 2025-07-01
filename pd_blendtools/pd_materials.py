@@ -1,7 +1,7 @@
 import bpy
 
 from gbi import *
-import pd_utils as pdu
+from utils import pd_utils as pdu
 
 TEMPLATE_NAME = 'PD_MaterialTemplate'
 MAT_BLENDFILE_4X = 'pd_materials.blend'

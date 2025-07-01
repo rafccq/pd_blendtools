@@ -3,11 +3,14 @@ import math
 
 import bpy
 
-import pd_utils as pdu
-import bg_utils as bgu
+from utils import (
+    pd_utils as pdu,
+    bg_utils as bgu
+)
 import pd_mtx as mtx
 import pd_materials as pdm
-import pd_export as pde
+import model_export as mde
+import pd_blendprops as pdprops
 from bytereader import *
 from decl_bgfile import decl_portalvertices
 from typeinfo import TypeInfo
@@ -140,7 +143,7 @@ def export_roomGDL(roomblocks):
 
     for block in roomblocks:
         pd_roomblock = block.pd_room
-        mesh = pde.ExportMeshData(block.name, pd_roomblock.layer, block.data)
+        mesh = mde.ExportMeshData(block.name, pd_roomblock.layer, block.data)
         mesh.create_batches()
         mesh.batches.sort(key=lambda b: b.mat)
 
@@ -168,7 +171,7 @@ def export_roomGDL(roomblocks):
             colordata += batch.color_bytes()
 
         nverts = len(block.data.vertices)
-        gdlbytes = pde.mesh_to_gdl(mesh, 0, nverts, 0xe, 0xd, env_enabled=True)
+        gdlbytes = mde.mesh_to_gdl(mesh, 0, nverts, 0xe, 0xd, env_enabled=True)
         gfxdata.append((vtxdata, colordata, gdlbytes))
 
     return gfxdata, textures, bbox
@@ -325,7 +328,7 @@ def export_section1(out_gfxdatalens, out_bboxes, out_textures):
     rooms[idx].update(primarydata, 'unk00', ofs_room)
 
     # compress the data and write the headers
-    primarydata_comp = compress(primarydata)
+    primarydata_comp = pdu.compress(primarydata)
     primcompsize = len(primarydata_comp)
 
     section1 = primarydata_comp + gfxdata
@@ -386,7 +389,7 @@ def export_section3(gfxdatalens, bboxes, lights_per_room):
     return pack_section(dataout, 0x7fff)
 
 def pack_section(dataout, mask = 1):
-    compdata = compress(dataout)
+    compdata = pdu.compress(dataout)
     sec2len = len(dataout)
     compsec2len = len(compdata)
 

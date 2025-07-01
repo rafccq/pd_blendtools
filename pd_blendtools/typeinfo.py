@@ -1,5 +1,6 @@
 from functools import cache
-from pd_utils import align
+
+from utils import pd_utils as pdu
 
 
 class TypeInfo:
@@ -76,7 +77,7 @@ class TypeInfo:
             max_sz = max(max_sz, type_sz)
 
             # add pads if needed
-            pad_sz = align(cur_offset, type_sz) - cur_offset
+            pad_sz = pdu.align(cur_offset, type_sz) - cur_offset
             if type_sz > 1 and pad_sz > 0:
                 new_decl.append(f'u8 __pad{pad_n}__[{pad_sz}]')
                 if log: print(f'/*{cur_offset:02x}*/ u8 __pad__[{pad_sz}]')

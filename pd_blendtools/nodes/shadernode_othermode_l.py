@@ -1,10 +1,9 @@
-from nodes.nodeutils import make_prop, make_id
-# from .shadernode_base import PD_ShaderNodeBase
-from shadernode_base import PD_ShaderNodeBase
-
 from bpy.props import (
     BoolProperty, EnumProperty, IntProperty
 )
+
+from .nodeutils import make_prop, make_id
+from .shadernode_base import PD_ShaderNodeBase
 
 LOWER_ALPHACOMP = [
     ('None', 'None description',         0b00),

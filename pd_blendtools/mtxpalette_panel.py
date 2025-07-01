@@ -5,7 +5,7 @@ import bpy.utils.previews
 
 import mtxpalette as mtxp
 import pd_blendprops as pdprops
-import pd_utils as pdu
+from utils import pd_utils as pdu
 
 
 class PDTOOLS_PT_MtxPalettePanel(bpy.types.Panel):

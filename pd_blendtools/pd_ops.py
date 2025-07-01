@@ -14,28 +14,26 @@ from bl_ui import space_toolsystem_common
 from mathutils import Vector
 import aud
 
-import romdata as rom
-import pd_export as mde
-import bg_export as bge
-import pads_export as pde
-import setup_export as stpe
-import tiles_export as tle
-import pd_utils as pdu
-import setup_utils as stu
-import pd_addonprefs as pda
-import pd_blendprops as pdprops
-import pd_panels as pdp
-import bg_utils as bgu
+from utils import (
+    pd_utils as pdu,
+    bg_utils as bgu
+)
 from decl_setupfile import OBJTYPE_LINKLIFTDOOR
 from mtxpalette_panel import gen_icons
 from bpy_extras import view3d_utils
 from model_info import ModelNames, ModelStates
-import pd_padsfile as pdpads
-import setup_export as stpi
-from pd_padsfile import Vec3, Bbox
 from pd_blendprops import LEVELNAMES
 from pd_padsfile import *
-
+import romdata as rom
+import model_export as mde
+import bg_export as bge
+import pads_export as pde
+import setup_export as stpe
+import tiles_export as tle
+import pd_addonprefs as pda
+import pd_blendprops as pdprops
+import pd_padsfile as pdpads
+import setup_export as stpi
 import model_import as mdi
 import bg_import as bgi
 import setup_import as stpi
@@ -480,8 +478,7 @@ class PDTOOLS_OT_ImportLevel(Operator):
         return {'PASS_THROUGH'}
 
     def loadrom(self):
-        blend_dir = os.path.dirname(bpy.data.filepath)
-        rompath = f'{blend_dir}/pd.ntsc-final.z64'
+        rompath = pda.pref_get(pda.PD_PREF_ROMPATH)
         self.romdata = rom.load(rompath)
 
     def execute(self, context):

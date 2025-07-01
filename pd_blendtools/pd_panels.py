@@ -1,19 +1,20 @@
 import bpy
 from bpy.types import PropertyGroup, Panel, UIList, UI_UL_list, Scene, Context
-from bpy.props import IntProperty, StringProperty, BoolProperty, CollectionProperty, BoolVectorProperty, EnumProperty
+from bpy.props import StringProperty, EnumProperty
 
-from pd_blendprops import TILE_FLAGS
 from model_import import MeshLayer
+from utils import (
+    pd_utils as pdu,
+    bg_utils as bgu,
+    setup_utils as stu,
+)
+from nodes import nodeutils as ndu
+import pd_ops as pdops
 import pd_addonprefs as pdp
 import pd_blendprops as pdprops
-import pd_utils as pdu
-import pd_ops as pdops
-import bg_import as bgi
-import nodes.nodeutils as ndu
-import setup_utils as stu
-import pd_padsfile as pdpad
 
-from pd_blendprops import OBJFLAG_XTOPADBOUNDS, OBJFLAG_YTOPADBOUNDS, OBJFLAG_ZTOPADBOUNDS
+
+TILE_FLAGS = pdprops.TILE_FLAGS
 
 
 class PDTOOLS_PT_ImportExport(Panel):

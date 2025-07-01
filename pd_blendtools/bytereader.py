@@ -1,6 +1,5 @@
 from datablock import DataBlock
-from pd_utils import *
-from typeinfo import *
+from typeinfo import TypeInfo, field_info
 
 SRC_BO = 'big'
 DEST_BO = 'big'

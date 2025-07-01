@@ -1,6 +1,6 @@
 from functools import cache
 
-import pd_utils as pdu
+from utils import pd_utils as pdu
 import pd_addonprefs as pdp
 
 

@@ -1,7 +1,7 @@
-import pd_utils as pdu
-import imageutils as imu
+from utils import pd_utils as pdu
 from bitreader import BitReader
 from gbi import *
+from utils import img_utils as imu
 
 # format consts
 PDFORMAT_RGBA32 = 0

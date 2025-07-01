@@ -1,6 +1,4 @@
-from bpy.props import (
-    BoolProperty, EnumProperty, StringProperty
-)
+from bpy.props import BoolProperty
 
 from .shadernode_base import PD_ShaderNodeBase
 from gbi import *

@@ -1,15 +1,17 @@
 import bpy
 
-import pd_utils as pdu
-import pd_mtx as mtx
-from bytereader import *
+from utils import (
+    pd_utils as pdu,
+    bg_utils as bgu
+)
+from bytereader import ByteReader
 from typeinfo import TypeInfo
-import bg_utils as bgu
 from pd_bgtiles import GEOTYPE_TILE_I
-import pd_blendprops as pdprops
 from decl_bgtiles import decl_geotilei
+from datablock import DataBlock
+import pd_mtx as mtx
+import pd_blendprops as pdprops
 
-decl_tileroom = ['u32 ofs']
 
 def get_numrooms():
     coll = bpy.data.collections['Rooms']
@@ -74,6 +76,7 @@ def export(filename, compress):
     numrooms = get_numrooms()
     if numrooms == 0: return
 
+    decl_tileroom = ['u32 ofs']
     TypeInfo.register('tileroom', decl_tileroom)
 
     dataout = bytearray()

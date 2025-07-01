@@ -8,21 +8,22 @@ from functools import cache
 import bpy
 from mathutils import Vector, Euler
 
-import pd_materials as pdm
+from utils import (
+    pd_utils as pdu,
+    setup_utils as stu
+)
 from pd_mtx import M_BADPI
 from pd_setupfile import PD_SetupFile
-import pd_padsfile as pdp
 from decl_setupfile import *
 from decl_padsfile import *
-import setup_utils as stu
 from typeinfo import TypeInfo
-import pd_utils as pdu
+from model_info import ModelStates, ModelNames
 import model_import as mdi
-from model_info import ModelStates
+import pd_materials as pdm
+import pd_padsfile as pdp
 import template_mesh as tmesh
 import pd_blendprops as pdprops
-import nodes.nodeutils as ndu
-from model_info import ModelNames
+from nodes import nodeutils as ndu
 
 OBJ_NAMES = pdprops.OBJ_NAMES
 
@@ -453,7 +454,8 @@ def import_intro(introcmds, paddata):
         padnum = params[cfg.padidx]
         name = cfg.name
         pdtype = cfg.pdtype
-        case_set = params[2] if pdtype in [pdprops.PD_INTRO_CASE, pdprops.PD_INTRO_CASERESPAWN] else None
+
+        case_set = params[0] if pdtype in [pdprops.PD_INTRO_CASE, pdprops.PD_INTRO_CASERESPAWN] else None
         pad = paddata.pad_unpack(padnum, PADFIELD_POS | PADFIELD_LOOK | PADFIELD_UP)
         create_intro_obj(name, pad, padnum, pdtype, case_set=case_set)
 

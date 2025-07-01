@@ -3,6 +3,7 @@ import time
 from bytereader import *
 from decl_bgfile import *
 from typeinfo import TypeInfo
+from utils import pd_utils as pdu
 
 debug_dir = './debug'
 
@@ -77,7 +78,7 @@ class PatchBGFile:
         self.offsetgfxdata = primarydatasize - primcompsize - 0xc
         log(f'offsetgfxdata:', f'{self.offsetgfxdata:08X}')
 
-        self.primarydata = decompress(self.bgdata[0xc:0xc + primcompsize])
+        self.primarydata = pdu.decompress(self.bgdata[0xc:0xc + primcompsize])
 
         # load section 2
         section2start = section1compsize + 0xc
@@ -97,7 +98,7 @@ class PatchBGFile:
         log(f'will load section2 at {section2start+4:08X}')
         log(f'section2end: {section2end:08X}')
         # print_bin('primdata:', self.data, section2start+4, 64, 4)
-        self.section2 = decompress(self.bgdata[section2start + 4:section2end])
+        self.section2 = pdu.decompress(self.bgdata[section2start + 4:section2end])
         # print_bin('section2:', self.section2, 0, 64, 4)
 
         self.numtextures = (section2inflatedsize & 0x7fff) >> 1
@@ -111,7 +112,7 @@ class PatchBGFile:
         section3inflatedsize = rd.read_primitive('u16')
         section3compsize = rd.read_primitive('u16')
         section3end = section3start + section3compsize + 4
-        self.section3 = decompress(self.bgdata[section3start + 4:section3end])
+        self.section3 = pdu.decompress(self.bgdata[section3start + 4:section3end])
         log(f'SECTION3_COMPSIZE: 0x{section3compsize:08X}')
         log(f'section3inflatedsize:', f'{section3inflatedsize & 0x7fff:08X}')
         # log(f'section3inflatedsize:', f'{len(self.section3):04X}')
@@ -247,7 +248,7 @@ class PatchBGFile:
         rd = self.rd
         # end = len(self.primarydata)
 
-        c = align(rd.cursor, 4)
+        c = pdu.align(rd.cursor, 4)
         rd.set_cursor(c)
         # n = 0
         for n, portal in enumerate(self.portals):
@@ -332,7 +333,7 @@ class PatchBGFile:
         # log(f'start:{start:08X}, len:{gfxdatalen:04X}')
         # print_bin('roomdata', self.bgdata[start:start + complen], 0, 32, 1, 16)
 
-        self.gfxdata[roomnum] = decompress(self.bgdata[start:start + complen])
+        self.gfxdata[roomnum] = pdu.decompress(self.bgdata[start:start + complen])
         self.rooms[roomnum]['prevgfxdatalen'] = len(self.gfxdata)
 
         log(f'start:{start:08X}, len:{gfxdatalen:04X}, loadedlen:{len(self.gfxdata):04X}')
@@ -665,7 +666,7 @@ class PatchBGFile:
         for r in range(1, self.numrooms):
             roomgfxdata = self.patch_gfxdata(r, currentoffset)
             currentgfxdatalen = len(roomgfxdata)
-            comp = compress(roomgfxdata)
+            comp = pdu.compress(roomgfxdata)
             complen = len(comp)
 
             # save the new gfxdatalen into the room obj
@@ -692,7 +693,7 @@ class PatchBGFile:
             primarydata[addr:addr+sz] = room['id'].to_bytes(sz, DEST_BO)
 
         # compress the data and write the headers
-        primarydata_comp = compress(primarydata)
+        primarydata_comp = pdu.compress(primarydata)
         primcompsize = len(primarydata_comp)
 
         section1 = primarydata_comp + gfxdata

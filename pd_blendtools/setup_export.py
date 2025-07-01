@@ -1,12 +1,12 @@
 import bpy
 
-import pd_utils as pdu
+import setup_import as stpi
 import pd_blendprops as pdprops
+from utils import pd_utils as pdu
 from decl_setupfile import *
 from bytereader import ByteReader
 from datablock import DataBlock
 from typeinfo import TypeInfo
-import setup_import as stpi
 
 def export_intro(rd, dataout):
     objects = [obj for obj in bpy.data.collections['Intro'].objects if pdu.pdtype(obj) == pdprops.PD_OBJTYPE_INTRO]
