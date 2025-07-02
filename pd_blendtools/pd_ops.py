@@ -483,6 +483,9 @@ class PDTOOLS_OT_ImportLevel(Operator):
 
     def execute(self, context):
         scn = context.scene
+        
+        bpy.context.view_layer.objects.active = None
+
         self.current_item = 0
         scn.level_loading = True
         scn['rooms'] = {}
