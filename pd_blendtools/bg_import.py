@@ -6,7 +6,7 @@ from functools import cache
 import bpy
 from mathutils import Euler, Vector, Matrix
 
-from pd_data.pd_bgfile import PatchBGFile as PDBGFile, ROOMBLOCKTYPE_LEAF, ROOMBLOCKTYPE_PARENT
+from pd_data.pd_bgfile import PD_BGFile, ROOMBLOCKTYPE_LEAF, ROOMBLOCKTYPE_PARENT
 from pd_data.decl_bgfile import bgfile_decls
 from typeinfo import TypeInfo
 from utils import (
@@ -61,7 +61,7 @@ def bg_load(romdata):
     else:
         bgdata = pdu.read_file(scn.file_bg)
 
-    pdbg = PDBGFile(bgdata)
+    pdbg = PD_BGFile(bgdata)
 
     print('nrooms', len(pdbg.rooms))
     print('load images')
@@ -87,7 +87,7 @@ def loadportals(roomrange):
     romdata = rom.load(f'{blend_dir}/pd.ntsc-final.z64')
     filename = f'bgdata/bg_ame.seg'
     bgdata = romdata.filedata(filename)
-    bgdata = PDBGFile(bgdata)
+    bgdata = PD_BGFile(bgdata)
     bg_loadportals(bgdata, roomrange)
 
 def bg_loadportals(bgdata, roomrange):

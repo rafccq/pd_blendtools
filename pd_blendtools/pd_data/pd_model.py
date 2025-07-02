@@ -22,7 +22,7 @@ def unmask(addr):
 
 Bbox = namedtuple('Bbox', 'xmin xmax ymin ymax zmin zmax')
 
-class PDModel:
+class PD_ModelFile:
     def __init__(self, modeldata, skipDLdata=False):
         self.modeldata = modeldata
         self.skipDLdata = skipDLdata
@@ -355,4 +355,4 @@ class PDModel:
 def read(path, filename, skipDLdata=False):
     modeldata = pdu.read_file(f'{path}/{filename}')
     modeldata = pdu.decompress(modeldata)
-    return PDModel(modeldata, skipDLdata)
+    return PD_ModelFile(modeldata, skipDLdata)

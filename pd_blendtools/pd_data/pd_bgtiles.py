@@ -6,7 +6,7 @@ from typeinfo import TypeInfo
 
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
-class PatchBGTiles:
+class PD_TilesFile:
     def __init__(self, tilesdata):
         self.tilesdata = tilesdata
         self.rd = ByteReader(tilesdata)

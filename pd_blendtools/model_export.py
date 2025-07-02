@@ -5,7 +5,7 @@ from utils import (
     pd_utils as pdu,
     log_util as logu
 )
-from pd_data.pd_model import PDModel
+from pd_data.pd_model import PD_ModelFile
 import mtxpalette as mtxp
 from pd_data import romdata as rom
 import pd_materials as pdm
@@ -415,7 +415,7 @@ def create_gdl(mesh: ExportMeshData, segment_vtx, segment_col, env_enabled=False
 
 def loadmodel(romdata, modelname=None, filename=None):
     modeldata = romdata.filedata(modelname) if modelname else pdu.read_file(filename)
-    return PDModel(modeldata)
+    return PD_ModelFile(modeldata)
 
 def export_model(model_obj, filename):
     logu.log_clear(logu.LOG_FILE_EXPORT)

@@ -7,7 +7,7 @@ import bpy
 import bmesh
 from mathutils import Vector
 
-from pd_data.pd_model import unmask, PDModel
+from pd_data.pd_model import unmask, PD_ModelFile
 from gbi import *
 from pd_data.decl_model import *
 from typeinfo import TypeInfo
@@ -543,7 +543,7 @@ def loadimages(romdata, texnums):
 
 def loadmodeldata(romdata, modelname=None, filename=None):
     modeldata = pdu.read_file(filename) if filename else romdata.filedata(modelname)
-    model = PDModel(modeldata)
+    model = PD_ModelFile(modeldata)
 
     loadimages(romdata, [tc['texturenum'] for tc in model.texconfigs])
     if model.has_embedded_tex():

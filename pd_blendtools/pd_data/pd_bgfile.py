@@ -10,7 +10,7 @@ ROOMBLOCKTYPE_LEAF = 0
 ROOMBLOCKTYPE_PARENT = 1
 
 
-class PatchBGFile:
+class PD_BGFile:
     def __init__(self, bgdata):
         self.bgdata = bgdata
         self.rd = ByteReader(bgdata)

@@ -11,6 +11,7 @@ from gpu_extras.batch import batch_for_shader
 from bpy_extras.io_utils import ImportHelper, ExportHelper
 from bpy.props import IntProperty, FloatProperty, StringProperty, BoolProperty, EnumProperty
 from bl_ui import space_toolsystem_common
+from bpy_extras import view3d_utils
 from mathutils import Vector
 import aud
 
@@ -19,7 +20,6 @@ from utils import (
 )
 from pd_data.decl_setupfile import OBJTYPE_LINKLIFTDOOR
 from mtxpalette_panel import gen_icons
-from bpy_extras import view3d_utils
 from model_info import ModelNames, ModelStates
 from pd_blendprops import LEVELNAMES
 from pd_data.pd_padsfile import *
