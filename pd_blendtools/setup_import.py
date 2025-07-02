@@ -284,12 +284,10 @@ def setup_import(romdata, all_props, objnum, duration):
 
     pdsetup, pdpads = get_setupdata(romdata)
 
-    t = time.time()
     if objnum == 0:
         import_intro(pdsetup.introcmds, pdpads)
         import_waypoints(pdpads)
         import_coverpads(pdpads)
-        print(f'LOAD_SETUP_INTRO {time.time() - t:2.1f}')
 
     return import_objects(romdata, pdsetup, pdpads, all_props, objnum, duration)
 

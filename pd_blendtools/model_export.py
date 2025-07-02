@@ -5,7 +5,7 @@ from utils import (
     pd_utils as pdu,
     log_util as logu
 )
-from pdmodel import PDModel
+from pd_model import PDModel
 from typeinfo import TypeInfo
 import mtxpalette as mtxp
 import romdata as rom

@@ -90,7 +90,6 @@ def export_portals(rd, dataout):
     return start
 
 def export_portalvertices(rd, dataout, portalvertices):
-    # print('N portals', f'{len(portalvertices):02X}')
     # for verts in portalvertices:
     for idx, verts in enumerate(portalvertices):
         count = len(verts)

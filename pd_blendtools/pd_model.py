@@ -20,18 +20,13 @@ NODETYPE_DL           = 0x18
 def unmask(addr):
     return addr & 0x00ffffff if addr & 0x5000000 else addr
 
-enableLog = False
-def log(*args):
-    if enableLog:
-        print(''.join(args))
-
 Bbox = namedtuple('Bbox', 'xmin xmax ymin ymax zmin zmax')
 
 class PDModel:
     def __init__(self, modeldata, skipDLdata=False):
         self.modeldata = modeldata
         self.skipDLdata = skipDLdata
-        self.rd = ByteReader(modeldata, mask=0x00ffffff)
+        self.rd = ByteReader(modeldata)
 
         self.modeldef = None
         self.modelparts = None
@@ -50,8 +45,6 @@ class PDModel:
     def _read(self):
         rd = self.rd
         self.modeldef = rd.read_block('modeldef')
-        log(f'modeldef:')
-        # rd.print_dict(self.modeldef, 'modeldef', pad=16, numspaces=4)
 
         root = self.modeldef['rootnode']
         self.rootnode = self.read_node(unmask(root))
@@ -67,7 +60,6 @@ class PDModel:
         if not parentaddr: return None
 
         addr = parentaddr
-        node = self.nodes[addr]
 
         while addr in self.nodes:
             node = self.nodes[addr]
@@ -91,8 +83,6 @@ class PDModel:
             if nodetype not in [NODETYPE_CHRINFO, NODETYPE_POSITION, NODETYPE_POSITIONHELD]: return
 
             rodata = model.find_rodata(node['rodata'])
-
-            # if rodata and 'pos' not in rodata.fields: return
 
             x = y = z = 0
             if nodetype in [NODETYPE_POSITION, NODETYPE_POSITIONHELD]:
@@ -119,21 +109,15 @@ class PDModel:
                 mtxindex = rodata['mtxindex']
                 model.matrices[mtxindex] = (x, y, z)
 
-            # sp = ' ' * depth * 2
-            # print(f'{sp} NODE {idx:02X} t {nodetype:02X} mtx {mtxindex:02X} ({x:.3f}, {y:.3f}, {z:.3f})')
-        #-------------------------------------
         self.traverse(setup_mtx)
 
     def traverse(self, callback, **kwargs):
         node = self.rootnode
         depth = 0
         idx = 0
-        # parentnode = None
         while node:
             callback(self, node, idx, depth, **kwargs)
 
-            # sp = ' ' * depth * 2
-            # print(f'{sp} NODE {idx:02X} t {nodetype:02X}')
             idx += 1
 
             child = unmask(node['child'])
@@ -221,9 +205,6 @@ class PDModel:
         rd.set_cursor(rootaddr)
         node = rd.read_block('modelnode')
         self.nodes[rootaddr] = node
-        rd.print_dict(node, decl_modelnode, pad=16, numspaces=4)
-
-        log('-'*32)
 
         # read 'child' nodes
         child = unmask(node['child'])
@@ -250,17 +231,14 @@ class PDModel:
         rd = self.rd
         idx = 0
         for k, node in self.nodes.items():
-            node_addr = node.addr
             rodata_addr = node['rodata']
             nodetype = node['type'] & 0xff
             rodata_name = rodata_decls[nodetype]
-            log(f'{node_addr:04X} t {nodetype:02X} {rodata_name} {rodata_addr:08X}')
 
             rd.set_cursor(unmask(rodata_addr))
             rodata = rd.read_block(rodata_name)
             rodata['_node_type_'] = nodetype
             self.rodatas.append(rodata)
-            # rd.print_dict(rodata, TypeInfo.get_decl(rodata_name), pad=16, numspaces=4, showdec=True)
             rodatagdl_map = {
                 NODETYPE_GUNDL: ['opagdl', 'xlugdl'],
                 NODETYPE_STARGUNFIRE: ['gdl'],
@@ -273,7 +251,6 @@ class PDModel:
 
     def read_vertices(self, rodata, nodetype, idx):
         rd = self.rd
-        log(f'VERTICES [{rd.cursor:04X}]')
 
         numvertices = rodata['numvertices'] if nodetype in [NODETYPE_GUNDL, NODETYPE_DL] else rodata['unk00'] * 4
 
@@ -281,29 +258,16 @@ class PDModel:
             vtxsize = 12
             start = rodata['vertices']
             end = pdu.ALIGN8(unmask(start) + numvertices * vtxsize)
-            endnoalign = (unmask(start) + numvertices * vtxsize)
             self.vertices[idx] = rd.read_block_raw(unmask(start), end)
-            v = self.vertices[idx].bytes
-            log(f'.VTX   start {unmask(start):04X} end {end:04X} endnoalign {endnoalign:04X} len {len(v)} num {numvertices}')
-            if enableLog: print_bin('^VTX', v, 0, 12*12, 2, 6)
-
             col_start = pdu.ALIGN8(unmask(end))
             col_end = rodata.addr
 
             # save colors at the same address as the vertices
             colors = self.colors[idx] = rd.read_block_raw(col_start, col_end)
-            rodata['colors'] = colors
-            c = colors.bytes
-            log(f'.COLORS start {col_start:04X} len {len(c):04X} ({len(c)})')
-            if enableLog: print_bin('^COLORS', c, 0, 12*12, 4, 3)
-
-            # there are no direct pointers to the colors block (its implicit since it follows vtxs)
-            # so we need to add it manually here, to things can be patched later, pain in the ass
-            rd.pointers_map[col_start] = 0
+            rodata['colors'] = colors#
         else:
             self.vertices[idx] = rd.create_block(bytearray())
             self.colors[idx] = rodata['colors'] = rd.create_block(bytearray())
-
 
     def read_tex_configs(self):
         rd = self.rd
@@ -316,10 +280,7 @@ class PDModel:
             self.texconfigs.append(texconfig)
 
             texnum = texconfig['texturenum']
-            tc_addr = texconfig.addr
             if texnum & 0x05000000: embeddedtex = True
-            log(f'{tc_addr:04X} texconfig {i}')
-            rd.print_dict(texconfig, TypeInfo.get_decl('texconfig'), pad=16, numspaces=4, showdec=True)
 
         if embeddedtex:
             self.read_texdata()
@@ -332,7 +293,6 @@ class PDModel:
         rd = self.rd
         n = len(self.texconfigs)
         texaddrs = [texconf['texturenum'] for texconf in self.texconfigs]
-        # texaddrs.append(self.rodatas[0].addr)
         texaddrs.append(None)
 
         for i in range(0, n):

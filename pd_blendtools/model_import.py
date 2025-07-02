@@ -7,7 +7,7 @@ import bpy
 import bmesh
 from mathutils import Vector
 
-from pdmodel import unmask, PDModel
+from pd_model import unmask, PDModel
 from gbi import *
 from decl_model import *
 from typeinfo import TypeInfo
@@ -19,6 +19,7 @@ from utils import (
     log_util as log,
 )
 import pd_blendprops as pdprops
+from gbi import GDLcodes
 
 logger = log.log_get(__name__)
 log.log_config(logger, log.LOG_FILE_IMPORT)
@@ -264,7 +265,6 @@ def gdl_read_data(pdmeshdata, idx, apply_mtx, layer=MeshLayer.OPA):
     gdl = pdmeshdata.opagdl
     addr = 0
     bo='big'
-    dbg = 1
 
     mesh_opa = ImportMeshData(layer)
     mesh_xlu = None
@@ -277,14 +277,6 @@ def gdl_read_data(pdmeshdata, idx, apply_mtx, layer=MeshLayer.OPA):
     mat_setup = pdm.PDMaterialSetup(idx)
     gdlnum = 0
     nverts = 0
-
-    if dbg:
-        # logger.debug(f'[COLLECTMESH {idx:02X}] ptr_vtx {ptr_vtx:04X} ptr_col {col_start:04X} nvtx {len(verts)}')
-        logger.debug(f'[COLLECTMESH {idx:02X}] nvtx {len(verts)}')
-        # n = min(nvtx, 300)
-        for i in range(0, nvtx):
-            v = verts[i]
-            logger.debug(f' v_{i} {v}')
 
     # these commands change the material setup
     MAT_CMDS = [
@@ -317,15 +309,12 @@ def gdl_read_data(pdmeshdata, idx, apply_mtx, layer=MeshLayer.OPA):
         cmdint = int.from_bytes(cmd, bo)
         w1 = cmdint & 0xffffffff
 
-        if dbg: logger.debug(f'{cmdint:016X} {pdu.GDLcodes[cmd[0]]}')
-
         if op == G_TRI4:
             tris = pdu.read_tri4(cmd, 0)
 
             mat_setup.applied = True
 
             for tri in tris:
-                if dbg: logger.debug(f'tri {trinum} {tri} tex {mat_setup.texnum:04X}')
                 mesh.add_tri(tri, mat_setup)
                 trinum += 1
         elif op == G_VTX:
@@ -348,8 +337,6 @@ def gdl_read_data(pdmeshdata, idx, apply_mtx, layer=MeshLayer.OPA):
                 uv = (v[3], v[4])
                 coloridx = v[5]
                 c = color = col_data[coloridx:coloridx+4]
-
-                if dbg: logger.debug(f'  {i} col {coloridx} ({c[0]:02X} {c[1]:02X} {c[2]:02X} {c[3]:02X}) mtx {mtxindex}')
 
                 hasnormal = mat_setup.has_envmap()
                 vertlist.append(VtxBufferEntry(vpos, uv, color, coloridx, nverts, mtxindex, hasnormal))

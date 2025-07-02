@@ -6,12 +6,6 @@ from decl_padsfile import *
 from typeinfo import TypeInfo
 from utils import pd_utils as pdu
 
-enableLog = False
-
-def log(*args):
-    if enableLog:
-        print(''.join(args))
-
 Vec3 = namedtuple('Vec3', 'x y z')
 Bbox = namedtuple('Bbox', 'xmin xmax ymin ymax zmin zmax')
 Pad = namedtuple('Pad', 'pos look up normal bbox header')
@@ -36,9 +30,9 @@ class Pad_:
 
 
 class PD_PadsFile:
-    def __init__(self, padsfiledata, srcBO = 'big', destBO = 'little'):
+    def __init__(self, padsfiledata):
         self.padsfiledata = padsfiledata
-        self.rd = ByteReader(padsfiledata, srcBO, destBO)
+        self.rd = ByteReader(padsfiledata)
 
         self.paddata = []
         self.padindices = [] # index of each pad into paddata
@@ -56,7 +50,6 @@ class PD_PadsFile:
         TypeInfo.register('padsfileheader', decl_padsfileheader, varmap={'N': numpads})
         self.header = header = rd.read_block('padsfileheader')
 
-        # log(f'{{PADDATA}} [{rd.cursor:04X}]')
         for i in range(0, numpads):
             ofs = header['padoffsets']
             size = ofs[i+1] - ofs[i] if i + 1 < numpads and ofs[i + 1] else 0x40
@@ -83,7 +76,6 @@ class PD_PadsFile:
 
             for i in range(0, num):
                 val = rd.read_primitive(typename)
-                rd.print(val, typename, fields[i] if fields else '_pad_', pad=6, numspaces=2)
                 self.paddata.append((typename, val))
 
         rd.set_cursor(offset)
@@ -92,8 +84,6 @@ class PD_PadsFile:
         self.paddata.append(('u32', header))
 
         flags = header >> 14
-
-        log(f'pad #{self.curpad:04X} f {header:08X} sz {size:02X} [{offset:04X}]')
 
         self.curpad += 1
         if (flags & PADFLAG_INTPOS) or size <= 12:
@@ -114,8 +104,6 @@ class PD_PadsFile:
     def read_covers(self):
         rd = self.rd
 
-        log(f'{{COVERS}} [{rd.cursor:04X}]')
-
         header = self.header
         ofs = header['coversoffset']
 
@@ -124,13 +112,10 @@ class PD_PadsFile:
         n = header['numcovers']
         for i in range(0, n):
             cover = rd.read_block('cover')
-            # rd.print_dict(cover, 'coverdefinition', pad=16, numspaces=2)
             self.covers.append(cover)
 
     def read_waypoints(self):
         rd = self.rd
-
-        # log(f'{{WAYPOINTS}} [{rd.cursor:04X}]')
 
         header = self.header
         ofs = header['waypointsoffset']
@@ -138,27 +123,20 @@ class PD_PadsFile:
         rd.set_cursor(ofs)
 
         while True:
-            # log(f'[{rd.cursor:04X}]')
             wp = rd.read_block('waypoint')
             self.waypoints.append(wp)
             wp['neighbours_list'] = []
-
-            # rd.print_dict(wp, 'waypoint', pad=16, numspaces=2)
 
             if wp['padnum'] == 0xffffffff: break
 
             savedcur = rd.cursor
             rd.set_cursor(wp['neighbours'])
 
-            log(f'  neighbours:')
             while True:
-                cur = rd.cursor
                 block = rd.read_block('arrays32')
                 wp['neighbours_list'].append(block)
 
                 neighbour = block['value']
-                log(f'    {neighbour:08X} [{cur:08X}]')
-                # rd.print_dict(wp, decl, pad=16, numspaces=2)
                 if neighbour == 0xffffffff: break
 
             rd.set_cursor(savedcur)
@@ -166,21 +144,16 @@ class PD_PadsFile:
     def read_waygroups(self):
         rd = self.rd
 
-        # log(f'{{WAYGROUPS}} [{rd.cursor:04X}]')
-
         header = self.header
         ofs = header['waygroupsoffset']
 
         rd.set_cursor(ofs)
 
         while True:
-            # log(f'[{rd.cursor:04X}]')
             wg = rd.read_block('waygroup')
             self.waygroups.append(wg)
             wg['neighbours_list'] = []
             wg['waypoints_list'] = []
-
-            # rd.print_dict(wg, 'waygroup', pad=16, numspaces=2)
 
             if wg['neighbours'] == 0: break
 
@@ -189,114 +162,35 @@ class PD_PadsFile:
             # waygroup neighbours
             rd.set_cursor(wg['neighbours'])
 
-            # log(f'  neighbours:')
             while True:
-                cur = rd.cursor
                 # read it as a block, so pointers to it will be patched later
                 block = rd.read_block('arrays32')
                 wg['neighbours_list'].append(block)
                 neighbour = block['value']
 
-                # log(f'    {neighbour:08X} [{cur:08X}]')
                 if neighbour == 0xffffffff: break
 
             # waygroup waypoints
             rd.set_cursor(wg['waypoints'])
-            log(f'  waypoints:')
             while True:
-                cur = rd.cursor
                 # read it as a block, so pointers to it will be patched later
                 block = rd.read_block('arrays32')
                 wg['waypoints_list'].append(block)
                 wg_waypoint = block['value']
 
-                log(f'    {wg_waypoint:08X} [{cur:08X}]')
                 if wg_waypoint == 0xffffffff: break
 
             rd.set_cursor(savedcur)
-
-    def patch(self):
-        rd = self.rd
-
-        numpads = self.header['numpads']
-        headersz = 5 * sz['s32'] + numpads * sz['s16']
-        rd.pointers = []
-
-        log('<PATCH>')
-        # -------- pad data
-        dataout = bytearray(headersz)
-        rd.add_padding(dataout, 4)
-
-        i = 0
-        for (type, val) in self.paddata:
-            # log(f'{type} {val}')
-            log(f'offset #{i:03d}: {len(dataout):04X}')
-            rd.write(dataout, val, type)
-            i += 1
-
-        # -------- waypoints
-        ofs_waypoints = 0
-        for wp in self.waypoints:
-            rd.write_block(dataout, 'waypoint', wp)
-            ofs_waypoints = wp['write_addr'] if not ofs_waypoints else ofs_waypoints
-
-        # neighbor data
-        for wp in self.waypoints:
-            neighbours = wp['neighbours_list']
-            for nbr in neighbours:
-                rd.write_block(dataout, 'arrays32', nbr)
-
-        # -------- waygroups
-        ofs_waygroups = 0
-        for wg in self.waygroups:
-            rd.write_block(dataout, 'waygroup', wg)
-            ofs_waygroups = wg['write_addr'] if not ofs_waygroups else ofs_waygroups
-
-        for wg in self.waygroups:
-            neighbours = wg['neighbours_list']
-            for nbr in neighbours:
-                rd.write_block(dataout, 'arrays32', nbr)
-
-        for wg in self.waygroups:
-            wg_waypoints = wg['waypoints_list']
-            for waypoint in wg_waypoints:
-                rd.write_block(dataout, 'arrays32', waypoint)
-
-        # -------- covers
-        ofs_covers = 0
-        for cover in self.covers:
-            rd.write_block(dataout, 'coverdefinition', cover)
-            ofs_covers = cover['write_addr'] if not ofs_covers else ofs_covers
-
-        rd.patch_pointers(dataout, mask=0)
-
-        self.header['waypointsoffset'] = ofs_waypoints # if ofs_waypoints else 0
-        self.header['waygroupsoffset'] = ofs_waygroups # if ofs_waygroups else 0
-        self.header['coversoffset'] = ofs_covers # if ofs_covers else 0
-
-        header = bytearray()
-        rd.set_data(header)
-        # print(self.header)
-        rd.write_block(header, 'padsfileheader', self.header)
-
-        dataout[:headersz] = header
-
-        return dataout
 
     @cache
     def pad_unpack(self, padnum, fields):
         if padnum == 0xffff:
             return None
 
-        # padoffset = self.header['padoffsets'][padnum]
-        # print(f'ofs {padoffset:04X}')
-
         padidx = self.padindices[padnum]
         header = self.paddata[padidx]
 
         flags = header[1] >> 14
-
-        # log(f'pad #{self.curpad:04X} f {header:08X} sz {size:02X} [{offset:04X}]')
 
         pos, up, look, bbox = Vec3(0,0,0), Vec3(0,0,0), Vec3(0,0,0), Bbox(*[0]*6)
         normal = Vec3(0,0,0)
@@ -419,4 +313,3 @@ def pad_hasbbox(pad):
 
 def pad_makeheader(flags, room, lift):
     return (flags << 14) | (room << 4) | lift
-

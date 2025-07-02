@@ -16,7 +16,6 @@ class DataBlock:
         decl = TypeInfo.get_decl(decl_name)
         for typename in decl:
             info = field_info(typename)
-            # print(info)
             if info['is_struct']:
                 if info['is_array']:
                     n = info['array_size']
