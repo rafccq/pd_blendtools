@@ -12,7 +12,7 @@ import pd_materials as pdm
 import model_export as mde
 import pd_blendprops as pdprops
 from bytereader import *
-from decl_bgfile import decl_portalvertices
+from pd_data.decl_bgfile import decl_portalvertices
 from typeinfo import TypeInfo
 
 

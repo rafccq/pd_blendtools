@@ -3,8 +3,8 @@ from numpy import int16
 
 import bpy
 
-from pd_bgtiles import PatchBGTiles as PD_BGTiles
-from decl_bgtiles import *
+from pd_data.pd_bgtiles import PatchBGTiles as PD_BGTiles
+from pd_data.decl_bgtiles import *
 from typeinfo import TypeInfo
 from utils import pd_utils as pdu
 import mtxpalette as mtxp

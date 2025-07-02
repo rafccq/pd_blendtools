@@ -1,14 +1,13 @@
 import bpy
 from mathutils import Matrix, Euler
 
-from decl_setupfile import *
+from pd_data.decl_setupfile import *
 from . import pd_utils as pdu
 from pd_mtx import M_BADPI
 from model_info import ModelStates, ModelNames
 import pd_blendprops as pdprops
 import model_import as mdi
-import romdata as rom
-import pd_padsfile as pdp
+from pd_data import romdata as rom, pd_padsfile as pdp
 
 
 def obj_setup_mtx(obj, look, up, pos, rotation=None, scale=None, flags=None, bbox=None):

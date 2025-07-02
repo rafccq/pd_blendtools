@@ -13,14 +13,14 @@ from utils import (
     setup_utils as stu
 )
 from pd_mtx import M_BADPI
-from pd_setupfile import PD_SetupFile
-from decl_setupfile import *
-from decl_padsfile import *
+from pd_data.pd_setupfile import PD_SetupFile
+from pd_data.decl_setupfile import *
+from pd_data.decl_padsfile import *
 from typeinfo import TypeInfo
 from model_info import ModelStates, ModelNames
 import model_import as mdi
 import pd_materials as pdm
-import pd_padsfile as pdp
+from pd_data import pd_padsfile as pdp
 import template_mesh as tmesh
 import pd_blendprops as pdprops
 from nodes import nodeutils as ndu

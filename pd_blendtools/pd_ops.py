@@ -15,16 +15,15 @@ from mathutils import Vector
 import aud
 
 from utils import (
-    pd_utils as pdu,
     bg_utils as bgu
 )
-from decl_setupfile import OBJTYPE_LINKLIFTDOOR
+from pd_data.decl_setupfile import OBJTYPE_LINKLIFTDOOR
 from mtxpalette_panel import gen_icons
 from bpy_extras import view3d_utils
 from model_info import ModelNames, ModelStates
 from pd_blendprops import LEVELNAMES
-from pd_padsfile import *
-import romdata as rom
+from pd_data.pd_padsfile import *
+from pd_data import romdata as rom, pd_padsfile as pdpads
 import model_export as mde
 import bg_export as bge
 import pads_export as pde
@@ -32,7 +31,6 @@ import setup_export as stpe
 import tiles_export as tle
 import pd_addonprefs as pda
 import pd_blendprops as pdprops
-import pd_padsfile as pdpads
 import setup_export as stpi
 import model_import as mdi
 import bg_import as bgi

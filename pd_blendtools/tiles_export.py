@@ -6,8 +6,8 @@ from utils import (
 )
 from bytereader import ByteReader
 from typeinfo import TypeInfo
-from pd_bgtiles import GEOTYPE_TILE_I
-from decl_bgtiles import decl_geotilei
+from pd_data.pd_bgtiles import GEOTYPE_TILE_I
+from pd_data.decl_bgtiles import decl_geotilei
 from datablock import DataBlock
 import pd_mtx as mtx
 import pd_blendprops as pdprops

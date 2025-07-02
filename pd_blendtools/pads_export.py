@@ -7,14 +7,13 @@ from utils import (
     setup_utils as stu
 )
 from pd_blendprops import WAYPOINT_EDGEVALUES
-from decl_padsfile import decl_padsfileheader
+from pd_data.decl_padsfile import decl_padsfileheader
 from bytereader import ByteReader, add_padding
 from datablock import DataBlock
 from typeinfo import TypeInfo
 import pd_blendprops as pdprops
 import pd_mtx as mtx
-import pd_padsfile as pdp
-import decl_setupfile as dst
+from pd_data import pd_padsfile as pdp, decl_setupfile as dst
 
 ux = Vector((1, 0, 0))
 uy = Vector((0, 1, 0))

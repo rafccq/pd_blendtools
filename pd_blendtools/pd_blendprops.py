@@ -13,12 +13,12 @@ from utils import (
     bg_utils as bgu,
     setup_utils as stu,
 )
-from decl_bgtiles import *
-from decl_setupfile import *
+from pd_data.decl_bgtiles import *
+from pd_data.decl_setupfile import *
 from model_info import ModelNames_Items, ModelNames
 import tiles_import as tiles
 import nodes.nodeutils as ndu
-import pd_padsfile as pdp
+from pd_data import pd_padsfile as pdp
 import pd_mtx as mtx
 
 

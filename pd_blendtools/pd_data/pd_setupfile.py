@@ -1,5 +1,5 @@
 from bytereader import ByteReader
-from decl_setupfile import *
+from .decl_setupfile import *
 from typeinfo import TypeInfo
 
 

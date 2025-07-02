@@ -1,7 +1,7 @@
 import time
 
 from bytereader import ByteReader
-from decl_bgfile import *
+from .decl_bgfile import *
 from typeinfo import TypeInfo
 from utils import pd_utils as pdu
 

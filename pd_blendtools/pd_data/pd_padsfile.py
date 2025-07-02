@@ -2,7 +2,7 @@ from collections import namedtuple
 from functools import cache
 
 from bytereader import ByteReader
-from decl_padsfile import *
+from .decl_padsfile import *
 from typeinfo import TypeInfo
 from utils import pd_utils as pdu
 

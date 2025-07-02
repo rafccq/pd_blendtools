@@ -7,9 +7,9 @@ import bpy
 import bmesh
 from mathutils import Vector
 
-from pd_model import unmask, PDModel
+from pd_data.pd_model import unmask, PDModel
 from gbi import *
-from decl_model import *
+from pd_data.decl_model import *
 from typeinfo import TypeInfo
 import pd_materials as pdm
 import texload as tex
@@ -19,7 +19,6 @@ from utils import (
     log_util as log,
 )
 import pd_blendprops as pdprops
-from gbi import GDLcodes
 
 logger = log.log_get(__name__)
 log.log_config(logger, log.LOG_FILE_IMPORT)

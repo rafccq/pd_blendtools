@@ -2,7 +2,7 @@ import struct
 from collections import namedtuple
 
 from bytereader import ByteReader
-from decl_model import *
+from .decl_model import *
 from utils import pd_utils as pdu
 from typeinfo import TypeInfo
 

@@ -5,10 +5,9 @@ from utils import (
     pd_utils as pdu,
     log_util as logu
 )
-from pd_model import PDModel
-from typeinfo import TypeInfo
+from pd_data.pd_model import PDModel
 import mtxpalette as mtxp
-import romdata as rom
+from pd_data import romdata as rom
 import pd_materials as pdm
 
 logger = logu.log_get(__name__)

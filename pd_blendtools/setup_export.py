@@ -3,7 +3,7 @@ import bpy
 import setup_import as stpi
 import pd_blendprops as pdprops
 from utils import pd_utils as pdu
-from decl_setupfile import *
+from pd_data.decl_setupfile import *
 from bytereader import ByteReader
 from datablock import DataBlock
 from typeinfo import TypeInfo

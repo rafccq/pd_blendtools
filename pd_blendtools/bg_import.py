@@ -6,8 +6,8 @@ from functools import cache
 import bpy
 from mathutils import Euler, Vector, Matrix
 
-from pd_bgfile import PatchBGFile as PDBGFile, ROOMBLOCKTYPE_LEAF, ROOMBLOCKTYPE_PARENT
-from decl_bgfile import bgfile_decls
+from pd_data.pd_bgfile import PatchBGFile as PDBGFile, ROOMBLOCKTYPE_LEAF, ROOMBLOCKTYPE_PARENT
+from pd_data.decl_bgfile import bgfile_decls
 from typeinfo import TypeInfo
 from utils import (
     pd_utils as pdu,
@@ -15,7 +15,7 @@ from utils import (
 )
 import model_import as mdi
 import pd_materials as pdm
-import romdata as rom
+from pd_data import romdata as rom
 import pd_blendprops as pdprops
 
 
