@@ -24,6 +24,12 @@ from model_info import ModelNames, ModelStates
 from pd_blendprops import LEVELNAMES
 from pd_data.pd_padsfile import *
 from pd_data import romdata as rom, pd_padsfile as pdpads
+from pd_import import (
+    model_import as mdi,
+    bg_import as bgi,
+    tiles_import as tlimp,
+    setup_import as stpi,
+)
 import model_export as mde
 import bg_export as bge
 import pads_export as pde
@@ -31,12 +37,6 @@ import setup_export as stpe
 import tiles_export as tle
 import pd_addonprefs as pda
 import pd_blendprops as pdprops
-import setup_export as stpi
-import model_import as mdi
-import bg_import as bgi
-import setup_import as stpi
-import tiles_import as tiles
-
 
 STEP_BG = 'STEP_BG'
 STEP_SETUP = 'STEP_SETUP'
@@ -223,7 +223,7 @@ class PDTOOLS_OT_TileApplyProps(Operator):
             bl_tile.pd_tile.floorcol = prop.floorcol
             bl_tile.pd_tile.floortype = prop.floortype
             # bl_tile.pd_tile.room = prop.room
-        n = tiles.bg_colortiles(context)
+        n = tlimp.bg_colortiles(context)
         return {'FINISHED'}
 
 
@@ -465,7 +465,7 @@ class PDTOOLS_OT_ImportLevel(Operator):
                     # print(f'LOAD_SETUP: {dt:2.1f}')
                     self.next_step(context)
             elif current_step == STEP_TILES:
-                done = tiles.tiles_import(self.romdata, self.current_item, TILE_BATCH_SIZE)
+                done = tlimp.tiles_import(self.romdata, self.current_item, TILE_BATCH_SIZE)
                 self.current_item += TILE_BATCH_SIZE
 
                 if done:

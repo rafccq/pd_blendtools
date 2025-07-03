@@ -2,10 +2,9 @@ import bpy
 from bpy.types import PropertyGroup, Panel, UIList, UI_UL_list, Scene, Context
 from bpy.props import StringProperty, EnumProperty
 
-from model_import import MeshLayer
+from pd_import.model_import import MeshLayer
 from utils import (
     pd_utils as pdu,
-    bg_utils as bgu,
     setup_utils as stu,
 )
 from nodes import nodeutils as ndu

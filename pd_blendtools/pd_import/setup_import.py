@@ -18,7 +18,7 @@ from pd_data.decl_setupfile import *
 from pd_data.decl_padsfile import *
 from typeinfo import TypeInfo
 from model_info import ModelStates, ModelNames
-import model_import as mdi
+from pd_import import model_import as mdi
 import pd_materials as pdm
 from pd_data import pd_padsfile as pdp
 import template_mesh as tmesh

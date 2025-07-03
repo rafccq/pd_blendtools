@@ -1,6 +1,6 @@
 import bpy
 
-import setup_import as stpi
+from pd_import import setup_import as stpi
 import pd_blendprops as pdprops
 from utils import pd_utils as pdu
 from pd_data.decl_setupfile import *

@@ -34,10 +34,11 @@ import pd_panels
 import pd_ops as pdops
 import mtxpalette_panel as mtxp
 import pd_addonprefs as pdp
-import tiles_import as tiles
-import setup_import as sti
-import bg_import as bgi
-
+from pd_import import (
+    bg_import as bgi,
+    tiles_import as tlimp,
+    setup_import as stpi,
+)
 
 submodules = [
     pdn,
@@ -45,8 +46,8 @@ submodules = [
     pdops,
     mtxp,
     pdprops,
-    tiles,
-    sti,
+    tlimp,
+    stpi,
     bgi,
 ]
 

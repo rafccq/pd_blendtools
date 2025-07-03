@@ -13,7 +13,7 @@ from utils import (
     pd_utils as pdu,
     bg_utils as bgu
 )
-import model_import as mdi
+from pd_import import model_import as mdi
 import pd_materials as pdm
 from pd_data import romdata as rom
 import pd_blendprops as pdprops

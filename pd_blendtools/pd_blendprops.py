@@ -16,7 +16,7 @@ from utils import (
 from pd_data.decl_bgtiles import *
 from pd_data.decl_setupfile import *
 from model_info import ModelNames_Items, ModelNames
-import tiles_import as tiles
+from pd_import import tiles_import as tlimp
 import nodes.nodeutils as ndu
 from pd_data import pd_padsfile as pdp
 import pd_mtx as mtx
@@ -625,9 +625,9 @@ class PDObject_Tile(PropertyGroup):
             flags = tile_flags(scn.pd_tile_hilight.flags) if mode in ['flags', 'wallfloor'] else None
 
             if context.active_object:
-                tiles.bg_colortile(context.active_object, context, flags, scn.pd_tile_hilight.room)
+                tlimp.bg_colortile(context.active_object, context, flags, scn.pd_tile_hilight.room)
         elif src.startswith('bpy.data.scenes'):
-            numaffected = tiles.bg_colortiles(context)
+            numaffected = tlimp.bg_colortiles(context)
             msg = f'{numaffected} Tiles Affected'
             bpy.ops.pdtools.messagebox(msg=msg)
             # pd_utils.msg_box('Tiles', f'{numaffected} Tiles Affected')
@@ -887,7 +887,7 @@ def update_scene_sel(self, context):
         coll.hide_select = not context.scene.collections_sel[idx]
 
 def update_scene_tilehighlight(_self, context):
-    n = tiles.bg_colortiles(context)
+    n = tlimp.bg_colortiles(context)
     bpy.ops.pdtools.messagebox(msg=f'{n} Tiles Affected')
     # pd_utils.msg_box(f'{n} Tiles Affected')
 
