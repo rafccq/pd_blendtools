@@ -30,11 +30,13 @@ from pd_import import (
     tiles_import as tlimp,
     setup_import as stpi,
 )
-import model_export as mde
-import bg_export as bge
-import pads_export as pde
-import setup_export as stpe
-import tiles_export as tle
+from pd_export import (
+    pads_export as pde,
+    tiles_export as tle,
+    setup_export as stpe,
+    bg_export as bge,
+    model_export as mde
+)
 import pd_addonprefs as pda
 import pd_blendprops as pdprops
 

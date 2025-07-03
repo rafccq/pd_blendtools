@@ -1,5 +1,5 @@
 ﻿files
-tmp*.blend
+/*.blend
 *.blend.0
 *.blend1
 *.log
@@ -17,3 +17,4 @@ pd_blendtools/__pycache__
 config.ini
 modelbin2
 __pycache__
+*.bat

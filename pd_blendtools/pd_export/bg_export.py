@@ -7,13 +7,14 @@ from utils import (
     pd_utils as pdu,
     bg_utils as bgu
 )
-import pd_mtx as mtx
-import pd_materials as pdm
-import model_export as mde
-import pd_blendprops as pdprops
-from bytereader import *
+from . import model_export as mde
 from pd_data.decl_bgfile import decl_portalvertices
 from typeinfo import TypeInfo
+from datablock import DataBlock
+from bytereader import ByteReader, add_padding
+import pd_mtx as mtx
+import pd_materials as pdm
+import pd_blendprops as pdprops
 
 
 def export_rooms(rd, dataout):
