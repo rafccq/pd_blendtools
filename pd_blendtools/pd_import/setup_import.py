@@ -16,8 +16,8 @@ from pd_mtx import M_BADPI
 from pd_data.pd_setupfile import PD_SetupFile
 from pd_data.decl_setupfile import *
 from pd_data.decl_padsfile import *
-from typeinfo import TypeInfo
-from model_info import ModelStates, ModelNames
+from data.typeinfo import TypeInfo
+from pd_data.model_info import ModelStates, ModelNames
 from pd_import import model_import as mdi
 import pd_materials as pdm
 from pd_data import pd_padsfile as pdp

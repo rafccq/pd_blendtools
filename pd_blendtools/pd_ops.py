@@ -20,7 +20,7 @@ from utils import (
 )
 from pd_data.decl_setupfile import OBJTYPE_LINKLIFTDOOR
 from mtxpalette_panel import gen_icons
-from model_info import ModelNames, ModelStates
+from pd_data.model_info import ModelNames, ModelStates
 from pd_blendprops import LEVELNAMES
 from pd_data.pd_padsfile import *
 from pd_data import romdata as rom, pd_padsfile as pdpads

@@ -1,6 +1,6 @@
 import bpy
 
-from gbi import *
+from pd_data.gbi import *
 from utils import pd_utils as pdu
 
 TEMPLATE_NAME = 'PD_MaterialTemplate'

@@ -1,6 +1,6 @@
 from utils import pd_utils as pdu
-from bitreader import BitReader
-from gbi import *
+from data.bitreader import BitReader
+from .gbi import *
 from utils import img_utils as imu
 
 # format consts

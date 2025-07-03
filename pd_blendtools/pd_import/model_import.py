@@ -8,11 +8,11 @@ import bmesh
 from mathutils import Vector
 
 from pd_data.pd_model import unmask, PD_ModelFile
-from gbi import *
+from pd_data.gbi import *
 from pd_data.decl_model import *
-from typeinfo import TypeInfo
+from data.typeinfo import TypeInfo
 import pd_materials as pdm
-import texload as tex
+from pd_data import texload as tex
 import mtxpalette as mtxp
 from utils import (
     pd_utils as pdu,

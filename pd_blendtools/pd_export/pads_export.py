@@ -8,9 +8,9 @@ from utils import (
 )
 from pd_blendprops import WAYPOINT_EDGEVALUES
 from pd_data.decl_padsfile import decl_padsfileheader
-from bytereader import ByteReader, add_padding
-from datablock import DataBlock
-from typeinfo import TypeInfo
+from data.bytereader import ByteReader, add_padding
+from data.datablock import DataBlock
+from data.typeinfo import TypeInfo
 import pd_blendprops as pdprops
 import pd_mtx as mtx
 from pd_data import pd_padsfile as pdp, decl_setupfile as dst

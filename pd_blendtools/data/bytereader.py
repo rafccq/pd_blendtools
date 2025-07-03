@@ -1,5 +1,5 @@
-from datablock import DataBlock
-from typeinfo import TypeInfo, field_info
+from .datablock import DataBlock
+from .typeinfo import TypeInfo, field_info
 
 
 enableLog = False

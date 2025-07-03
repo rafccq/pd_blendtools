@@ -1,9 +1,9 @@
 from collections import namedtuple
 from functools import cache
 
-from bytereader import ByteReader
+from data.bytereader import ByteReader
 from .decl_padsfile import *
-from typeinfo import TypeInfo
+from data.typeinfo import TypeInfo
 from utils import pd_utils as pdu
 
 Vec3 = namedtuple('Vec3', 'x y z')

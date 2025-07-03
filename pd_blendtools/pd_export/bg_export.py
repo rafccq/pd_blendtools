@@ -9,9 +9,9 @@ from utils import (
 )
 from . import model_export as mde
 from pd_data.decl_bgfile import decl_portalvertices
-from typeinfo import TypeInfo
-from datablock import DataBlock
-from bytereader import ByteReader, add_padding
+from data.typeinfo import TypeInfo
+from data.datablock import DataBlock
+from data.bytereader import ByteReader, add_padding
 import pd_mtx as mtx
 import pd_materials as pdm
 import pd_blendprops as pdprops

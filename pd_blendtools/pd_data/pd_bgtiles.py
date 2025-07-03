@@ -1,8 +1,8 @@
 import warnings
 
-from bytereader import *
+from data.bytereader import ByteReader
 from .decl_bgtiles import *
-from typeinfo import TypeInfo
+from data.typeinfo import TypeInfo
 
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 

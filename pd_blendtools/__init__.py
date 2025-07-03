@@ -24,7 +24,7 @@ from bpy.types import PropertyGroup, Object
 from bpy.props import StringProperty, IntProperty
 from bpy.app.handlers import persistent
 
-from typeinfo import TypeInfo
+from data.typeinfo import TypeInfo
 from pd_data.decl_model import model_decls
 from pd_addonprefs import PD_AddonPreferences
 import pd_blendprops as pdprops

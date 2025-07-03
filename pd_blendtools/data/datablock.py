@@ -1,4 +1,4 @@
-from typeinfo import TypeInfo, field_info
+from .typeinfo import TypeInfo, field_info
 
 class DataBlock:
     def __init__(self, name, addr, data = None):

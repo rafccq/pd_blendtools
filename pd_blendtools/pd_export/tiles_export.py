@@ -4,11 +4,11 @@ from utils import (
     pd_utils as pdu,
     bg_utils as bgu
 )
-from bytereader import ByteReader
-from typeinfo import TypeInfo
+from data.bytereader import ByteReader
+from data.typeinfo import TypeInfo
 from pd_data.pd_bgtiles import GEOTYPE_TILE_I
 from pd_data.decl_bgtiles import decl_geotilei
-from datablock import DataBlock
+from data.datablock import DataBlock
 import pd_mtx as mtx
 import pd_blendprops as pdprops
 

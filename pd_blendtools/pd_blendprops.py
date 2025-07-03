@@ -15,7 +15,7 @@ from utils import (
 )
 from pd_data.decl_bgtiles import *
 from pd_data.decl_setupfile import *
-from model_info import ModelNames_Items, ModelNames
+from pd_data.model_info import ModelNames_Items, ModelNames
 from pd_import import tiles_import as tlimp
 import nodes.nodeutils as ndu
 from pd_data import pd_padsfile as pdp

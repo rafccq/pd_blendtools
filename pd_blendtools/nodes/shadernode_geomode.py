@@ -1,7 +1,7 @@
 from bpy.props import BoolProperty
 
 from .shadernode_base import PD_ShaderNodeBase
-from gbi import *
+from pd_data.gbi import *
 
 DESC_GEO_ZBUFFER = 'ZBuffer description'
 DESC_GEO_SHADE = 'Shade description'

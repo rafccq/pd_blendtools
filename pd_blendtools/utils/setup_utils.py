@@ -4,7 +4,7 @@ from mathutils import Matrix, Euler
 from pd_data.decl_setupfile import *
 from . import pd_utils as pdu
 from pd_mtx import M_BADPI
-from model_info import ModelStates, ModelNames
+from pd_data.model_info import ModelStates, ModelNames
 import pd_blendprops as pdprops
 from pd_import import model_import as mdi
 from pd_data import romdata as rom, pd_padsfile as pdp

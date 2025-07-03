@@ -8,7 +8,7 @@ from mathutils import Euler, Vector, Matrix
 
 from pd_data.pd_bgfile import PD_BGFile, ROOMBLOCKTYPE_LEAF, ROOMBLOCKTYPE_PARENT
 from pd_data.decl_bgfile import bgfile_decls
-from typeinfo import TypeInfo
+from data.typeinfo import TypeInfo
 from utils import (
     pd_utils as pdu,
     bg_utils as bgu

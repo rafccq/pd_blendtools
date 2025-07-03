@@ -1,10 +1,10 @@
 import struct
 from collections import namedtuple
 
-from bytereader import ByteReader
+from data.bytereader import ByteReader
 from .decl_model import *
 from utils import pd_utils as pdu
-from typeinfo import TypeInfo
+from data.typeinfo import TypeInfo
 
 NODETYPE_CHRINFO      = 0x01
 NODETYPE_POSITION     = 0x02
