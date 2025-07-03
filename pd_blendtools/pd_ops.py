@@ -429,6 +429,7 @@ class PDTOOLS_OT_ImportLevel(Operator):
         self.steps.pop(0)
         self.current_item = 0
         context.window_manager.import_step += 1
+        bpy.context.view_layer.objects.active = None
 
     def modal(self, context, event):
         scn = context.scene
