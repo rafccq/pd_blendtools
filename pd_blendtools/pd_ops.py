@@ -19,7 +19,7 @@ from utils import (
     bg_utils as bgu
 )
 from pd_data.decl_setupfile import OBJTYPE_LINKLIFTDOOR
-from mtxpalette_panel import gen_icons
+from ui.mtxpalette_panel import gen_icons
 from pd_data.model_info import ModelNames, ModelStates
 from pd_blendprops import LEVELNAMES
 from pd_data.pd_padsfile import *

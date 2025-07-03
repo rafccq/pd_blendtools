@@ -13,7 +13,7 @@ from pd_data.decl_model import *
 from data.typeinfo import TypeInfo
 import pd_materials as pdm
 from pd_data import texload as tex
-import mtxpalette as mtxp
+from ui import mtxpalette as mtxp
 from utils import (
     pd_utils as pdu,
     log_util as log,

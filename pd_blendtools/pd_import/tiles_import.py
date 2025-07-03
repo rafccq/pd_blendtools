@@ -7,7 +7,7 @@ from pd_data.pd_bgtiles import PD_TilesFile as PD_BGTiles
 from pd_data.decl_bgtiles import *
 from data.typeinfo import TypeInfo
 from utils import pd_utils as pdu
-import mtxpalette as mtxp
+from ui import mtxpalette as mtxp
 import pd_blendprops as pdprops
 
 FLOORTYPE_COLORS = [

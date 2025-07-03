@@ -30,9 +30,8 @@ from pd_addonprefs import PD_AddonPreferences
 import pd_blendprops as pdprops
 
 from nodes import pd_shadernodes as pdn
-import pd_panels
 import pd_ops as pdops
-import mtxpalette_panel as mtxp
+from ui import mtxpalette_panel as mtxp, pd_panels
 import pd_addonprefs as pdp
 from pd_import import (
     bg_import as bgi,

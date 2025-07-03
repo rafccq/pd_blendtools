@@ -6,7 +6,7 @@ from utils import (
     log_util as logu
 )
 from pd_data.pd_model import PD_ModelFile
-import mtxpalette as mtxp
+from ui import mtxpalette as mtxp
 from pd_data import romdata as rom
 import pd_materials as pdm
 

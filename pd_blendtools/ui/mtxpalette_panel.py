@@ -3,7 +3,7 @@
 import bpy
 import bpy.utils.previews
 
-import mtxpalette as mtxp
+from . import mtxpalette as mtxp
 import pd_blendprops as pdprops
 from utils import pd_utils as pdu
 

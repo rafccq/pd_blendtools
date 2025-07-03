@@ -10,7 +10,8 @@ from mathutils import Vector
 from bl_ui.space_toolsystem_common import ToolSelectPanelHelper
 
 from pd_blendtools import bl_info
-import mtxpalette as mtxp
+from ui import mtxpalette as mtxp
+
 
 def decompress(buffer):
     if buffer[0:2] == b'\x11\x73':
