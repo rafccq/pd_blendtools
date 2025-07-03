@@ -1,7 +1,7 @@
 from collections import namedtuple
 from functools import cache
 
-from data.bytereader import ByteReader
+from data.bytestream import ByteStream
 from .decl_padsfile import *
 from data.typeinfo import TypeInfo
 from utils import pd_utils as pdu
@@ -32,7 +32,7 @@ class Pad_:
 class PD_PadsFile:
     def __init__(self, padsfiledata):
         self.padsfiledata = padsfiledata
-        self.rd = ByteReader(padsfiledata)
+        self.bs = ByteStream(padsfiledata)
 
         self.paddata = []
         self.padindices = [] # index of each pad into paddata
@@ -43,12 +43,12 @@ class PD_PadsFile:
         self._read()
 
     def _read(self):
-        rd = self.rd
+        bs = self.bs
 
-        numpads = rd.peek('u32')
+        numpads = bs.peek('u32')
 
         TypeInfo.register('padsfileheader', decl_padsfileheader, varmap={'N': numpads})
-        self.header = header = rd.read_block('padsfileheader')
+        self.header = header = bs.read_block('padsfileheader')
 
         for i in range(0, numpads):
             ofs = header['padoffsets']
@@ -61,7 +61,7 @@ class PD_PadsFile:
 
     curpad = 0
     def read_paddata(self, offset, size):
-        rd = self.rd
+        bs = self.bs
 
         self.padindices.append(len(self.paddata))
 
@@ -75,12 +75,12 @@ class PD_PadsFile:
             fields = fieldsmap[num] if num in fieldsmap else None
 
             for i in range(0, num):
-                val = rd.read_primitive(typename)
+                val = bs.read_primitive(typename)
                 self.paddata.append((typename, val))
 
-        rd.set_cursor(offset)
-        end = rd.cursor + size
-        header = rd.read_primitive('u32')
+        bs.set_cursor(offset)
+        end = bs.cursor + size
+        header = bs.read_primitive('u32')
         self.paddata.append(('u32', header))
 
         flags = header >> 14
@@ -92,95 +92,95 @@ class PD_PadsFile:
         else:
             read_coords('f32', 3)
 
-        if not (flags & (PADFLAG_UPALIGNTOX | PADFLAG_UPALIGNTOY | PADFLAG_UPALIGNTOZ)) and end >= rd.cursor + 12:
+        if not (flags & (PADFLAG_UPALIGNTOX | PADFLAG_UPALIGNTOY | PADFLAG_UPALIGNTOZ)) and end >= bs.cursor + 12:
             read_coords('f32', 3)
 
-        if not (flags & (PADFLAG_LOOKALIGNTOX | PADFLAG_LOOKALIGNTOY | PADFLAG_LOOKALIGNTOZ)) and end >= rd.cursor + 12:
+        if not (flags & (PADFLAG_LOOKALIGNTOX | PADFLAG_LOOKALIGNTOY | PADFLAG_LOOKALIGNTOZ)) and end >= bs.cursor + 12:
             read_coords('f32', 3)
 
-        if (flags & PADFLAG_HASBBOXDATA) and end >= rd.cursor + 24:
+        if (flags & PADFLAG_HASBBOXDATA) and end >= bs.cursor + 24:
             read_coords('f32', 6)
 
     def read_covers(self):
-        rd = self.rd
+        bs = self.bs
 
         header = self.header
         ofs = header['coversoffset']
 
-        rd.set_cursor(ofs)
+        bs.set_cursor(ofs)
 
         n = header['numcovers']
         for i in range(0, n):
-            cover = rd.read_block('cover')
+            cover = bs.read_block('cover')
             self.covers.append(cover)
 
     def read_waypoints(self):
-        rd = self.rd
+        bs = self.bs
 
         header = self.header
         ofs = header['waypointsoffset']
 
-        rd.set_cursor(ofs)
+        bs.set_cursor(ofs)
 
         while True:
-            wp = rd.read_block('waypoint')
+            wp = bs.read_block('waypoint')
             self.waypoints.append(wp)
             wp['neighbours_list'] = []
 
             if wp['padnum'] == 0xffffffff: break
 
-            savedcur = rd.cursor
-            rd.set_cursor(wp['neighbours'])
+            savedcur = bs.cursor
+            bs.set_cursor(wp['neighbours'])
 
             while True:
-                block = rd.read_block('arrays32')
+                block = bs.read_block('arrays32')
                 wp['neighbours_list'].append(block)
 
                 neighbour = block['value']
                 if neighbour == 0xffffffff: break
 
-            rd.set_cursor(savedcur)
+            bs.set_cursor(savedcur)
 
     def read_waygroups(self):
-        rd = self.rd
+        bs = self.bs
 
         header = self.header
         ofs = header['waygroupsoffset']
 
-        rd.set_cursor(ofs)
+        bs.set_cursor(ofs)
 
         while True:
-            wg = rd.read_block('waygroup')
+            wg = bs.read_block('waygroup')
             self.waygroups.append(wg)
             wg['neighbours_list'] = []
             wg['waypoints_list'] = []
 
             if wg['neighbours'] == 0: break
 
-            savedcur = rd.cursor
+            savedcur = bs.cursor
 
             # waygroup neighbours
-            rd.set_cursor(wg['neighbours'])
+            bs.set_cursor(wg['neighbours'])
 
             while True:
                 # read it as a block, so pointers to it will be patched later
-                block = rd.read_block('arrays32')
+                block = bs.read_block('arrays32')
                 wg['neighbours_list'].append(block)
                 neighbour = block['value']
 
                 if neighbour == 0xffffffff: break
 
             # waygroup waypoints
-            rd.set_cursor(wg['waypoints'])
+            bs.set_cursor(wg['waypoints'])
             while True:
                 # read it as a block, so pointers to it will be patched later
-                block = rd.read_block('arrays32')
+                block = bs.read_block('arrays32')
                 wg['waypoints_list'].append(block)
                 wg_waypoint = block['value']
 
                 if wg_waypoint == 0xffffffff: break
 
-            rd.set_cursor(savedcur)
+            bs.set_cursor(savedcur)
 
     @cache
     def pad_unpack(self, padnum, fields):

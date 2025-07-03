@@ -11,7 +11,7 @@ from . import model_export as mde
 from pd_data.decl_bgfile import decl_portalvertices
 from data.typeinfo import TypeInfo
 from data.datablock import DataBlock
-from data.bytereader import ByteReader, add_padding
+from data.bytestream import ByteStream, add_padding
 import pd_mtx as mtx
 import pd_materials as pdm
 import pd_blendprops as pdprops
@@ -280,7 +280,7 @@ def export_roomgfxdata(rd, bl_room, ofs_room):
 
 def export_section1(out_gfxdatalens, out_bboxes, out_textures):
     primarydata = bytearray()
-    rd = ByteReader(primarydata)
+    rd = ByteStream(primarydata)
 
     header = DataBlock.New('primarydata')
     rd.write_block(primarydata, header)
@@ -353,7 +353,7 @@ def export_section1(out_gfxdatalens, out_bboxes, out_textures):
 
 def export_section2(textures):
     dataout = bytearray()
-    rd = ByteReader(dataout)
+    rd = ByteStream(dataout)
 
     for tex in textures:
         name = tex.name
@@ -365,7 +365,7 @@ def export_section2(textures):
 
 def export_section3(gfxdatalens, bboxes, lights_per_room):
     dataout = bytearray()
-    rd = ByteReader(dataout)
+    rd = ByteStream(dataout)
 
     #### bboxes
     for bbox in bboxes:

@@ -4,7 +4,7 @@ from utils import (
     pd_utils as pdu,
     bg_utils as bgu
 )
-from data.bytereader import ByteReader
+from data.bytestream import ByteStream
 from data.typeinfo import TypeInfo
 from pd_data.pd_bgtiles import GEOTYPE_TILE_I
 from pd_data.decl_bgtiles import decl_geotilei
@@ -80,7 +80,7 @@ def export(filename, compress):
     TypeInfo.register('tileroom', decl_tileroom)
 
     dataout = bytearray()
-    rd = ByteReader(dataout)
+    rd = ByteStream(dataout)
     rd.write(dataout, numrooms+1, 'u32')
 
     # list of offsets where each room's tiles start

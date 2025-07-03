@@ -4,7 +4,7 @@ from pd_import import setup_import as stpi
 import pd_blendprops as pdprops
 from utils import pd_utils as pdu
 from pd_data.decl_setupfile import *
-from data.bytereader import ByteReader
+from data.bytestream import ByteStream
 from data.datablock import DataBlock
 from data.typeinfo import TypeInfo
 
@@ -39,7 +39,7 @@ def export_intro(rd, dataout):
 
 def export(filename, compress):
     dataout = bytearray()
-    rd = ByteReader(None)
+    rd = ByteStream(None)
 
     header = DataBlock.New('stagesetup')
     rd.write_block(dataout, header)

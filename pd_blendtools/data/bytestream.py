@@ -2,9 +2,7 @@ from .datablock import DataBlock
 from .typeinfo import TypeInfo, field_info
 
 
-enableLog = False
-
-class ByteReader:
+class ByteStream:
     def __init__(self, data, src_BO = 'big', dest_BO = 'big'):
         self.data = data
         self.buffer = None

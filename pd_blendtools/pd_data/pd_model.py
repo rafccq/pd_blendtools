@@ -1,7 +1,7 @@
 import struct
 from collections import namedtuple
 
-from data.bytereader import ByteReader
+from data.bytestream import ByteStream
 from .decl_model import *
 from utils import pd_utils as pdu
 from data.typeinfo import TypeInfo
@@ -26,7 +26,7 @@ class PD_ModelFile:
     def __init__(self, modeldata, skipDLdata=False):
         self.modeldata = modeldata
         self.skipDLdata = skipDLdata
-        self.rd = ByteReader(modeldata)
+        self.bs = ByteStream(modeldata)
 
         self.modeldef = None
         self.modelparts = None
@@ -43,8 +43,8 @@ class PD_ModelFile:
         self._read()
 
     def _read(self):
-        rd = self.rd
-        self.modeldef = rd.read_block('modeldef')
+        bs = self.bs
+        self.modeldef = bs.read_block('modeldef')
 
         root = self.modeldef['rootnode']
         self.rootnode = self.read_node(unmask(root))
@@ -136,20 +136,20 @@ class PD_ModelFile:
                     if node: depth -= 1
 
     def write(self):
-        rd = self.rd
+        bs = self.bs
         dataout = bytearray()
 
-        rd.write_block(dataout, self.modeldef)
-        rd.write_block(dataout, self.modelparts)
+        bs.write_block(dataout, self.modeldef)
+        bs.write_block(dataout, self.modelparts)
 
         for texconf in self.texconfigs:
-            rd.write_block(dataout, texconf, pad=4)
+            bs.write_block(dataout, texconf, pad=4)
 
         for node in self.nodes.values():
-            rd.write_block(dataout, node, pad=4)
+            bs.write_block(dataout, node, pad=4)
 
         for texdata in self.texdata.values():
-            rd.write_block_raw(dataout, texdata)
+            bs.write_block_raw(dataout, texdata)
 
         idx = 0
         for rodata in self.rodatas:
@@ -160,11 +160,11 @@ class PD_ModelFile:
                 vertices = self.vertices[idx]
                 colors = self.colors[idx]
 
-                rd.write_block_raw(dataout, vertices, pad=8)
-                rd.write_block_raw(dataout, colors, pad=8)
+                bs.write_block_raw(dataout, vertices, pad=8)
+                bs.write_block_raw(dataout, colors, pad=8)
 
-            rd.ref = len(dataout)
-            rd.write_block(dataout, rodata, pad=8)
+            bs.ref = len(dataout)
+            bs.write_block(dataout, rodata, pad=8)
             idx += 1
 
         texaddrs = {blk.addr: blk.write_addr for blk in self.texdata.values()}
@@ -194,16 +194,16 @@ class PD_ModelFile:
         if nodetype not in [NODETYPE_GUNDL, NODETYPE_STARGUNFIRE, NODETYPE_DL]:
             raise Exception(f'Invalid rodata type to replace GDL: {nodetype}')
 
-        rd = self.rd
-        gdlblock = rd.create_block(gdlbytes)
-        rd.write_block_raw(dataout, gdlblock)
+        bs = self.bs
+        gdlblock = bs.create_block(gdlbytes)
+        bs.write_block_raw(dataout, gdlblock)
         rodata.update(dataout, field, gdlblock.write_addr | 0x05000000)
 
     def read_node(self, rootaddr):
         # log(f'read_node: {rootaddr:08X}')
-        rd = self.rd
-        rd.set_cursor(rootaddr)
-        node = rd.read_block('modelnode')
+        bs = self.bs
+        bs.set_cursor(rootaddr)
+        node = bs.read_block('modelnode')
         self.nodes[rootaddr] = node
 
         # read 'child' nodes
@@ -220,23 +220,23 @@ class PD_ModelFile:
         return node
 
     def read_modelparts(self):
-        rd = self.rd
+        bs = self.bs
         n = self.modeldef['numparts']
         TypeInfo.register('parts', decl_parts, varmap={'N': n})
         addr = unmask(self.modeldef['parts'])
-        rd.set_cursor(addr)
-        self.modelparts = rd.read_block('parts')
+        bs.set_cursor(addr)
+        self.modelparts = bs.read_block('parts')
 
     def read_rodata(self):
-        rd = self.rd
+        bs = self.bs
         idx = 0
         for k, node in self.nodes.items():
             rodata_addr = node['rodata']
             nodetype = node['type'] & 0xff
             rodata_name = rodata_decls[nodetype]
 
-            rd.set_cursor(unmask(rodata_addr))
-            rodata = rd.read_block(rodata_name)
+            bs.set_cursor(unmask(rodata_addr))
+            rodata = bs.read_block(rodata_name)
             rodata['_node_type_'] = nodetype
             self.rodatas.append(rodata)
             rodatagdl_map = {
@@ -250,7 +250,7 @@ class PD_ModelFile:
             idx += 1
 
     def read_vertices(self, rodata, nodetype, idx):
-        rd = self.rd
+        bs = self.bs
 
         numvertices = rodata['numvertices'] if nodetype in [NODETYPE_GUNDL, NODETYPE_DL] else rodata['unk00'] * 4
 
@@ -258,25 +258,25 @@ class PD_ModelFile:
             vtxsize = 12
             start = rodata['vertices']
             end = pdu.ALIGN8(unmask(start) + numvertices * vtxsize)
-            self.vertices[idx] = rd.read_block_raw(unmask(start), end)
+            self.vertices[idx] = bs.read_block_raw(unmask(start), end)
             col_start = pdu.ALIGN8(unmask(end))
             col_end = rodata.addr
 
             # save colors at the same address as the vertices
-            colors = self.colors[idx] = rd.read_block_raw(col_start, col_end)
+            colors = self.colors[idx] = bs.read_block_raw(col_start, col_end)
             rodata['colors'] = colors#
         else:
-            self.vertices[idx] = rd.create_block(bytearray())
-            self.colors[idx] = rodata['colors'] = rd.create_block(bytearray())
+            self.vertices[idx] = bs.create_block(bytearray())
+            self.colors[idx] = rodata['colors'] = bs.create_block(bytearray())
 
     def read_tex_configs(self):
-        rd = self.rd
+        bs = self.bs
         addr = unmask(self.modeldef['texconfigs'])
-        rd.set_cursor(addr)
+        bs.set_cursor(addr)
 
         embeddedtex = False
         for i in range(0, self.modeldef['numtexconfigs']):
-            texconfig = rd.read_block('texconfig')
+            texconfig = bs.read_block('texconfig')
             self.texconfigs.append(texconfig)
 
             texnum = texconfig['texturenum']
@@ -290,7 +290,7 @@ class PD_ModelFile:
 
     def read_texdata(self):
         self._has_embedded_tex = True
-        rd = self.rd
+        bs = self.bs
         n = len(self.texconfigs)
         texaddrs = [texconf['texturenum'] for texconf in self.texconfigs]
         texaddrs.append(None)
@@ -300,7 +300,7 @@ class PD_ModelFile:
             next = texaddrs[i+1]
 
             end = unmask(next) if next else next
-            texdata = rd.read_block_raw(unmask(addr), end)
+            texdata = bs.read_block_raw(unmask(addr), end)
             self.texdata[addr] = texdata
 
     def data(self, ptr):

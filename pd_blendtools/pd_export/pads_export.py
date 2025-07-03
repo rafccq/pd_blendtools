@@ -8,7 +8,7 @@ from utils import (
 )
 from pd_blendprops import WAYPOINT_EDGEVALUES
 from pd_data.decl_padsfile import decl_padsfileheader
-from data.bytereader import ByteReader, add_padding
+from data.bytestream import ByteStream, add_padding
 from data.datablock import DataBlock
 from data.typeinfo import TypeInfo
 import pd_blendprops as pdprops
@@ -165,7 +165,7 @@ def pad_initial_pos(bl_obj):
     return pos, up.normalized(), look.normalized()
 
 def export_pad(bl_obj, padnum, dataout):
-    rd = ByteReader(None)
+    rd = ByteStream(None)
 
     pd_prop = bl_obj.pd_prop
     pd_pad = pd_prop.pad
@@ -244,7 +244,7 @@ def export_pad(bl_obj, padnum, dataout):
     return pdu.align(size, 4)
 
 def export_waypoints(dataout, waypoints):
-    rd = ByteReader(None)
+    rd = ByteStream(None)
 
     wp_blocks = []
     for idx, bl_waypoint in enumerate(waypoints):
@@ -287,7 +287,7 @@ def export_waypoints(dataout, waypoints):
 def export_waygroups(dataout):
     EDGEVALUES = WAYPOINT_EDGEVALUES
 
-    rd = ByteReader(None)
+    rd = ByteStream(None)
 
     groups = [obj for obj in bpy.data.collections['Waypoints'].objects if obj.parent is None]
 
@@ -347,7 +347,7 @@ def export_waygroups(dataout):
         rd.write(dataout, 0xffffffff, 'u32')
 
 def export_covers(dataout):
-    rd = ByteReader(None)
+    rd = ByteStream(None)
 
     covers = [obj for obj in bpy.data.collections['Cover Pads'].objects if pdu.pdtype(obj) == pdprops.PD_OBJTYPE_COVER]
 
@@ -394,7 +394,7 @@ def export(filename, compress):
     add_lift_stops(props)
 
     dataout = bytearray()
-    rd = ByteReader(None)
+    rd = ByteStream(None)
 
     all_objs = props + intros + waypoints
     all_objs.sort(key = lambda e: e.pd_prop.pad.padnum)

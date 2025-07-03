@@ -1,6 +1,6 @@
 import time
 
-from data.bytereader import ByteReader
+from data.bytestream import ByteStream
 from .decl_bgfile import *
 from data.typeinfo import TypeInfo
 from utils import pd_utils as pdu
@@ -13,7 +13,7 @@ ROOMBLOCKTYPE_PARENT = 1
 class PD_BGFile:
     def __init__(self, bgdata):
         self.bgdata = bgdata
-        self.rd = ByteReader(bgdata)
+        self.bs = ByteStream(bgdata)
 
         self.gfxdata = {}
 
@@ -37,12 +37,12 @@ class PD_BGFile:
         self.read_gfxdata()
 
     def load_filedata(self):
-        rd = self.rd
+        bs = self.bs
 
         # header
-        primarydatasize = rd.read_primitive('u32')
-        section1compsize = rd.read_primitive('u32')
-        primcompsize = rd.read_primitive('u32')
+        primarydatasize = bs.read_primitive('u32')
+        section1compsize = bs.read_primitive('u32')
+        primcompsize = bs.read_primitive('u32')
 
         self.offsetgfxdata = primarydatasize - primcompsize - 0xc
 
@@ -50,9 +50,9 @@ class PD_BGFile:
 
         # load section 2
         section2start = section1compsize + 0xc
-        rd.set_cursor(section2start)
-        section2inflatedsize = rd.read_primitive('u16')
-        section2compsize = rd.read_primitive('u16')
+        bs.set_cursor(section2start)
+        section2inflatedsize = bs.read_primitive('u16')
+        section2compsize = bs.read_primitive('u16')
         section2end = section2start + section2compsize + 4
 
         self.section2 = pdu.decompress(self.bgdata[section2start + 4:section2end])
@@ -61,17 +61,17 @@ class PD_BGFile:
 
         # load section 3
         section3start = section2start + section2compsize + 4
-        rd.set_cursor(section3start)
-        section3inflatedsize = rd.read_primitive('u16')
-        section3compsize = rd.read_primitive('u16')
+        bs.set_cursor(section3start)
+        section3inflatedsize = bs.read_primitive('u16')
+        section3compsize = bs.read_primitive('u16')
         section3end = section3start + section3compsize + 4
         self.section3 = pdu.decompress(self.bgdata[section3start + 4:section3end])
 
     def read_primarydata(self):
-        rd = self.rd
-        rd.set_data(self.primarydata)
+        bs = self.bs
+        bs.set_data(self.primarydata)
 
-        header = rd.read_block('primarydata')
+        header = bs.read_block('primarydata')
         self.primdata_header = header
 
         self.read_bgrooms(header)
@@ -81,17 +81,17 @@ class PD_BGFile:
 
         # save the section that contains light data
         offset = header['lightfile'] - 0x0f000000
-        self.lightdata = rd.read_block_raw(offset)
+        self.lightdata = bs.read_block_raw(offset)
 
     def read_bgrooms(self, header):
-        rd = self.rd
+        bs = self.bs
 
-        rd.set_cursor(header['rooms'] - 0x0f000000)
-        room0 = rd.read_block('bgroom')
+        bs.set_cursor(header['rooms'] - 0x0f000000)
+        room0 = bs.read_block('bgroom')
         self.rooms.append(room0)
         n = 0
         while True:
-            room = rd.read_block('bgroom')
+            room = bs.read_block('bgroom')
             roomid = room['unk00']
             if roomid == 0:
                 self.rooms.append(room)
@@ -104,30 +104,30 @@ class PD_BGFile:
         self.numrooms = n
 
     def read_lights(self):
-        rd = self.rd
+        bs = self.bs
 
         header = self.primdata_header
         start = header['lightfile'] - 0xf000000
 
         if start < 0: return
 
-        rd.set_cursor(start)
+        bs.set_cursor(start)
         end = header['portals'] - 0xf000000 # x64
         n = 0
-        while rd.cursor + 32 < end:
-            light = rd.read_block('light')
+        while bs.cursor + 32 < end:
+            light = bs.read_block('light')
             self.lights.append(light)
             n += 1
 
     def read_bgcmds(self):
-        rd = self.rd
+        bs = self.bs
 
         start = self.primdata_header['bgcmds'] - 0x0f000000
-        rd.set_cursor(start)
+        bs.set_cursor(start)
 
         n = 0
         while True:
-            bgcmd = rd.read_block('bgcmd')
+            bgcmd = bs.read_block('bgcmd')
             type = bgcmd['type']
             self.bgcmds.append(bgcmd)
 
@@ -135,13 +135,13 @@ class PD_BGFile:
             n += 1
 
     def read_bgportals(self, header):
-        rd = self.rd
+        bs = self.bs
 
         start = header['portals']
-        rd.set_cursor(start - 0x0f000000)
+        bs.set_cursor(start - 0x0f000000)
         n = 0
         while True:
-            portal = rd.read_block('bgportal')
+            portal = bs.read_block('bgportal')
             self.portals.append(portal)
 
             verts = portal['verticesoffset']
@@ -152,39 +152,39 @@ class PD_BGFile:
         self.read_bgportalvertices()
 
     def read_bgportalvertices(self):
-        rd = self.rd
+        bs = self.bs
 
-        c = pdu.align(rd.cursor, 4)
-        rd.set_cursor(c)
+        c = pdu.align(bs.cursor, 4)
+        bs.set_cursor(c)
         for n, portal in enumerate(self.portals):
-            count = rd.peek('u8')
+            count = bs.peek('u8')
             TypeInfo.register('portalvertices', decl_portalvertices, False, varmap={'N': count})
-            vtx = rd.read_block('portalvertices')
+            vtx = bs.read_block('portalvertices')
             self.portalvertices.append(vtx)
 
     def read_section2(self):
-        rd = self.rd
-        rd.set_data(self.section2)
+        bs = self.bs
+        bs.set_data(self.section2)
         for i in range(0, self.numtextures):
-            tex = rd.read_primitive('u16')
+            tex = bs.read_primitive('u16')
             self.textures.append(tex)
 
     def read_section3(self):
-        rd = self.rd
-        rd.set_data(self.section3)
+        bs = self.bs
+        bs.set_data(self.section3)
 
         for r in range(1, self.numrooms):
-            bbox = rd.read_block('bbox')
+            bbox = bs.read_block('bbox')
             self.bboxes.append(bbox)
 
         for r in range(1, self.numrooms):
-            datalen = rd.read_primitive('u16')
+            datalen = bs.read_primitive('u16')
             self.rooms[r]['gfxdatalen'] = datalen
 
         lightindex = 0
         totalights = 0
         for r in range(1, self.numrooms):
-            numlights = rd.read_primitive('u8')
+            numlights = bs.read_primitive('u8')
             self.rooms[r]['numlights'] = numlights
 
             if numlights > 0:
@@ -217,12 +217,12 @@ class PD_BGFile:
         self.read_roomgfxdata(roomnum)
 
     def read_roomgfxdata(self, roomnum):
-        rd = self.rd
+        bs = self.bs
         room = self.rooms[roomnum]
         roomid = room['id']
 
-        rd.set_data(self.gfxdata[roomnum])
-        gfxdata = rd.read_block('roomgfxdata')
+        bs.set_data(self.gfxdata[roomnum])
+        gfxdata = bs.read_block('roomgfxdata')
         room['gfxdata'] = gfxdata
 
         verts_addr = gfxdata['vertices']
@@ -251,15 +251,15 @@ class PD_BGFile:
         for i in range(0, ngdl):
             start = gdls[i]
             end = gdls[i + 1]
-            gdldata = rd.read_block_raw(start, end)
+            gdldata = bs.read_block_raw(start, end)
             room['_gdldata'][start] = gdldata
 
     def read_roomblocks(self, end, roomnum, roomid):
-        rd = self.rd
+        bs = self.bs
 
         room = self.rooms[roomnum]
         offset = room['id']
-        rd.ofs = offset
+        bs.ofs = offset
         end -= offset
 
         blocks = {}
@@ -267,9 +267,9 @@ class PD_BGFile:
         gdls = []
         n = 0
         blocksize = 4 * TypeInfo.sizeof('u8') + 4 * TypeInfo.sizeof('pointer')
-        while (rd.cursor + blocksize) <= end:
-            blockaddr = rd.cursor + offset
-            roomblock = rd.read_block('roomblock')
+        while (bs.cursor + blocksize) <= end:
+            blockaddr = bs.cursor + offset
+            roomblock = bs.read_block('roomblock')
 
             type = roomblock['type']
             verts = roomblock['vertices|coord1']
@@ -278,15 +278,15 @@ class PD_BGFile:
                 end = verts
 
             if type == ROOMBLOCKTYPE_PARENT:
-                cu = rd.cursor
+                cu = bs.cursor
                 addr = roomblock['vertices|coord1']
-                rd.set_cursor(addr - roomid)
-                coord0 = rd.read_block('coord')
-                coord1 = rd.read_block('coord')
+                bs.set_cursor(addr - roomid)
+                coord0 = bs.read_block('coord')
+                coord1 = bs.read_block('coord')
                 
                 roomblock['coord_0'] = coord0
                 roomblock['coord_1'] = coord1
-                rd.set_cursor(cu)
+                bs.set_cursor(cu)
 
             if type == ROOMBLOCKTYPE_LEAF:
                 gdl = roomblock['gdl|child']
@@ -296,15 +296,15 @@ class PD_BGFile:
             n += 1
 
         room['roomblocks'] = blocks
-        rd.ofs = 0
+        bs.ofs = 0
         return gdls
 
     def read_vertices(self, start, end):
         if start == 0: return None
 
-        rd = self.rd
+        bs = self.bs
 
-        vtx = rd.read_block_raw(start, end)
+        vtx = bs.read_block_raw(start, end)
         data = vtx.bytes
 
         addr = 0
@@ -329,9 +329,9 @@ class PD_BGFile:
     def read_colors(self, start, end):
         if start <= 0: return None
 
-        rd = self.rd
+        bs = self.bs
 
-        colors = rd.read_block_raw(start, end)
+        colors = bs.read_block_raw(start, end)
         data = colors.bytes
 
         addr = 0
