@@ -32,7 +32,7 @@ import pd_blendprops as pdprops
 from nodes import pd_shadernodes as pdn
 from operators import pd_ops as pdops
 import operators as ops
-from ui import mtxpalette_panel as mtxp, pd_panels
+import ui
 import pd_addonprefs as pdp
 from pd_import import (
     bg_import as bgi,
@@ -42,9 +42,8 @@ from pd_import import (
 
 submodules = [
     pdn,
-    pd_panels,
+    ui,
     ops,
-    mtxp,
     pdprops,
     tlimp,
     stpi,
@@ -111,6 +110,7 @@ def unregister():
 
 @persistent
 def pd_load_handler(_dummy):
+    from ui import mtxpalette_panel as mtxp
     context = bpy.context
 
     mtxp.gen_icons(context) # we need to generate the mtx icons again

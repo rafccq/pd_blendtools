@@ -1,17 +1,8 @@
 import bpy.types
 from bpy.utils import register_submodule_factory
 
-from . import ops_bg, ops_model, ops_setup, ops_tiles, pd_ops
 from .ops_bg import PDTOOLS_OT_PortalFromFace
 from .ops_tiles import PDTOOLS_OT_TilesFromFaces
-
-modules = [
-    ops_bg,
-    ops_model,
-    ops_setup,
-    ops_tiles,
-    pd_ops,
-]
 
 submodules = [
     'ops_bg',
