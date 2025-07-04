@@ -30,7 +30,8 @@ from pd_addonprefs import PD_AddonPreferences
 import pd_blendprops as pdprops
 
 from nodes import pd_shadernodes as pdn
-import pd_ops as pdops
+from operators import pd_ops as pdops
+import operators as ops
 from ui import mtxpalette_panel as mtxp, pd_panels
 import pd_addonprefs as pdp
 from pd_import import (
@@ -42,7 +43,7 @@ from pd_import import (
 submodules = [
     pdn,
     pd_panels,
-    pdops,
+    ops,
     mtxp,
     pdprops,
     tlimp,

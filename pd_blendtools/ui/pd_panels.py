@@ -8,7 +8,7 @@ from utils import (
     setup_utils as stu,
 )
 from nodes import nodeutils as ndu
-import pd_ops as pdops
+from operators import pd_ops as pdops
 import pd_addonprefs as pdp
 import pd_blendprops as pdprops
 
@@ -279,13 +279,13 @@ class PDTOOLS_PT_RoomTools(Panel):
         row = col.row()
         row = row.split(factor=0.5)
         col = row.column()
-        col.operator(pdops.PDTOOLS_OT_RoomSplitByPortal.bl_idname, text='Split By Portal')
+        col.operator('pdtools.room_split_by_portal', text='Split By Portal')
         portalselected = context.scene.pd_portal is not None
         col.enabled = isroom(bl_obj) and portalselected
         row.prop(scn, 'pd_portal', text='')
 
         row = layout.column()
-        row.operator(pdops.PDTOOLS_OT_RoomSelectAllBlocks.bl_idname, text='Select All Blocks In Room')
+        row.operator('pdtools.op_room_select_all_blocks', text='Select All Blocks In Room')
         row.enabled = nsel == 1 and pdtype in [pdprops.PD_OBJTYPE_ROOM, pdprops.PD_OBJTYPE_ROOMBLOCK]
 
 
@@ -408,10 +408,10 @@ def draw_lift(props_lift, layout, context, multiple):
         if stops[idx]:
             row = row.split(factor=.9)
             row.label(text=f'{stops[idx].name}')
-            op = row.operator(pdops.PDTOOLS_OT_SetupLiftRemoveStop.bl_idname, icon='REMOVE', text='')
+            op = row.operator('pdtools.op_setup_lift_remove_stop', icon='REMOVE', text='')
             op.index = idx
         else:
-            op = row.operator(pdops.PDTOOLS_OT_SetupLiftCreateStop.bl_idname, text='Create')
+            op = row.operator('pdtools.op_setup_lift_create_stop', text='Create')
             op.index = idx
 
     column.separator(type='LINE')
