@@ -18,7 +18,7 @@ def draw_obj_base(layout, props_obj):
     row.prop(props_obj, 'maxdamage', text='Health')
     row.label(text=f'Hex {props_obj.maxdamage:04X}')
 
-    layout.separator(type='LINE')
+    pdu.ui_separator(layout, type='LINE')
 
     pad = props_obj.pad
     hasbbox = pad.hasbbox
@@ -35,7 +35,7 @@ def draw_obj_base(layout, props_obj):
             row.prop(props_obj.pad, 'bbox', index=2 * idx, text=lmin)
             row.prop(props_obj.pad, 'bbox', index=2 * idx + 1, text=lmax)
 
-    layout.separator(type='LINE')
+    pdu.ui_separator(layout, type='LINE')
     flags1 = props_obj.flags1_packed
     flags2 = props_obj.flags2_packed
     flags3 = props_obj.flags3_packed
@@ -44,7 +44,7 @@ def draw_obj_base(layout, props_obj):
     layout.operator('pdtools.setupobj_editpadflags', text='Edit Pad')
 
     if stu.obj_hasmodel(props_obj):
-        layout.separator(type='LINE')
+        pdu.ui_separator(layout, type='LINE')
         box = layout.box()
 
         scn = bpy.context.scene
@@ -60,13 +60,13 @@ def draw_obj_base(layout, props_obj):
 def draw_door(props_door, layout, context, multiple):
     column = layout.column()
 
-    column.separator(type='LINE')
+    pdu.ui_separator(column, type='LINE')
     row = column.row()
     row.prop(props_door, 'door_type', text='Type')
     sound = ndu.item_from_value(pdprops.DOOR_SOUNDTYPES, props_door.sound_type)
     row.popover(panel="PDTOOLS_PT_SetupDoorSound", text=f'Sound: {sound}')
 
-    column.separator(type='LINE')
+    pdu.ui_separator(column, type='LINE')
     row = column.row().split(factor=0.45)
     flags = pdu.flags_pack(props_door.door_flags, [e[1] for e in pdprops.DOOR_FLAGS])
     row.popover(panel="PDTOOLS_PT_SetupDoorFlags", text=f'Door Flags: {flags:04X}')
@@ -78,7 +78,7 @@ def draw_door(props_door, layout, context, multiple):
     flags = pdu.flags_pack(props_door.key_flags, [e[1] for e in pdprops.DOOR_KEYFLAGS])
     row.popover(panel="PDTOOLS_PT_SetupDoorFlags", text=f'Key Flags: {flags:08b}')
 
-    column.separator(type='LINE')
+    pdu.ui_separator(column, type='LINE')
     col = layout.grid_flow(columns=2)
     col.prop(props_door, 'accel', text='Acceleration')
     col.prop(props_door, 'maxfrac', text='Dist Travels')
@@ -98,13 +98,13 @@ def draw_door(props_door, layout, context, multiple):
 def draw_lift(props_lift, layout, context, multiple):
     column = layout.column()
 
-    column.separator(type='LINE')
+    pdu.ui_separator(column, type='LINE')
     column.label(text='Lift Doors')
     column.prop(props_lift, 'door1', text='Door 1')
     column.prop(props_lift, 'door2', text='Door 2')
     column.prop(props_lift, 'door3', text='Door 3')
     column.prop(props_lift, 'door4', text='Door 4')
-    column.separator(type='LINE')
+    pdu.ui_separator(column, type='LINE')
 
     row = column.row().split(factor=0.6)
     row.prop(props_lift, 'accel', text='Min Speed')
@@ -117,7 +117,7 @@ def draw_lift(props_lift, layout, context, multiple):
     row.label(text=f'hex: {pdu.s32(maxspeed):08X}')
 
     #### Lift Stops
-    column.separator(type='LINE')
+    pdu.ui_separator(column, type='LINE')
     column.label(text='Lift Stops')
     stops = [props_lift.stop1, props_lift.stop2, props_lift.stop3, props_lift.stop4]
     for idx in range(4):
@@ -133,7 +133,7 @@ def draw_lift(props_lift, layout, context, multiple):
             op = row.operator('pdtools.op_setup_lift_create_stop', text='Create')
             op.index = idx
 
-    column.separator(type='LINE')
+    pdu.ui_separator(column, type='LINE')
     column.label(text='Interlinks')
 
     row = layout.row()
@@ -151,7 +151,7 @@ def draw_lift(props_lift, layout, context, multiple):
 
     if len(interlinks) > 0:
         row = layout.column()
-        row.separator(type='LINE')
+        pdu.ui_separator(row, type='LINE')
         sel_interlink = interlinks[props_lift.active_interlink_idx]
         row.label(text=sel_interlink.name, icon='LINKED')
         row.prop(sel_interlink, 'controller', text='Controller')
@@ -164,14 +164,14 @@ def draw_lift(props_lift, layout, context, multiple):
         container.prop(sel_interlink, 'stopnum', text='')
 
 def draw_tintedglass(props_glass, layout, context, multiple):
-    layout.separator(type='LINE')
+    pdu.ui_separator(layout, type='LINE')
     column = layout.row()
     column.prop(props_glass, 'opadist', text='Opa Dist')
     column.prop(props_glass, 'xludist', text='Xlu Dist')
 
 def draw_weapon(props_weapon, layout, context, multiple):
     column = layout.column()
-    column.separator(type='LINE')
+    pdu.ui_separator(column, type='LINE')
     column.prop(props_weapon, 'weaponnum', text='Weapon')
 
 
@@ -207,12 +207,13 @@ class PDTOOLS_PT_SetupObjectTools(Panel):
             op.type = 'scene'
 
         if obj_type == 'weapon':
-            box.separator(type='LINE')
+            pdu.ui_separator(box, type='LINE')
             row = box.row().split(factor=0.4)
             row.label(text='Weapon Pickup:')
             row.prop(scn, 'weapon_num', text='')
 
-        ops = bpy.context.window.modal_operators
+        ops = bpy.context.window.modal_operators if bpy.app.version >= (4, 2, 0) else []
+
         if 'PDTOOLS_OT_op_setup_object_create' in ops:
             box2 = box.box()
             box.alignment = 'CENTER'
@@ -248,7 +249,7 @@ class PDTOOLS_PT_SetupDoorSound(bpy.types.Panel):
 
         row = self.layout.row()
         row.label(text='Door Sound')
-        row.separator(type='LINE')
+        pdu.ui_separator(row, type='LINE')
         row = row.row()
         soundnum = props_door.sound_type[0:2].upper()
         # play sound: open
@@ -290,7 +291,7 @@ class PDTOOLS_PT_SetupObject(Panel):
         props_obj = obj.pd_prop
         txt = 'Multiple Selected' if multiple else f'{obj.name}'
         column.label(text=txt, icon='OBJECT_DATA')
-        column.separator(type='LINE')
+        pdu.ui_separator(column, type='LINE')
 
         draw_obj_base(column, props_obj)
 
@@ -337,7 +338,7 @@ class PDTOOLS_PT_SetupIntro(Panel):
         props_obj = obj.pd_prop
         txt = 'Multiple Selected' if multiple else f'{obj.name}'
         column.label(text=txt, icon='OBJECT_DATA')
-        column.separator(type='LINE')
+        pdu.ui_separator(column, type='LINE')
 
         column.operator('pdtools.setupobj_editpadflags', text=f'Edit Flags')
 
@@ -366,17 +367,17 @@ class PDTOOLS_PT_SetupWaypoint(Panel):
         index = props_waypoint.active_neighbour_idx
 
         layout.label(text=f'{obj.pd_obj.name}', icon='OBJECT_DATA')
-        layout.separator(type='LINE')
+        pdu.ui_separator(layout, type='LINE')
 
         row = layout.row().split(factor=0.3)
         row.label(text=f'ID: {props_waypoint.id:02X}')
-        layout.separator(type='LINE')
+        pdu.ui_separator(layout, type='LINE')
         row.prop(props_waypoint, 'group_enum', text='')
 
         row = layout.row()
         row.operator('pdtools.setupobj_editpadflags', text='Edit Pad')
 
-        layout.separator(type='LINE')
+        pdu.ui_separator(layout, type='LINE')
 
         box = layout.box()
         row = box.row()
@@ -396,7 +397,7 @@ class PDTOOLS_PT_SetupWaypoint(Panel):
             row.label(text=f'{pd_neighbour.name}')
             row.prop(pd_neighbour, 'edgetype', text='')
 
-        box.separator(type='LINE')
+        pdu.ui_separator(box, type='LINE')
         row = box.row()
         row.operator('pdtools.op_setup_waypoint_createneighbours', text='Create Neighbours')
         row = box.row()
@@ -418,7 +419,7 @@ class PDTOOLS_PT_WaypointTools(Panel):
         row.label(text='Visibility:')
         row.prop(scn, 'pd_waypoint_vis', text='')
 
-        layout.separator(type='LINE')
+        pdu.ui_separator(layout, type='LINE')
         row = layout.row()
         op_props = row.operator('pdtools.op_setup_waypoint_create', text='Create Waypoint')
 

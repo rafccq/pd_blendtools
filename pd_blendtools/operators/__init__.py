@@ -12,7 +12,7 @@ submodules = [
     'pd_ops'
 ]
 
-register_mod, unregister_mod = register_submodule_factory(__name__, submodules)
+register_mod, unregister = register_submodule_factory(__name__, submodules)
 
 def pd_editmode_menu(self, _context):
     self.layout.separator(factor=1.0)

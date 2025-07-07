@@ -2,6 +2,7 @@ from bpy.props import EnumProperty
 
 from .nodeutils import make_prop, make_id
 from .shadernode_base import PD_ShaderNodeBase
+from utils import pd_utils as pdu
 
 
 UPPER_MODES = [
@@ -196,8 +197,7 @@ class PD_ShaderNodeSetOtherModeH(PD_ShaderNodeBase):
         col.label(text='Mode')
         col.context_pointer_set('enum', self.bl_rna.properties['mode'])
         col.prop(self, 'mode', text='')
-        # col.separator(type='LINE')
-        col.separator()
+        pdu.ui_separator(col, type='LINE')
 
         mode = self.mode
         col.context_pointer_set('enum', self.bl_rna.properties[mode])

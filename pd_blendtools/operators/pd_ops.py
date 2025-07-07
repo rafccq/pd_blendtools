@@ -306,7 +306,7 @@ class PDTOOLS_OT_ImportLevel(Operator):
             op.type = 'BG'
             row.enabled = scn.import_bg
 
-        box.separator(type='LINE')
+        pdu.ui_separator(box, type='LINE')
         row = box.row()
         row.prop(scn, 'level_external_tex', text='Replace Textures')
         row.enabled = scn.import_bg
@@ -362,7 +362,7 @@ class PDTOOLS_OT_ImportLevel(Operator):
             op.type = 'setup'
             row.enabled = scn.import_setup
 
-        box.separator(type='LINE')
+        pdu.ui_separator(box, type='LINE')
         row = box.row()
         row.prop(scn, 'level_external_models', text='Replace Models')
         row.enabled = enabled
@@ -397,13 +397,13 @@ class PDTOOLS_OT_ImportLevel(Operator):
     def draw(self, context):
         self.draw_bg(context)
 
-        self.layout.separator(type='SPACE')
+        pdu.ui_separator(self.layout, type='SPACE')
         self.draw_pads(context)
 
-        self.layout.separator(type='SPACE')
+        pdu.ui_separator(self.layout, type='SPACE')
         self.draw_setup(context)
 
-        self.layout.separator(type='SPACE')
+        pdu.ui_separator(self.layout, type='SPACE')
         self.draw_tiles(context)
 
 class PDTOOLS_OT_ExportLevel(Operator):
@@ -468,7 +468,7 @@ class PDTOOLS_OT_ExportLevel(Operator):
         scn = context.scene
 
         self.draw_options(context)
-        self.layout.separator(type='LINE')
+        pdu.ui_separator(self.layout, type='LINE')
         self.draw_file(context, 'bg', 'BG', scn.export_bg)
         self.draw_file(context, 'pads', 'Pads', scn.export_pads)
         self.draw_file(context, 'setup', 'Setup', scn.export_setup)

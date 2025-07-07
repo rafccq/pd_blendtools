@@ -2,6 +2,7 @@ from bpy.props import IntProperty
 
 from .nodeutils import make_prop, make_id, item_from_value
 from .shadernode_base import PD_ShaderNodeBase
+from utils import pd_utils as pdu
 
 
 COMBINER_ITEMS_A = [
@@ -211,14 +212,14 @@ class PD_ShaderNodeSetCombine(PD_ShaderNodeBase):
         self.draw_combiner(box, True, 1)
 
         if self.num_cycles == 2:
-            box.separator(type='LINE')
+            pdu.ui_separator(box, type='LINE')
             self.draw_combiner(box, True, 2)
 
     def draw_buttons_ext(self, _context, layout):
         self.draw_combiner(layout, False, 1)
 
         if self.num_cycles == 2:
-            layout.separator(type='LINE')
+            pdu.ui_separator(layout, type='LINE')
             self.draw_combiner(layout, False, 2)
 
     def draw_combiner(self, layout, col_layout, cycle):

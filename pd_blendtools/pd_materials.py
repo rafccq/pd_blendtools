@@ -243,8 +243,12 @@ def material_new(matsetup, use_alpha):
 
     material_setup_cmds(mat.node_tree, matsetup)
 
-    if bpy.app.version < (4, 0, 0) and use_alpha and not material_has_lighting(mat):
-        mat.blend_method = 'BLEND'
+    if bpy.app.version < (4, 0, 0):
+        if use_alpha and not material_has_lighting(mat):
+            mat.blend_method = 'BLEND'
+
+        # to avoid transparency issues in earlier versions
+        mat.show_transparent_back = False
 
     mat['has_envmap'] = has_envmap
 
@@ -405,8 +409,12 @@ def create_basic_material(name, color = None, alpha = 0.0):
     if color:
         node_pbsdf.inputs['Base Color'].default_value = color
 
+    if alpha < 1.0:
+        newmat.blend_method = 'BLEND'
+
     links.new(node_pbsdf.outputs['BSDF'], node_output.inputs['Surface'])
-    # newmat.surface_render_method = 'BLENDED'
+    newmat.use_backface_culling = True
+
     return newmat
 
 def portal_material():

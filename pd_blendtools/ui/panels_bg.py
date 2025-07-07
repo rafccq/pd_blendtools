@@ -49,7 +49,7 @@ class PDTOOLS_PT_Room(Panel):
             box.prop(pd_room, 'parent_enum', text='Parent')
 
             if pd_room.blocktype == pdprops.BLOCKTYPE_BSP:
-                box.separator(type='LINE')
+                pdu.ui_separator(box, type='LINE')
                 box.label(text='BSP Position:')
                 box.prop(pd_room, 'bsp_pos', text='')
 
@@ -60,7 +60,7 @@ class PDTOOLS_PT_Room(Panel):
                     row.prop(pd_room, 'bsp_normal', index = idx, text=t)
                 row = box.row()
                 row.prop(scn, 'pd_bspwidth', text='Width (View Only)')
-                box.separator(type='LINE')
+                pdu.ui_separator(box, type='LINE')
                 box.operator('pdtools.op_room_create_block', text=f'Create Block')
 
 

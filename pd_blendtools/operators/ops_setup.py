@@ -14,6 +14,7 @@ from pd_data.pd_padsfile import *
 from pd_data import romdata as rom, pd_padsfile as pdpads
 from pd_import import setup_import as stpi
 import pd_blendprops as pdprops
+from utils import pd_utils as pdu
 
 class PDTOOLS_OT_SetupLiftCreateStop(Operator):
     bl_idname = "pdtools.op_setup_lift_create_stop"
@@ -503,7 +504,7 @@ class PDTOOLS_OT_SetupObjEditPadFlags(bpy.types.Operator):
         row.prop(pad, "flags_packed", text='Value')
         row.prop(pad, "lift", text='Lift')
 
-        layout.separator(type='LINE')
+        pdu.ui_separator(layout, type='LINE')
 
         row = layout.row()
         col = row.column()

@@ -68,7 +68,7 @@ class PDTOOLS_PT_Tile(Panel):
         props_tile = obj.pd_tile
         txt = 'Multiple Selected' if multiple else f'{obj.name}'
         column.label(text=txt, icon='OBJECT_DATA')
-        column.separator(type='LINE')
+        pdu.ui_separator(column, type='LINE')
 
         draw_row(props_tile, 'Room', 'room', column, .35)
         draw_row(props_tile, 'Floor Color', 'floorcol', column, .35)

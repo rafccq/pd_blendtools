@@ -2,6 +2,7 @@ from bpy.props import BoolProperty
 
 from .shadernode_base import PD_ShaderNodeBase
 from pd_data.gbi import *
+from utils import pd_utils as pdu
 
 DESC_GEO_ZBUFFER = 'ZBuffer description'
 DESC_GEO_SHADE = 'Shade description'
@@ -68,8 +69,7 @@ class PD_ShaderNodeSetGeoMode(PD_ShaderNodeBase):
         col: UILayout = layout.column(align=True)
         col.prop(self, 'hide')
         if not self.hide:
-            # col.separator(type='LINE')
-            col.separator()
+            pdu.ui_separator(col, type='LINE')
             self.draw_props(context, col)
 
     def draw_buttons_ext(self, context, layout):

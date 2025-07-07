@@ -37,7 +37,7 @@ class PDTOOLS_PT_ImportExport(Panel):
         row.operator("pdtools.import_model_file")
         row.enabled = rom_exists
 
-        self.layout.separator(type='LINE')
+        pdu.ui_separator(self.layout, type='LINE')
 
         obj = context.object
         row = self.layout.row()
@@ -49,14 +49,19 @@ class PDTOOLS_PT_ImportExport(Panel):
         row.operator("pdtools.export_level")
 
         # draw the progress bar
-        if context.scene.level_loading and bpy.app.version >= (4, 0, 0):
-            row = self.layout.row()
-            row.progress(
-                factor = context.window_manager.progress,
-                type="BAR",
-                text = context.window_manager.progress_msg
-            )
-            row.scale_x = 2
+        if context.scene.level_loading:
+            if bpy.app.version >= (4, 0, 0):
+                row = self.layout.row()
+                row.progress(
+                    factor = context.window_manager.progress,
+                    type="BAR",
+                    text = context.window_manager.progress_msg
+                )
+                row.scale_x = 2
+            else:
+                box = self.layout.box()
+                msg = context.window_manager.progress_msg
+                box.label(text=msg, icon='INFO')
 
 
 class PDTOOLS_PT_ModelProps(Panel):
