@@ -21,6 +21,8 @@ import nodes.nodeutils as ndu
 from pd_data import pd_padsfile as pdp
 import pd_mtx as mtx
 
+from fast64.render_settings import Fast64RenderSettings_Properties, on_update_render_settings
+
 
 PD_OBJTYPE_MODEL        = 0x0100
 #### BG
@@ -1151,6 +1153,9 @@ def on_select_pdtype(self, context):
         scn.pd_modelnames_idx = models[objtype]
         scn.pd_model = ModelNames[scn.pd_modelnames_idx]
 
+class Fast64_Properties(bpy.types.PropertyGroup):
+    renderSettings: bpy.props.PointerProperty(type=Fast64RenderSettings_Properties, name="Fast64 Render Settings")
+
 classes = [
     PDObject,
     PDObject_Model,
@@ -1168,6 +1173,8 @@ classes = [
     PDObject_SetupWaypoint,
     PDObject_SetupIntro,
     PDModelListItem,
+    Fast64RenderSettings_Properties,
+    Fast64_Properties,
 ]
 
 def register():
@@ -1273,6 +1280,9 @@ def register():
     # external models
     Scene.level_external_models = BoolProperty(name='level_external_models', default=False, description="")
     Scene.external_models_dir = StringProperty(name='external_models_dir', description="")
+
+    Scene.fast64 = bpy.props.PointerProperty(type=Fast64_Properties, name="Fast64 Properties")
+    bpy.types.Scene.blenderF3DScale = FloatProperty(name="F3D Blender Scale", default=100, update=on_update_render_settings)
 
     bpy.types.WindowManager.progress = bpy.props.FloatProperty()
     bpy.types.WindowManager.progress_msg = bpy.props.StringProperty()

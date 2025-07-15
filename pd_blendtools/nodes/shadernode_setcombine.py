@@ -106,43 +106,43 @@ COMBINER_ITEMS_D_ALPHA = [
 ]
 
 COMBINER_ITEMS = {
-    'combiner_a_color1': COMBINER_ITEMS_A,
-    'combiner_b_color1': COMBINER_ITEMS_B,
-    'combiner_c_color1': COMBINER_ITEMS_C,
-    'combiner_d_color1': COMBINER_ITEMS_D,
-    'combiner_a_alpha1': COMBINER_ITEMS_A_ALPHA,
-    'combiner_b_alpha1': COMBINER_ITEMS_B_ALPHA,
-    'combiner_c_alpha1': COMBINER_ITEMS_C_ALPHA,
-    'combiner_d_alpha1': COMBINER_ITEMS_D_ALPHA,
+    'combiner1_a_color': COMBINER_ITEMS_A,
+    'combiner1_b_color': COMBINER_ITEMS_B,
+    'combiner1_c_color': COMBINER_ITEMS_C,
+    'combiner1_d_color': COMBINER_ITEMS_D,
+    'combiner1_a_alpha': COMBINER_ITEMS_A_ALPHA,
+    'combiner1_b_alpha': COMBINER_ITEMS_B_ALPHA,
+    'combiner1_c_alpha': COMBINER_ITEMS_C_ALPHA,
+    'combiner1_d_alpha': COMBINER_ITEMS_D_ALPHA,
 
-    'combiner_a_color2': COMBINER_ITEMS_A,
-    'combiner_b_color2': COMBINER_ITEMS_B,
-    'combiner_c_color2': COMBINER_ITEMS_C,
-    'combiner_d_color2': COMBINER_ITEMS_D,
-    'combiner_a_alpha2': COMBINER_ITEMS_A_ALPHA,
-    'combiner_b_alpha2': COMBINER_ITEMS_B_ALPHA,
-    'combiner_c_alpha2': COMBINER_ITEMS_C_ALPHA,
-    'combiner_d_alpha2': COMBINER_ITEMS_D_ALPHA,
+    'combiner2_a_color': COMBINER_ITEMS_A,
+    'combiner2_b_color': COMBINER_ITEMS_B,
+    'combiner2_c_color': COMBINER_ITEMS_C,
+    'combiner2_d_color': COMBINER_ITEMS_D,
+    'combiner2_a_alpha': COMBINER_ITEMS_A_ALPHA,
+    'combiner2_b_alpha': COMBINER_ITEMS_B_ALPHA,
+    'combiner2_c_alpha': COMBINER_ITEMS_C_ALPHA,
+    'combiner2_d_alpha': COMBINER_ITEMS_D_ALPHA,
 
 }
 
 COMBINER_PARAMWIDTHS = {
-    'combiner_d_alpha2': 3,
-    'combiner_b_alpha2': 3,
-    'combiner_d_color2': 3,
-    'combiner_d_alpha1': 3,
-    'combiner_b_alpha1': 3,
-    'combiner_d_color1': 3,
-    'combiner_c_alpha2': 3,
-    'combiner_a_alpha2': 3,
-    'combiner_b_color2': 4,
-    'combiner_b_color1': 4,
-    'combiner_c_color2': 5,
-    'combiner_a_color2': 4,
-    'combiner_c_alpha1': 3,
-    'combiner_a_alpha1': 3,
-    'combiner_c_color1': 5,
-    'combiner_a_color1': 4,
+    'combiner2_d_alpha': 3,
+    'combiner2_b_alpha': 3,
+    'combiner2_d_color': 3,
+    'combiner1_d_alpha': 3,
+    'combiner1_b_alpha': 3,
+    'combiner1_d_color': 3,
+    'combiner2_c_alpha': 3,
+    'combiner2_a_alpha': 3,
+    'combiner2_b_color': 4,
+    'combiner1_b_color': 4,
+    'combiner2_c_color': 5,
+    'combiner2_a_color': 4,
+    'combiner1_c_alpha': 3,
+    'combiner1_a_alpha': 3,
+    'combiner1_c_color': 5,
+    'combiner1_a_color': 4,
 }
 
 class PD_ShaderNodeSetCombine(PD_ShaderNodeBase):
@@ -164,23 +164,23 @@ class PD_ShaderNodeSetCombine(PD_ShaderNodeBase):
         self.cmd = f'FC{cmd:014X}'
         # print(f'cmd = {self.cmd}')
 
-    combiner_a_color1: make_prop('combiner_a_color1', COMBINER_ITEMS, make_id(COMBINER_ITEMS_A[-1][0]), on_update)
-    combiner_b_color1: make_prop('combiner_b_color1', COMBINER_ITEMS, make_id(COMBINER_ITEMS_B[-1][0]), on_update)
-    combiner_c_color1: make_prop('combiner_c_color1', COMBINER_ITEMS, make_id(COMBINER_ITEMS_C[-1][0]), on_update)
-    combiner_d_color1: make_prop('combiner_d_color1', COMBINER_ITEMS, make_id(COMBINER_ITEMS_D[-3][0]), on_update)
-    combiner_a_alpha1: make_prop('combiner_a_alpha1', COMBINER_ITEMS, make_id(COMBINER_ITEMS_A_ALPHA[-1][0]), on_update)
-    combiner_b_alpha1: make_prop('combiner_b_alpha1', COMBINER_ITEMS, make_id(COMBINER_ITEMS_B_ALPHA[-1][0]), on_update)
-    combiner_c_alpha1: make_prop('combiner_c_alpha1', COMBINER_ITEMS, make_id(COMBINER_ITEMS_C_ALPHA[-1][0]), on_update)
-    combiner_d_alpha1: make_prop('combiner_d_alpha1', COMBINER_ITEMS, make_id(COMBINER_ITEMS_D_ALPHA[-3][0]), on_update)
+    combiner1_a_color: make_prop('combiner1_a_color', COMBINER_ITEMS, make_id(COMBINER_ITEMS_A[-1][0]), on_update)
+    combiner1_b_color: make_prop('combiner1_b_color', COMBINER_ITEMS, make_id(COMBINER_ITEMS_B[-1][0]), on_update)
+    combiner1_c_color: make_prop('combiner1_c_color', COMBINER_ITEMS, make_id(COMBINER_ITEMS_C[-1][0]), on_update)
+    combiner1_d_color: make_prop('combiner1_d_color', COMBINER_ITEMS, make_id(COMBINER_ITEMS_D[-3][0]), on_update)
+    combiner1_a_alpha: make_prop('combiner1_a_alpha', COMBINER_ITEMS, make_id(COMBINER_ITEMS_A_ALPHA[-1][0]), on_update)
+    combiner1_b_alpha: make_prop('combiner1_b_alpha', COMBINER_ITEMS, make_id(COMBINER_ITEMS_B_ALPHA[-1][0]), on_update)
+    combiner1_c_alpha: make_prop('combiner1_c_alpha', COMBINER_ITEMS, make_id(COMBINER_ITEMS_C_ALPHA[-1][0]), on_update)
+    combiner1_d_alpha: make_prop('combiner1_d_alpha', COMBINER_ITEMS, make_id(COMBINER_ITEMS_D_ALPHA[-3][0]), on_update)
 
-    combiner_a_color2: make_prop('combiner_a_color2', COMBINER_ITEMS, make_id(COMBINER_ITEMS_A[-1][0]), on_update)
-    combiner_b_color2: make_prop('combiner_b_color2', COMBINER_ITEMS, make_id(COMBINER_ITEMS_B[-1][0]), on_update)
-    combiner_c_color2: make_prop('combiner_c_color2', COMBINER_ITEMS, make_id(COMBINER_ITEMS_C[-1][0]), on_update)
-    combiner_d_color2: make_prop('combiner_d_color2', COMBINER_ITEMS, make_id(COMBINER_ITEMS_D[-3][0]), on_update)
-    combiner_a_alpha2: make_prop('combiner_a_alpha2', COMBINER_ITEMS, make_id(COMBINER_ITEMS_A_ALPHA[-1][0]), on_update)
-    combiner_b_alpha2: make_prop('combiner_b_alpha2', COMBINER_ITEMS, make_id(COMBINER_ITEMS_B_ALPHA[-1][0]), on_update)
-    combiner_c_alpha2: make_prop('combiner_c_alpha2', COMBINER_ITEMS, make_id(COMBINER_ITEMS_C_ALPHA[-1][0]), on_update)
-    combiner_d_alpha2: make_prop('combiner_d_alpha2', COMBINER_ITEMS, make_id(COMBINER_ITEMS_D_ALPHA[-3][0]), on_update)
+    combiner2_a_color: make_prop('combiner2_a_color', COMBINER_ITEMS, make_id(COMBINER_ITEMS_A[-1][0]), on_update)
+    combiner2_b_color: make_prop('combiner2_b_color', COMBINER_ITEMS, make_id(COMBINER_ITEMS_B[-1][0]), on_update)
+    combiner2_c_color: make_prop('combiner2_c_color', COMBINER_ITEMS, make_id(COMBINER_ITEMS_C[-1][0]), on_update)
+    combiner2_d_color: make_prop('combiner2_d_color', COMBINER_ITEMS, make_id(COMBINER_ITEMS_D[-3][0]), on_update)
+    combiner2_a_alpha: make_prop('combiner2_a_alpha', COMBINER_ITEMS, make_id(COMBINER_ITEMS_A_ALPHA[-1][0]), on_update)
+    combiner2_b_alpha: make_prop('combiner2_b_alpha', COMBINER_ITEMS, make_id(COMBINER_ITEMS_B_ALPHA[-1][0]), on_update)
+    combiner2_c_alpha: make_prop('combiner2_c_alpha', COMBINER_ITEMS, make_id(COMBINER_ITEMS_C_ALPHA[-1][0]), on_update)
+    combiner2_d_alpha: make_prop('combiner2_d_alpha', COMBINER_ITEMS, make_id(COMBINER_ITEMS_D_ALPHA[-3][0]), on_update)
 
     num_cycles: IntProperty(name='num_cycles', default=1)
 
@@ -241,15 +241,15 @@ class PD_ShaderNodeSetCombine(PD_ShaderNodeBase):
 
         for name in ['a', 'b', 'c', 'd']:
             label = name.upper() + (' Alpha' if alpha else '')
-            a = f'_alpha{cycle}' if alpha else f'_color{cycle}'
+            a = f'_alpha' if alpha else f'_color'
 
             if col_layout:
-                container.prop(self, f'combiner_{name}{a}', text=label)
+                container.prop(self, f'combiner{cycle}_{name}{a}', text=label)
             else:
                 col = col if col else container.column()
                 row = col.row().split(factor=0.25 if alpha else 0.1)
                 row.label(text=f'{label}:')
-                row.prop(self, f'combiner_{name}{a}', text='')
+                row.prop(self, f'combiner{cycle}_{name}{a}', text='')
 
     def set_num_cycles(self, num_cycles):
         self.num_cycles = num_cycles

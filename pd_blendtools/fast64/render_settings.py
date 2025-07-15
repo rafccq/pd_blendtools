@@ -249,14 +249,6 @@ def on_update_render_settings(self, context: bpy.types.Context):
         print("Could not locate sceneProps!")
         return
 
-    match context.scene.gameEditorMode:
-        case "SM64":
-            on_update_sm64_render_settings(self, context)
-        case "OOT":
-            on_update_oot_render_settings(self, context)
-        case _:
-            pass
-
     sceneOutputs = getSceneOutputs()
     if sceneOutputs is not None:
         update_scene_props_from_render_settings(sceneOutputs, self)

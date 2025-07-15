@@ -81,7 +81,4 @@ classes = [
     PDTOOLS_OT_TilesSelectSameRoom,
 ]
 
-register_cls, unregister_cls = bpy.utils.register_classes_factory(classes)
-
-def register():
-    register_cls()
+register, unregister = bpy.utils.register_classes_factory(classes)

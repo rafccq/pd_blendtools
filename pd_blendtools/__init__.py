@@ -36,9 +36,13 @@ import ui
 import pd_addonprefs as pdp
 from pd_import import (
     bg_import as bgi,
+    model_import as mdi,
     tiles_import as tlimp,
     setup_import as stpi,
 )
+import pd_materials as pdm
+
+from .fast64 import f3d
 
 submodules = [
     pdn,
@@ -71,6 +75,9 @@ if "bpy" in locals():
     importlib.reload(bgu)
     importlib.reload(stu)
     importlib.reload(imu)
+    importlib.reload(f3d)
+    importlib.reload(pdm)
+    importlib.reload(mdi)
 
 class PDModelPropertyGroup(PropertyGroup):
     name: StringProperty(name='name', default='', options={'LIBRARY_EDITABLE'})
@@ -95,12 +102,14 @@ def register():
     for m in submodules:
         m.register()
 
+    f3d.mat_register()
     bpy.app.handlers.load_post.append(pd_load_handler)
 
 def unregister_nodes():
     pdn.unregister()
 
 def unregister():
+    f3d.mat_unregister()
     for m in reversed(submodules):
         m.unregister()
 

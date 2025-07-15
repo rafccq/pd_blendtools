@@ -379,8 +379,9 @@ def get_output_method(material: bpy.types.Material) -> str:
     settings = material.f3d_mat.rdp_settings
     if settings.cvg_x_alpha:
         return "CLIP"
-    if settings.force_bl and is_blender_equation_equal(
-        settings, -1, "G_BL_CLR_IN", "G_BL_A_IN", "G_BL_CLR_MEM", "G_BL_1MA"
+    if settings.force_bl and (
+        is_blender_equation_equal( settings, 1, "G_BL_CLR_IN", "G_BL_A_IN", "G_BL_CLR_MEM", "G_BL_1MA" ) or
+        is_blender_equation_equal( settings, 2, "G_BL_CLR_IN", "G_BL_A_IN", "G_BL_CLR_MEM", "G_BL_1MA" )
     ):
         return "XLU"
     return "OPA"
@@ -2216,11 +2217,6 @@ def update_tex_values_and_formats(self, context):
         if not material:
             return
 
-        settings_props = context.scene.fast64.settings
-        if not settings_props.auto_pick_texture_format:
-            update_tex_values_manual(material, context)
-            return
-
         f3d_mat: F3DMaterialProperty = material.f3d_mat
         useDict = all_combiner_uses(f3d_mat)
         tex0_props = f3d_mat.tex0
@@ -2231,9 +2227,9 @@ def update_tex_values_and_formats(self, context):
         )
 
         if tex0:
-            tex0_props.tex_format = get_optimal_format(tex0, settings_props.prefer_rgba_over_ci)
+            tex0_props.tex_format = get_optimal_format(tex0, False)
         if tex1:
-            tex1_props.tex_format = get_optimal_format(tex1, settings_props.prefer_rgba_over_ci)
+            tex1_props.tex_format = get_optimal_format(tex1, False)
 
         if tex0 and tex1:
             if tex0_props.tex_format.startswith("CI") and not tex1_props.tex_format.startswith("CI"):
@@ -2683,7 +2679,6 @@ def addColorAttributesToModel(obj: Object):
 def add_f3d_mat_to_obj(obj: bpy.types.Object, material, index=None):
     # add material to object
     if obj is not None:
-        addColorAttributesToModel(obj)
         if index is None:
             obj.data.materials.append(material)
             if bpy.context.object is not None:
@@ -2696,7 +2691,8 @@ def add_f3d_mat_to_obj(obj: bpy.types.Object, material, index=None):
 
 def createF3DMat(obj: Object | None, preset="Shaded Solid", index=None):
     # link all node_groups + material from addon's data .blend
-    link_f3d_material_library()
+    if "fast64_f3d_material_library_beefwashere" not in bpy.data.materials:
+        link_f3d_material_library()
 
     # a linked material containing the default layout for all the linked node_groups
     mat = bpy.data.materials["fast64_f3d_material_library_beefwashere"]
@@ -2704,7 +2700,6 @@ def createF3DMat(obj: Object | None, preset="Shaded Solid", index=None):
     material = mat.copy()
     material.name = "f3dlite_material"
     # remove the linked material so it doesn't bother anyone or get meddled with
-    bpy.data.materials.remove(mat)
 
     createScenePropertiesForMaterial(material)
 
@@ -2713,7 +2708,6 @@ def createF3DMat(obj: Object | None, preset="Shaded Solid", index=None):
     material.is_f3d = True
     material.mat_ver = F3D_MAT_CUR_VERSION
 
-    update_preset_manual_v4(material, preset)
 
     return material
 

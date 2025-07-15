@@ -1,3 +1,4 @@
+from bpy.types import UILayout
 from bpy.props import BoolProperty
 
 from .shadernode_base import PD_ShaderNodeBase
@@ -19,9 +20,9 @@ GEO_FLAGS = {
     'g_cull_front':         G_CULL_FRONT,
     'g_cull_back':          G_CULL_BACK,
     'g_lighting':           G_LIGHTING,
-    'g_texture_gen':        G_TEXTURE_GEN,
-    'g_texture_gen_linear': G_TEXTURE_GEN_LINEAR,
-    'g_shading_smooth':     G_SHADING_SMOOTH,
+    'g_tex_gen':            G_TEXTURE_GEN,
+    'g_tex_gen_linear':     G_TEXTURE_GEN_LINEAR,
+    'g_shade_smooth':       G_SHADING_SMOOTH,
 }
 
 class PD_ShaderNodeSetGeoMode(PD_ShaderNodeBase):
@@ -45,9 +46,9 @@ class PD_ShaderNodeSetGeoMode(PD_ShaderNodeBase):
     g_cull_front: BoolProperty(name='g_cull_front', update=on_update, default=False, description=DESC_GEO_CULL_FRONT)
     g_cull_back: BoolProperty(name='g_cull_back', update=on_update, default=False, description=DESC_GEO_CULL_BACK)
     g_lighting: BoolProperty(name='g_lighting', update=on_update, default=False, description=DESC_GEO_LIGHTING)
-    g_texture_gen: BoolProperty(name='g_texture_gen', update=on_update, default=False, description=DESC_GEO_TEXTURE_GEN)
-    g_texture_gen_linear: BoolProperty(name='g_texture_gen_linear', update=on_update, default=False, description=DESC_GEO_TEXTURE_GEN_LINEAR)
-    g_shading_smooth: BoolProperty(name='g_shading_smooth', update=on_update, default=False, description=DESC_GEO_SHADING_SMOOTH)
+    g_tex_gen: BoolProperty(name='g_tex_gen', update=on_update, default=False, description=DESC_GEO_TEXTURE_GEN)
+    g_tex_gen_linear: BoolProperty(name='g_tex_gen_linear', update=on_update, default=False, description=DESC_GEO_TEXTURE_GEN_LINEAR)
+    g_shade_smooth: BoolProperty(name='g_shade_smooth', update=on_update, default=False, description=DESC_GEO_SHADING_SMOOTH)
 
     def init(self, _context):
         self.cmd = 'B700000000060000'
