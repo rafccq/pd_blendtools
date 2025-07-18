@@ -1281,13 +1281,15 @@ def register():
     Scene.level_external_models = BoolProperty(name='level_external_models', default=False, description="")
     Scene.external_models_dir = StringProperty(name='external_models_dir', description="")
 
-    Scene.fast64 = bpy.props.PointerProperty(type=Fast64_Properties, name="Fast64 Properties")
-    bpy.types.Scene.blenderF3DScale = FloatProperty(name="F3D Blender Scale", default=100, update=on_update_render_settings)
+    Scene.fast64 = bpy.props.PointerProperty(type=Fast64_Properties, name='Fast64 Properties')
+    bpy.types.Scene.blenderF3DScale = FloatProperty(name='F3D Blender Scale', default=100, update=on_update_render_settings)
+    bpy.types.Scene.gameEditorMode = StringProperty(name='gameEditorMode', default='', description='')
 
     bpy.types.WindowManager.progress = bpy.props.FloatProperty()
     bpy.types.WindowManager.progress_msg = bpy.props.StringProperty()
     bpy.types.WindowManager.import_step = bpy.props.IntProperty()
     bpy.types.WindowManager.import_numsteps = bpy.props.IntProperty()
+    bpy.types.Material.hashed = StringProperty(name='hashed', description='')
 
     vp_drawhandler = SpaceView3D.draw_handler_add(draw_waypoints, (), 'WINDOW', 'POST_VIEW')
 

@@ -1926,8 +1926,6 @@ def get_color_input_update_callback(attr_name="", prefix=""):
 
 
 def update_node_values_of_material(material: Material, context):
-    check_or_ask_color_management(context)
-
     update_blend_method(material, context)
     if not has_f3d_nodes(material):
         return
