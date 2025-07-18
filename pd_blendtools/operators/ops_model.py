@@ -19,18 +19,30 @@ from pd_import import (
 )
 from pd_export import model_export as mde
 from pd_data import romdata as rom
+import pd_materials as pdm
 
+from fast64.f3d import f3d_material as f3dm
 
 def load_model(_context, modelname=None, filename=None):
     rompath = pda.pref_get(pda.PD_PREF_ROMPATH)
     romdata = rom.Romdata(rompath)
 
+    matlib = bpy.data.materials
+    matcache = { mat.hashed:mat.name for mat in matlib }
+
     if modelname:
-        model_obj, _ = mdi.import_model(romdata, modelname=modelname)
+        model_obj, _ = mdi.import_model(romdata, matcache, modelname=modelname)
     elif filename:
-        model_obj, _ = mdi.import_model(romdata, filename=filename)
+        model_obj, _ = mdi.import_model(romdata, matcache, filename=filename)
     else:
         raise RuntimeError('load_model() called without modelname and filename params')
+
+    for bl_obj in model_obj.children:
+        for mat in bl_obj.data.materials:
+            if not mat.is_f3d: continue
+
+            f3dm.update_node_values_of_material(mat, _context)
+            pdm.mat_presetcombine(mat)
 
     coll = pdu.active_collection()
     pdu.add_to_collection(model_obj, coll=coll)

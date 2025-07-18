@@ -23,6 +23,9 @@ from pd_export import (
 )
 import pd_addonprefs as pda
 import pd_blendprops as pdprops
+import pd_materials as pdm
+
+from fast64.f3d import f3d_material as f3dm
 
 
 STEP_BG = 'STEP_BG'
@@ -200,6 +203,19 @@ class PDTOOLS_OT_ImportLevel(Operator):
         context.window_manager.import_step += 1
         bpy.context.view_layer.objects.active = None
 
+    def finished(self, context):
+        scn = context.scene
+        scn.level_loading = False
+        [a.tag_redraw() for a in context.screen.areas]
+
+        n = len(bpy.data.materials)
+        for i, mat in enumerate(bpy.data.materials):
+            if mat.is_f3d: continue
+
+            t0 = time.time()
+            f3dm.update_node_values_of_material(mat, bpy.context)
+            # print(f'Mat {i}/{n} {time.time() - t0:2.3f}')
+
     def modal(self, context, event):
         scn = context.scene
         if event.type in {'RIGHTMOUSE', 'ESC'}:
@@ -208,8 +224,7 @@ class PDTOOLS_OT_ImportLevel(Operator):
 
         if event.type == 'TIMER':
             if not self.steps:
-                scn.level_loading = False
-                [a.tag_redraw() for a in context.screen.areas]
+                self.finished(context)
                 return {'FINISHED'}
 
             current_step = self.steps[0]

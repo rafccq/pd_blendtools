@@ -168,8 +168,8 @@ def setup_create_obj(prop, prop_base, romdata, pad, paddata=None):
 
     pdu.add_to_collection(bl_obj, 'Props')
 
-    if proptype in [OBJTYPE_TINTEDGLASS, OBJTYPE_GLASS]:
-        obj_make_opaque(bl_obj)
+    # if proptype in [OBJTYPE_TINTEDGLASS, OBJTYPE_GLASS]:
+    #     obj_make_opaque(bl_obj)
 
     pdtype = pdprops.PD_OBJTYPE_PROP | proptype
     name = OBJ_NAMES[pdtype] if pdtype in OBJ_NAMES and proptype != OBJTYPE_BASIC else 'object'

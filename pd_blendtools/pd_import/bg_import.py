@@ -160,7 +160,7 @@ def get_vec3(pos):
     z = pdu.f32(pos['z'])
     return x, y, z
 
-def bg_create_roomblockDL(room, block, bl_room, rootobj, tex_configs, layer, idx):
+def bg_create_roomblockDL(room, block, bl_room, rootobj, tex_configs, layer, idx, matcache):
     gfxdata = room['gfxdata']
     roomid = room['id']
     roomnum = room['roomnum']
@@ -189,7 +189,7 @@ def bg_create_roomblockDL(room, block, bl_room, rootobj, tex_configs, layer, idx
 
     gdldata, _, _ = mdi.gdl_read_data(meshdata, idx, False)
 
-    bl_roomblock = mdi.create_mesh(gdldata, tex_configs, roomnum, idx)
+    bl_roomblock = mdi.create_mesh(gdldata, tex_configs, roomnum, idx, matcache)
     bl_roomblock['addr'] = f'{block.addr:08X}'
     bl_roomblock.name = bgu.blockname(roomnum, idx, 'Display List', layer)
     bl_roomblock.parent = rootobj
@@ -197,9 +197,9 @@ def bg_create_roomblockDL(room, block, bl_room, rootobj, tex_configs, layer, idx
     pdu.add_to_collection(bl_roomblock, 'Rooms')
     bgu.roomblock_set_props(bl_roomblock, roomnum, bl_room, idx, layer, 'Display List')
 
-    for mat in bl_roomblock.data.materials:
-        if mat['has_envmap']:
-            pdm.mat_show_vtxcolors(mat)
+    # for mat in bl_roomblock.data.materials:
+    #     if mat['has_envmap']:
+    #         pdm.mat_show_vtxcolors(mat)
 
 def bg_create_roomblocks(room, rootaddr, bl_room, rootobj, tex_configs, layer, idx):
     if rootaddr == 0: return idx
@@ -210,11 +210,14 @@ def bg_create_roomblocks(room, rootaddr, bl_room, rootobj, tex_configs, layer, i
 
     next_block = lambda addr: roomblocks[addr] if addr else None
 
+    matlib = bpy.data.materials
+    matcache = { mat.hashed:mat.name for mat in matlib }
+
     block = rootblock
     while block:
         blocktype = block['type']
         if blocktype == ROOMBLOCKTYPE_LEAF:
-            bg_create_roomblockDL(room, block, bl_room, rootobj, tex_configs, layer, idx)
+            bg_create_roomblockDL(room, block, bl_room, rootobj, tex_configs, layer, idx, matcache)
             block = next_block(block['next'])
         elif blocktype == ROOMBLOCKTYPE_PARENT:
             name = bgu.blockname(roomnum, idx, 'BSP', layer)

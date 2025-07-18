@@ -420,7 +420,7 @@ def material_new(matsetup, use_alpha):
     node_tex = mat.node_tree.nodes['teximage']
     node_bsdf = mat.node_tree.nodes['p_bsdf']
     node_vtxcolor = mat.node_tree.nodes['vtxcolor']
-    node_vtxcolor.layer_name = 'vtxcolor'
+    node_vtxcolor.layer_name = 'Col'
 
     texnum = matsetup.texnum & 0xffffff
     img = f'{texnum:04X}.png'

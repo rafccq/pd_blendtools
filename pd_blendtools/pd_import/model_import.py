@@ -20,12 +20,14 @@ from utils import (
 )
 import pd_blendprops as pdprops
 
+from fast64.f3d import f3d_material as f3dm
+
 logger = log.log_get(__name__)
 log.log_config(logger, log.LOG_FILE_IMPORT)
 
 PDMeshData = namedtuple('PDMeshData',
                         'opagdl xlugdl ptr_vtx ptr_col vtxdata coldata matrices')
-def create_mesh(mesh, tex_configs, meshidx, sub_idx):
+def create_mesh(mesh, tex_configs, meshidx, sub_idx, matcache):
     mesh_data = bpy.data.meshes.new('mesh_data')
 
     verts = mesh.verts
@@ -40,9 +42,9 @@ def create_mesh(mesh, tex_configs, meshidx, sub_idx):
     suffix += '.XLU' if mesh.layer == MeshLayer.XLU else ''
     name = f'{meshidx:02X}.Mesh{suffix}'
 
-    obj = bpy.data.objects.new(name, mesh_data)
-    obj.pd_model.layer = mesh.layer
-    obj.pd_model.idx = meshidx
+    bl_obj = bpy.data.objects.new(name, mesh_data)
+    bl_obj.pd_model.layer = mesh.layer
+    bl_obj.pd_model.idx = meshidx
 
     logger.debug(f'[CREATEMESH {meshidx:02X}] {name}')
 
@@ -57,7 +59,7 @@ def create_mesh(mesh, tex_configs, meshidx, sub_idx):
 
             # add to the vertex group 'mtx'
             mtx = f'{v.mtxidx:02X}'
-            vgroups = obj.vertex_groups
+            vgroups = bl_obj.vertex_groups
             group = vgroups[mtx] if mtx in vgroups else vgroups.new(name=mtx)
             group.add([i], 0, 'REPLACE')
 
@@ -93,14 +95,13 @@ def create_mesh(mesh, tex_configs, meshidx, sub_idx):
     bm.verts.ensure_lookup_table()
 
     # setup UVs and materials
-    uv_layer = bm.loops.layers.uv.verify()
-    layer_color = bm.loops.layers.color.new("vtxcolor")
-
+    layer_uv = bm.loops.layers.uv.new("UVMap")
+    layer_col = bm.loops.layers.color.new("Col")
+    layeralpha = bm.loops.layers.color.new("Alpha")
     layer_mtx = bm.loops.layers.color.new("matrices") if mesh.has_mtx else None
 
     for idx, face in enumerate(bm.faces):
         matsetup = tri2tex[face.index]
-        matsetup.optimize_cmds()
 
         # logger.debug(f'face {idx} mat {matsetup.id()}')
         tc = None
@@ -110,17 +111,35 @@ def create_mesh(mesh, tex_configs, meshidx, sub_idx):
             print(f'WARNING: No config found for tex {matsetup.texnum:04X}')
 
         matname = matsetup.id()
-        mat_idx = obj.data.materials.find(matname)
-        # material does not exist, create a new one
-        if mat_idx < 0:
-            mat_idx = len(obj.data.materials)
-            use_alpha = False
-            if tc:
-                fmt = tex.TexFormatGbiMapping[tc['format']]
-                use_alpha = matsetup.smode == 1 or pdm.tex_has_alpha(fmt, tc['depth'])
-            mat = pdm.material_new(matsetup, use_alpha)
-            obj.data.materials.append(mat)
+        # mat_idx = bl_obj.data.materials.find(matname)
+        mathash = matsetup.hash()
 
+        if mathash not in matcache:
+            # if 1 or matsetup.has_envmap():
+            #     mat = pdm.material_create_f3d(bl_obj, matsetup, matname)
+            # else:
+            #     mat = pdm.material_new(matsetup, False)
+
+            # mat = pdm.material_create_f3d(bl_obj, matsetup, matname)
+            mat = pdm.material_new(matsetup, False)
+            mat.hashed = mathash
+            matcache[mathash] = mat.name
+        else:
+            matname = matcache[mathash]
+            mat = bpy.data.materials[matname]
+
+        if not pdm.mat_find_by_hash(bl_obj, mathash):
+            bl_obj.data.materials.append(mat)
+
+        use_alpha = False
+        if tc:
+            fmt = tex.TexFormatGbiMapping[tc['format']]
+            # use_alpha = matsetup.smode == 1 or pdm.tex_has_alpha(fmt, tc['depth'])
+            if pdm.tex_has_alpha(fmt, tc['depth']):
+                matf3d = mat.f3d_mat
+                matf3d.rdp_settings.rendermode_preset_cycle_1 = 'G_RM_AA_ZB_OPA_SURF'
+
+        mat_idx = bl_obj.data.materials.find(mat.name)
         face.material_index = mat_idx
 
         # sets up the verts uv data, colors and matrices
@@ -132,8 +151,8 @@ def create_mesh(mesh, tex_configs, meshidx, sub_idx):
                 uv_sc = (1 / (32 * tc['width']), 1 / (32 * tc['height']))
 
             uv = (vert.uv[0] * uv_sc[0], vert.uv[1] * uv_sc[1])
-            loop[uv_layer].uv = uv
-            loop[layer_color] = colors[loop.vert.index]
+            loop[layer_uv].uv = uv
+            loop[layer_col] = colors[loop.vert.index]
 
             if mesh.has_mtx:
                 loop[layer_mtx] = colors_mtx[loop.vert.index]
@@ -151,7 +170,7 @@ def create_mesh(mesh, tex_configs, meshidx, sub_idx):
     bm.to_mesh(me)
     bm.free()
 
-    return obj
+    return bl_obj
 
 def posNodeName(idx): return f'{idx:02X}.Position'
 
@@ -273,7 +292,7 @@ def gdl_read_data(pdmeshdata, idx, apply_mtx, layer=MeshLayer.OPA):
 
     trinum = 0
 
-    mat_setup = pdm.PDMaterialSetup(idx)
+    mat_setup = pdm.PDMaterialSetup()
     gdlnum = 0
     nverts = 0
 
@@ -349,14 +368,14 @@ def gdl_read_data(pdmeshdata, idx, apply_mtx, layer=MeshLayer.OPA):
             mesh.has_mtx = True
         elif op in MAT_CMDS:
             if mat_setup.applied:
-                mat_setup = pdm.PDMaterialSetup(idx, mat_setup)
+                mat_setup = mat_setup.copy()
             mat_setup.add_cmd(cmd)
 
         addr += 8
 
     return mesh_opa, mesh_xlu, model_mtxs
 
-def create_model_mesh(idx, meshdata, sc, tex_configs, apply_mtx):
+def create_model_mesh(idx, meshdata, sc, tex_configs, apply_mtx, matcache):
     *gdldatas, model_mtxs = gdl_read_data(meshdata, idx, apply_mtx)
     n_submeshes = len(gdldatas)
     mesh_objs = []
@@ -364,7 +383,7 @@ def create_model_mesh(idx, meshdata, sc, tex_configs, apply_mtx):
         if not gdldata: continue
 
         sub_idx = sub_idx if n_submeshes > 1 else -1
-        mesh_obj = create_mesh(gdldata, tex_configs, idx, sub_idx)
+        mesh_obj = create_mesh(gdldata, tex_configs, idx, sub_idx, matcache)
         mesh_obj.data['matrices'] = list(model_mtxs)
         mesh_objs.append(mesh_obj)
         logger.debug(f'ntri {len(gdldata.tris)} nverts {len(gdldata.verts)}')
@@ -389,7 +408,7 @@ def aggregate_mesh(finalmesh, idx, meshdata, apply_mtx):
 
     return finalmesh
 
-def create_model_meshes(model, sc, apply_mtx, single_mesh):
+def create_model_meshes(model, sc, apply_mtx, single_mesh, matcache):
     tex_configs = {}
     for tc in model.texconfigs:
         texnum = tc['texturenum']
@@ -427,18 +446,18 @@ def create_model_meshes(model, sc, apply_mtx, single_mesh):
             if single_mesh:
                 finalmesh = aggregate_mesh(finalmesh, idx, meshdata, apply_mtx)
             else:
-                mesh_obj = create_model_mesh(idx, meshdata, sc, tex_configs, apply_mtx)
+                mesh_obj = create_model_mesh(idx, meshdata, sc, tex_configs, apply_mtx, matcache)
                 mesh_objs += mesh_obj
 
         idx += 1
 
     if single_mesh:
-        mesh_obj = create_mesh(finalmesh, tex_configs, 0, -1)
+        mesh_obj = create_mesh(finalmesh, tex_configs, 0, -1, matcache)
         mesh_objs = [mesh_obj]
 
     return mesh_objs
 
-def import_model(romdata, single_mesh=False, modelname=None, filename=None):
+def import_model(romdata, matcache, single_mesh=False, modelname=None, filename=None):
     logger.debug(f'import model {modelname}')
     model = loadmodeldata(romdata, modelname=modelname, filename=filename)
 
@@ -451,7 +470,7 @@ def import_model(romdata, single_mesh=False, modelname=None, filename=None):
     props_with_mtx = ['ProofgunZ', 'PgroundgunZ']
     name = modelname if modelname else os.path.basename(filename)
     apply_mtx = name[0] != 'P' or name in props_with_mtx
-    meshes = create_model_meshes(model, sc, apply_mtx, single_mesh)
+    meshes = create_model_meshes(model, sc, apply_mtx, single_mesh, matcache)
 
     if len(meshes) > 1:
         model_obj = pdu.new_empty_obj(name, link=False)

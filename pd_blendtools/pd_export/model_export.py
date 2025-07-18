@@ -34,7 +34,7 @@ def vtx_data(mesh, bm):
     layers = bm.loops.layers
 
     uv_layer = layers.uv.active
-    layer_col = layers.color["vtxcolor"]
+    layer_col = layers.color["Col"]
     has_mtx = 'matrices' in layers.color
     layer_mtx = layers.color["matrices"] if has_mtx else None
 
