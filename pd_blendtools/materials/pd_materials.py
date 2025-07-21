@@ -1,15 +1,21 @@
 import hashlib
 
 import bpy
+from bpy.types import PointerProperty, Panel
+from bpy.utils import register_classes_factory
 
-from nodes.shadernode_geomode import GEO_FLAGS
-from nodes.shadernode_setcombine import COMBINER_PARAMWIDTHS
-from nodes.shadernode_othermode_l import *
+from materials.mat_geomode import GEO_FLAGS, MatGeoMode, matgeo_set, matgeo_draw
+from materials.mat_setcombine import COMBINER_PARAMWIDTHS, MatSetCombine, mat_setcombine_set, mat_setcombine_draw
+from materials.mat_othermode_h import *
+from materials.mat_othermode_l import *
+from materials.mat_tex import *
+
 from pd_data.gbi import *
 from utils import pd_utils as pdu
 
 from fast64 import f3d
 from fast64.f3d import f3d_enums
+from fast64.f3d.f3d_material import menu_items_enum
 
 
 TEMPLATE_NAME = 'PD_MaterialTemplate'
@@ -151,6 +157,49 @@ class PDMaterialSetup:
         mat.geomclear = self.geomclear
 
         return mat
+
+
+class PDMaterialProperty(PropertyGroup):
+    menu_tab: bpy.props.EnumProperty(items=menu_items_enum)
+
+    combiner: PointerProperty(name='combiner', type=MatSetCombine)
+    geomode: PointerProperty(name='geomode', type=MatGeoMode)
+    othermodeL: PointerProperty(name='othermodeL', type=MatOtherModeL)
+    othermodeH: PointerProperty(name='othermodeH', type=MatOtherModeH)
+    texconfig: PointerProperty(name='texconfig', type=MatTexConfig)
+    texload: PointerProperty(name='texload', type=MatTexLoad)
+
+
+class PDMaterialPanel(Panel):
+    bl_label = "PD Material"
+    bl_idname = "MATERIAL_PT_PD_Inspector"
+    bl_space_type = "PROPERTIES"
+    bl_region_type = "WINDOW"
+    bl_context = "material"
+    bl_options = {"HIDE_HEADER"}
+
+    def draw(self, context):
+        layout = self.layout
+
+        material = context.material
+        if material is None or material.is_f3d or not material.is_pd:
+            return
+
+        pd_mat = material.pd_mat
+        layout = layout.box()
+        titleCol = layout.column()
+        titleCol.box().label(text="PD Material (Simple)")
+        layout.row().prop(pd_mat, "menu_tab", expand=True)
+
+        if pd_mat.menu_tab == 'Combiner':
+            mat_setcombine_draw(pd_mat.combiner, layout, context)
+        elif pd_mat.menu_tab == 'Geo':
+            matgeo_draw(pd_mat.geomode, layout, context)
+        elif pd_mat.menu_tab == 'Upper':
+            mat_othermodeH_draw(pd_mat.othermodeH, layout, context)
+        elif pd_mat.menu_tab == 'Lower':
+            mat_othermodeL_draw(pd_mat.othermodeL, layout, context)
+
 
 def material_geomode(mat, cmd, val):
     for flagname, bits in GEO_FLAGS.items():
@@ -352,7 +401,14 @@ def tex_has_alpha(fmt, depth):
 
     return False
 
-def tex_smode(smode):
+def tex_smode_(smode):
+    modemap = { 0: 'REPEAT', 1: 'EXTEND', 2: 'MIRROR' }
+    return modemap[smode]
+
+def tex_smode(cmd_texload):
+    w0 = (cmd_texload & 0xffffffff00000000) >> 32
+    smode = (w0 >> 22) & 3
+
     modemap = { 0: 'REPEAT', 1: 'EXTEND', 2: 'MIRROR' }
     return modemap[smode]
 
@@ -407,7 +463,7 @@ def material_setup_nodes(nodetree, matsetup):
 
         node_prev = new_node
 
-def material_new(matsetup, use_alpha):
+def material_new_(matsetup, use_alpha):
     name = matsetup.id()+'_PD'
     # if there is already a material for this texture/mode, don't create a new one
     if name in bpy.data.materials:
@@ -443,6 +499,59 @@ def material_new(matsetup, use_alpha):
     mat['has_envmap'] = has_envmap
 
     return mat
+
+def material_new(matsetup, use_alpha):
+    name = matsetup.id()+'_PD'
+    # if there is already a material for this texture/mode, don't create a new one
+    if name in bpy.data.materials:
+        return bpy.data.materials[name]
+
+    has_envmap = matsetup.has_envmap()
+    preset = 'ENV_MAPPING' if has_envmap else 'DIFFUSE'
+    mat = material_from_template(name, preset)
+    mat.is_pd = True
+
+    node_tex = mat.node_tree.nodes['teximage']
+    node_bsdf = mat.node_tree.nodes['p_bsdf']
+    node_vtxcolor = mat.node_tree.nodes['vtxcolor']
+    node_vtxcolor.layer_name = 'Col'
+
+    texnum = matsetup.texnum & 0xffffff
+    img = f'{texnum:04X}.png'
+    imglib = bpy.data.images
+    node_tex.image = imglib[img]
+    node_tex.extension = tex_smode(matsetup.texload)
+
+    if use_alpha:
+        mat.node_tree.links.new(node_bsdf.inputs['Alpha'], node_tex.outputs['Alpha'])
+
+    # material_setup_nodes(mat.node_tree, matsetup)
+    material_setup_props(mat, matsetup)
+
+    if bpy.app.version < (4, 0, 0):
+        if use_alpha and not material_has_lighting(mat):
+            mat.blend_method = 'BLEND'
+
+        # to avoid transparency issues in earlier versions
+        mat.show_transparent_back = False
+
+    mat['has_envmap'] = has_envmap
+
+    return mat
+
+def material_setup_props(mat, matsetup):
+    pd_mat = mat.pd_mat
+
+    matgeo_set(pd_mat.geomode, matsetup.geomset)
+    # matgeoclear_set(pd_mat.geoclear, matsetup.geomclear)
+
+    for cmd in matsetup.othermodeL.values():
+        mat_othermodeL_set(pd_mat.othermodeL, cmd)
+
+    for cmd in matsetup.othermodeH.values():
+        mat_othermodeH_set(pd_mat.othermodeH, cmd)
+
+    mat_setcombine_set(pd_mat.combiner, matsetup.setcombine)
 
 def mat_show_vtxcolors(mat):
     node_bsdf = mat.node_tree.nodes['p_bsdf']

@@ -11,16 +11,14 @@ from pd_data.pd_model import unmask, PD_ModelFile
 from pd_data.gbi import *
 from pd_data.decl_model import *
 from data.typeinfo import TypeInfo
-import pd_materials as pdm
 from pd_data import texload as tex
 from ui import mtxpalette as mtxp
 from utils import (
     pd_utils as pdu,
     log_util as log,
 )
+from materials import pd_materials as pdm
 import pd_blendprops as pdprops
-
-from fast64.f3d import f3d_material as f3dm
 
 logger = log.log_get(__name__)
 log.log_config(logger, log.LOG_FILE_IMPORT)

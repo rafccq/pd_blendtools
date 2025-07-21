@@ -40,9 +40,9 @@ from pd_import import (
     tiles_import as tlimp,
     setup_import as stpi,
 )
-import pd_materials as pdm
+import materials as pdm
 
-from .fast64 import f3d
+from fast64 import f3d
 
 submodules = [
     pdn,
@@ -52,6 +52,7 @@ submodules = [
     tlimp,
     stpi,
     bgi,
+    pdm
 ]
 
 if "bpy" in locals():
@@ -76,7 +77,6 @@ if "bpy" in locals():
     importlib.reload(stu)
     importlib.reload(imu)
     importlib.reload(f3d)
-    importlib.reload(pdm)
     importlib.reload(mdi)
 
 class PDModelPropertyGroup(PropertyGroup):

@@ -6,7 +6,7 @@ from mathutils import Vector, Matrix
 import bmesh
 
 from . import pd_utils as pdu
-import pd_materials as pdm
+from materials import pd_materials as pdm
 import pd_blendprops as pdprops
 import pd_mtx as mtx
 

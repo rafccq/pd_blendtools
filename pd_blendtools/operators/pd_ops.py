@@ -23,7 +23,6 @@ from pd_export import (
 )
 import pd_addonprefs as pda
 import pd_blendprops as pdprops
-import pd_materials as pdm
 
 from fast64.f3d import f3d_material as f3dm
 
@@ -210,7 +209,7 @@ class PDTOOLS_OT_ImportLevel(Operator):
 
         n = len(bpy.data.materials)
         for i, mat in enumerate(bpy.data.materials):
-            if mat.is_f3d: continue
+            if not mat.is_f3d: continue
 
             t0 = time.time()
             f3dm.update_node_values_of_material(mat, bpy.context)

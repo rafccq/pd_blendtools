@@ -8,7 +8,7 @@ from utils import (
 from pd_data.pd_model import PD_ModelFile
 from ui import mtxpalette as mtxp
 from pd_data import romdata as rom
-import pd_materials as pdm
+from materials import pd_materials as pdm
 
 logger = logu.log_get(__name__)
 logu.log_config(logger, logu.LOG_FILE_EXPORT)

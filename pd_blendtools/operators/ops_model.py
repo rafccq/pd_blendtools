@@ -19,7 +19,7 @@ from pd_import import (
 )
 from pd_export import model_export as mde
 from pd_data import romdata as rom
-import pd_materials as pdm
+from materials import pd_materials as pdm
 
 from fast64.f3d import f3d_material as f3dm
 

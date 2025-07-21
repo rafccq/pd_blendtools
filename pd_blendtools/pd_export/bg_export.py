@@ -13,7 +13,7 @@ from data.typeinfo import TypeInfo
 from data.datablock import DataBlock
 from data.bytestream import ByteStream, add_padding
 import pd_mtx as mtx
-import pd_materials as pdm
+from materials import pd_materials as pdm
 import pd_blendprops as pdprops
 
 

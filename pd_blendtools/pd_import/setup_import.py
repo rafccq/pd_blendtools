@@ -19,7 +19,7 @@ from pd_data.decl_padsfile import *
 from data.typeinfo import TypeInfo
 from pd_data.model_info import ModelStates, ModelNames
 from pd_import import model_import as mdi
-import pd_materials as pdm
+from materials import pd_materials as pdm
 from pd_data import pd_padsfile as pdp
 import template_mesh as tmesh
 import pd_blendprops as pdprops
