@@ -195,6 +195,8 @@ class PDMaterialPanel(Panel):
             mat_setcombine_draw(pd_mat.combiner, layout, context)
         elif pd_mat.menu_tab == 'Geo':
             matgeo_draw(pd_mat.geomode, layout, context)
+        elif pd_mat.menu_tab == 'Sources':
+            mat_tex_draw(pd_mat, layout, context)
         elif pd_mat.menu_tab == 'Upper':
             mat_othermodeH_draw(pd_mat.othermodeH, layout, context)
         elif pd_mat.menu_tab == 'Lower':
@@ -306,13 +308,22 @@ def material_setcombine(mat, cmd):
 def material_settex(mat, cmd):
     texnum = cmd & 0xfff
     texname = f'{texnum:04X}.png'
-    mat.tex0.tex = bpy.data.images[texname]
-    mat.tex0.tex_set = True
+
+    tex0 = mat.tex0
+    tex0.tex = bpy.data.images[texname]
+    tex0.tex_set = True
 
     w0 = (cmd & 0xffffffff00000000) >> 32
-    mat.tex0.S.clamp = bool((w0 >> 22) & 0x3)
-    mat.tex0.T.clamp = bool((w0 >> 20) & 0x3)
-
+    smode = bool((w0 >> 22) & 0x3)
+    tex0.S.clamp = smode == 1
+    tex0.T.clamp = smode == 1
+    tex0.S.mirror = smode == 2
+    tex0.T.mirror = smode == 2
+    tex0.shift_s = (w0 >> 14) & 0xf
+    tex0.shift_t = (w0 >> 10) & 0xf
+    tex0.lod_flag = bool(w0 & 0x200)
+    tex0.subcmd = w0 & 0x7
+    tex0.autoprop = False
 
 def connect(node_tree, src, dst_node, dst_field):
     nodes = node_tree.nodes
@@ -552,6 +563,8 @@ def material_setup_props(mat, matsetup):
         mat_othermodeH_set(pd_mat.othermodeH, cmd)
 
     mat_setcombine_set(pd_mat.combiner, matsetup.setcombine)
+    mat_texconfig_set(pd_mat.texconfig, matsetup.texconfig)
+    mat_texload_set(pd_mat.texload, matsetup.texload)
 
 def mat_show_vtxcolors(mat):
     node_bsdf = mat.node_tree.nodes['p_bsdf']

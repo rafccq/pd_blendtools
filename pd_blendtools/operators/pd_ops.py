@@ -503,6 +503,15 @@ class PDTOOLS_OT_MessageBox(Operator):
     def invoke(self, context, event):
         return self.execute(context)
 
+class PDTOOLS_OT_UnlinkPDMaterialImage0(Operator):
+    bl_idname = "pdtools.tex0_unlink"
+    bl_label = "Unlink PD Material Image"
+    bl_options = {"REGISTER", "UNDO", "PRESET"}
+
+    def execute(self, context):
+        context.material.pd_mat.texload.image = None
+        return {"FINISHED"}
+
 
 classes = [
     PDTOOLS_OT_LoadRom,
@@ -511,6 +520,7 @@ classes = [
     PDTOOLS_OT_ExportLevel,
     PDTOOLS_OT_SelectDirectory,
     PDTOOLS_OT_MessageBox,
+    PDTOOLS_OT_UnlinkPDMaterialImage0,
 ]
 
 register, unregister = bpy.utils.register_classes_factory(classes)

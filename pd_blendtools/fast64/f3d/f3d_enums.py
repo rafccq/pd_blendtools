@@ -153,6 +153,7 @@ enumAlphaDither = [
     ("G_AD_NOTPATTERN", "NOT Pattern", "NOT Pattern"),
     ("G_AD_NOISE", "Noise", "Noise"),
     ("G_AD_DISABLE", "Disable", "Disable"),
+    ("[Not Set]", "Not Set", "Not Set (Command will not be emitted)"),
 ]
 
 # hardware v2
@@ -162,11 +163,13 @@ enumRGBDither = [
     ("G_CD_NOISE", "Noise", "Noise"),
     ("G_CD_DISABLE", "Disable", "Disable"),
     ("G_CD_ENABLE", "Enable", "Enable"),
+    ("[Not Set]", "Not Set", "Not Set (Command will not be emitted)"),
 ]
 
 enumCombKey = [
     ("G_CK_NONE", "None", "Disables chroma key."),
     ("G_CK_KEY", "Key", "Enables chroma key."),
+    ("[Not Set]", "Not Set", "Not Set (Command will not be emitted)"),
 ]
 
 enumTextConv = [
@@ -177,18 +180,21 @@ enumTextConv = [
         "Applies chosen filter on cycle 1 and converts YUB to RGB in the second cycle",
     ),
     ("G_TC_FILT", "Filter", "Applies chosen filter on textures with no color conversion"),
+    ("[Not Set]", "Not Set", "Not Set (Command will not be emitted)"),
 ]
 
 enumTextFilt = [
     ("G_TF_POINT", "Point", "Point filtering"),
     ("G_TF_AVERAGE", "Average", "Four sample filter, not recommended except for pixel aligned texrects"),
     ("G_TF_BILERP", "Bilinear", "Standard N64 filtering with 3 point sample"),
+    ("[Not Set]", "Not Set", "Not Set (Command will not be emitted)"),
 ]
 
 enumTextLUT = [
     ("G_TT_NONE", "None", "None"),
     ("G_TT_RGBA16", "RGBA16", "RGBA16"),
     ("G_TT_IA16", "IA16", "IA16"),
+    ("[Not Set]", "Not Set", "Not Set (Command will not be emitted)"),
 ]
 
 enumTextLOD = [
@@ -198,6 +204,7 @@ enumTextLOD = [
         "LoD",
         "Enables LoD calculations, LoD tile is base tile + clamp(log2(texel/pixel)), remainder of log2(texel/pixel) ratio gets stored to LoD Fraction in the color combiner",
     ),
+    ("[Not Set]", "Not Set", "Not Set (Command will not be emitted)"),
 ]
 
 enumTextDetail = [
@@ -208,11 +215,13 @@ enumTextDetail = [
     ),
     ("G_TD_SHARPEN", "Sharpen", "Sharpens pixel colors when magnifying (<1 texel/pixel), always shows LoD tiles"),
     ("G_TD_DETAIL", "Detail", "Shows base tile when magnifying (<1 texel/pixel), else shows LoD tiles + 1"),
+    ("[Not Set]", "Not Set", "Not Set (Command will not be emitted)"),
 ]
 
 enumTextPersp = [
     ("G_TP_NONE", "None", "None"),
     ("G_TP_PERSP", "Perspective", "Perspective"),
+    ("[Not Set]", "Not Set", "Not Set (Command will not be emitted)"),
 ]
 
 enumCycleType = [
@@ -220,9 +229,14 @@ enumCycleType = [
     ("G_CYC_2CYCLE", "2 Cycle", "2 Cycle"),
     ("G_CYC_COPY", "Copy", "Copies texture values to framebuffer with no perspective correction or blending"),
     ("G_CYC_FILL", "Fill", "Uses fill color to fill primitve"),
+    ("[Not Set]", "Not Set", "Not Set (Command will not be emitted)"),
 ]
 
-enumColorDither = [("G_CD_DISABLE", "Disable", "Disable"), ("G_CD_ENABLE", "Enable", "Enable")]
+enumColorDither = [
+    ("G_CD_DISABLE", "Disable", "Disable"),
+    ("G_CD_ENABLE", "Enable", "Enable"),
+    ("[Not Set]", "Not Set", "Not Set (Command will not be emitted)"),
+]
 
 enumPipelineMode = [
     (
@@ -235,17 +249,20 @@ enumPipelineMode = [
         "N Primitive",
         "No additional syncs are added after tri draws. Default option for every game but vanilla SM64",
     ),
+    ("[Not Set]", "Not Set", "Not Set (Command will not be emitted)"),
 ]
 
 enumAlphaCompare = [
     ("G_AC_NONE", "None", "No alpha comparison is made, writing is based on coverage"),
     ("G_AC_THRESHOLD", "Threshold", "Writes if alpha is greater than blend color alpha"),
     ("G_AC_DITHER", "Dither", "Writes if alpha is greater than random value"),
+    ("[Not Set]", "Not Set", "Not Set (Command will not be emitted)"),
 ]
 
 enumDepthSource = [
     ("G_ZS_PIXEL", "Pixel", "Z value is calculated per primitive pixel"),
     ("G_ZS_PRIM", "Primitive", "Uses prim depth to set Z value, does not work on HLE emulation"),
+    ("[Not Set]", "Not Set", "Not Set (Command will not be emitted)"),
 ]
 
 enumCoverage = [

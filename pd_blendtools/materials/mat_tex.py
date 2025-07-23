@@ -6,6 +6,9 @@ from bpy.types import SpaceNodeEditor, PropertyGroup
 
 from nodes.nodeutils import *
 
+from fast64 import utility as f3d_ut
+from fast64.f3d import prop_split
+
 
 class MatSetTImage(PropertyGroup):
     def init(self, _context):
@@ -51,32 +54,32 @@ class MatTexConfig(PropertyGroup):
     tile_index: bpy.props.IntProperty(name='tile_index', default=0, min=0, max=7, update=on_update)
     max_lods: bpy.props.IntProperty(name='max_lods', default=0, min=0, max=7, update=on_update)
 
-def mat_tex_set(texload, cmd):
-    s = (cmd & 0x0f00) >> 8
-    t = (cmd & 0xf000) >> 12
+def mat_texconfig_set(texconfig, cmd):
+    s = (cmd & 0xffff00) >> 8
+    t = (cmd & 0xffff000) >> 12
 
     if s == 0xffff or t == 0xffff:
-        texload.autoscale = True
+        texconfig.autoscale = True
     else:
-        texload.tex_scale[0] = s / 2**16
-        texload.tex_scale[1] = t / 2**16
+        texconfig.tex_scale[0] = s / 2 ** 16
+        texconfig.tex_scale[1] = t / 2 ** 16
 
     w0 = (cmd & 0xffffffff00000000) >> 32
     b = (w0 & 0xff00) >> 8
-    texload.tile_index = b & 0x7
-    texload.max_lods = (b & 0x38) >> 3
+    texconfig.tile_index = b & 0x7
+    texconfig.max_lods = (b & 0x38) >> 3
 
-def draw_buttons(texload, context, layout):
+def mat_texconfig_draw(texconfig, layout, context):
     col = layout.column()
-    col.prop(texload, 'autoscale', text='Auto Scale')
+    col.prop(texconfig, 'autoscale', text='Auto Scale')
 
     row = col.row()
-    row.prop(texload, 'tex_scale', text='')
+    row.prop(texconfig, 'tex_scale', text='')
 
-    row.enabled = not texload.autoscale
+    row.enabled = not texconfig.autoscale
 
-    col.prop(texload, 'tile_index')
-    col.prop(texload, 'max_lods')
+    prop_split(col, texconfig, 'tile_index', 'Tile Index')
+    prop_split(col, texconfig, 'max_lods', 'Max LODs')
 
 def get_cmd(self):
     s, t = self.get_texscale()
@@ -89,30 +92,21 @@ TEX_WRAPMODES = [
     ('mirror', 'Mirror', 2),
 ]
 
+def img_update_nodes(mat):
+    tree = mat.node_tree
+    texload = mat.pd_mat.texload
+    node_tex = tree.nodes['teximage']
+
+    modemap = {'wrap': 'REPEAT', 'clamp': 'EXTEND', 'mirror': 'MIRROR'}
+    node_tex.image = texload.image
+    node_tex.extension = modemap[texload.smode]
+
 class MatTexLoad(PropertyGroup):
     def on_update(self, context):
-        img = '0' + self.cmd[13:]
-        if self.image:
-            img = self.image.name.replace('.png', '')
+        mat = f3d_ut.get_material_from_context(context)
+        if not mat: return
 
-        smode = self.enum_value('smode')
-        tmode = self.enum_value('tmode')
-        offset = 2 if self.offset else 0
-        shifts = self.shift_s
-        shiftt = self.shift_t
-
-        w0 = (0xc0 << 24) | (smode << 22) | (tmode << 20) | (offset << 18) | \
-             (shifts << 14) | (shiftt << 10) | (self.lod_flag << 9) | self.subcmd
-
-        self.cmd = f'{w0:08X}0000{img}'
-
-        if type(context.space_data) is not SpaceNodeEditor: return
-
-        # sync the material's teximage with this node's texture
-        tree = context.space_data.node_tree
-        node_tex = tree.nodes['teximage']
-        imglib = bpy.data.images
-        node_tex.image = imglib[self.image.name]
+        img_update_nodes(mat)
 
 
     image: PointerProperty(name='image', type=bpy.types.Image, update=on_update)
@@ -125,28 +119,55 @@ class MatTexLoad(PropertyGroup):
     shift_t: bpy.props.IntProperty(name='shift_t', default=0, min=0, max=15, update=on_update)
     subcmd: bpy.props.IntProperty(name='subcmd', default=0, min=0, max=4, update=on_update)
 
-def mat_texconfig_set(texconfig):
+    menu: BoolProperty(name='menu', default=False, description='Texture Params', update=on_update)
+    autoprop: BoolProperty(name='autoprop', default=False, description='Auto Set Other Properties')
+    enabled: BoolProperty(name='enabled', default=False, description='Texture Enabled')
+
+def mat_texload_set(texload, cmd):
     w0 = (cmd & 0xffffffff00000000) >> 32
 
-    texconfig.smode = item_from_value(TEX_WRAPMODES, (w0 >> 22) & 0x3)
-    texconfig.tmode = item_from_value(TEX_WRAPMODES, (w0 >> 20) & 0x3)
-    texconfig.offset = bool((w0 >> 18) & 0x3)
-    texconfig.shift_s = (w0 >> 14) & 0xf
-    texconfig.shift_t = (w0 >> 10) & 0xf
-    texconfig.lod_flag = bool(w0 & 0x200)
-    texconfig.subcmd = w0 & 0x7
-    img = texconfig.cmd[12:]
-    img = cmd & 0xf00
+    texload.smode = item_from_value(TEX_WRAPMODES, (w0 >> 22) & 0x3)
+    texload.tmode = item_from_value(TEX_WRAPMODES, (w0 >> 20) & 0x3)
+    texload.offset = bool((w0 >> 18) & 0x3)
+    texload.shift_s = (w0 >> 14) & 0xf
+    texload.shift_t = (w0 >> 10) & 0xf
+    texload.lod_flag = bool(w0 & 0x200)
+    texload.subcmd = w0 & 0x7
+    img = cmd & 0x0fff
 
     if img != 0:
-        texconfig.image = bpy.data.images[f'{img}.png']
+        texload.image = bpy.data.images[f'{img:04X}.png']
 
-def draw_buttons(texconfig, context, layout):
-    layout.prop(texconfig, 'image', text='')
-    layout.prop(texconfig, 'smode')
-    layout.prop(texconfig, 'tmode')
-    layout.prop(texconfig, 'subcmd')
-    layout.prop(texconfig, 'shift_s')
-    layout.prop(texconfig, 'shift_t')
-    layout.prop(texconfig, 'lod_flag')
-    layout.prop(texconfig, 'offset')
+def mat_texload_draw(texload, layout, context):
+    layout.prop(texload, 'enabled', text='Set Texture')
+
+    layout = layout.column()
+    layout.enabled = texload.enabled
+
+    layout.template_ID(
+        texload, "image", new="image.new", open="image.open", unlink="pdtools.tex0_unlink"
+    )
+
+    prop_split(layout, texload, 'smode', 'S Mode')
+    prop_split(layout, texload, 'tmode', 'T Mode')
+
+    layout.prop(texload, 'autoprop', text='Auto Set Other Properties')
+    if not texload.autoprop:
+        prop_split(layout, texload, 'shift_s', 'Shift S')
+        prop_split(layout, texload, 'shift_t', 'Shift T')
+
+        prop_split(layout, texload, 'lod_flag', 'LOD Flag')
+        prop_split(layout, texload, 'offset', 'Offset')
+        prop_split(layout, texload, 'subcmd', 'Sub Command')
+
+def mat_tex_draw(pd_mat, layout, context):
+    texload = pd_mat.texload
+
+    col = layout.column()
+    col.prop(texload, 'menu', text = 'Texture 0 Properties+', icon = 'TRIA_DOWN' if texload.menu else 'TRIA_RIGHT')
+    if texload.menu:
+        mat_texload_draw(texload, col, context)
+        
+    texconfig = pd_mat.texconfig
+    box = col.box()
+    mat_texconfig_draw(texconfig, box, context)

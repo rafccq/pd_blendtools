@@ -1,5 +1,5 @@
 from bpy.types import PropertyGroup
-from bpy.props import IntProperty
+from bpy.props import IntProperty, BoolProperty
 
 from nodes.nodeutils import *
 from utils import pd_utils as pdu
@@ -179,7 +179,11 @@ class MatSetCombine(PropertyGroup):
 
     num_cycles: IntProperty(name='num_cycles', default=1)
 
+    enabled: BoolProperty(name='enabled', default=False)
+
 def mat_setcombine_set(combiner, cmd):
+    combiner.enabled = cmd != 0
+
     ofs = 0
     for name, w in COMBINER_PARAMWIDTHS.items():
         mask = (1 << w) - 1
@@ -205,8 +209,9 @@ def draw_combiner(combiner, layout, cycle):
         layout.label(text=f'Cycle {cycle}')
 
     box = layout.box()
-    box.label(text='Color = (A - B) * C + D')
+    box.prop(combiner, 'enabled', text='Color Combiner (Color = (A - B) * C + D)')
     container = box.row().split(factor=0.45)
+    container.enabled = combiner.enabled
 
     draw_combiner_props(combiner, container, 'color', cycle)
     draw_combiner_props(combiner, container, 'alpha', cycle)

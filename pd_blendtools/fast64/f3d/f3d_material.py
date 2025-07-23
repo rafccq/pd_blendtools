@@ -1421,7 +1421,7 @@ class F3DPanel(Panel):
         layout.prop(context.scene, "f3d_simple", text="Show Simplified UI")
         layout = layout.box()
         titleCol = layout.column()
-        titleCol.box().label(text="F3D Material Inspector")
+        titleCol.box().label(text="F3D Material (Accurate)")
 
         if material.mat_ver < 5:
             box = layout.box().column()
@@ -2983,6 +2983,13 @@ class TextureProperty(PropertyGroup):
     )
     tile_scroll: bpy.props.PointerProperty(type=SetTileSizeScrollProperty)
 
+    # PD specific props
+    lod_flag: bpy.props.BoolProperty(name='lod_flag', default=False, description='Write LOD')
+    offset: bpy.props.BoolProperty(name='offset', default=True, description='Offset')
+    subcmd: bpy.props.IntProperty(name='subcmd', default=0, min=0, max=4)
+    shift_s: bpy.props.IntProperty(name="shift_s", default=0, min=0)
+    shift_t: bpy.props.IntProperty(name="shift_t", default=0, min=0)
+
     @property
     def is_ci(self):
         self.tex_format: str
@@ -3071,104 +3078,60 @@ def ui_image(
             prop_input_name.label(text=name)
         texIndex = name[-1]
 
-        prop_input.prop(textureProp, "use_tex_reference")
-        if textureProp.use_tex_reference:
-            prop_split(prop_input, textureProp, "tex_reference", "Texture Reference")
-            prop_split(prop_input, textureProp, "tex_reference_size", "Texture Size")
-            if textureProp.tex_format[:2] == "CI":
-                flipbook = getattr(material.flipbookGroup, "flipbook" + texIndex)
-                if flipbook is None or not flipbook.enable:
-                    prop_split(prop_input, textureProp, "pal_reference", "Palette Reference")
-                    prop_split(prop_input, textureProp, "pal_reference_size", "Palette Size")
+        prop_input.template_ID(
+            textureProp, "tex", new="image.new", open="image.open", unlink="image.tex" + texIndex + "_unlink"
+        )
+        prop_input.enabled = textureProp.tex_set
 
-        else:
-            prop_input.template_ID(
-                textureProp, "tex", new="image.new", open="image.open", unlink="image.tex" + texIndex + "_unlink"
-            )
-            prop_input.enabled = textureProp.tex_set
+        if tex is not None:
+            prop_input.label(text="Size: " + str(tex.size[0]) + " x " + str(tex.size[1]))
 
-            if tex is not None:
-                prop_input.label(text="Size: " + str(tex.size[0]) + " x " + str(tex.size[1]))
-
-        if textureProp.use_tex_reference:
-            width, height = textureProp.tex_reference_size[0], textureProp.tex_reference_size[1]
-        elif tex is not None:
+        if tex is not None:
             width, height = tex.size[0], tex.size[1]
         else:
             width = height = 0
 
-        if canUseLargeTextures:
-            availTmem = 512
-            if textureProp.tex_format[:2] == "CI":
-                availTmem /= 2
-            useDict = all_combiner_uses(material.f3d_mat)
-            if useDict["Texture 0"] and useDict["Texture 1"]:
-                availTmem /= 2
-            isLarge = getTmemWordUsage(textureProp.tex_format, width, height) > availTmem
-        else:
-            isLarge = False
+        tmemUsageUI(prop_input, textureProp)
 
-        if isLarge:
-            msg = prop_input.box().column()
-            msg.label(text="This is a large texture.", icon="INFO")
-            msg.label(text="Recommend using Create Large Texture Mesh tool.")
-        else:
-            tmemUsageUI(prop_input, textureProp)
-
-        prop_split(prop_input, textureProp, "tex_format", name="Format")
-        if textureProp.tex_format[:2] == "CI":
-            prop_split(prop_input, textureProp, "ci_format", name="CI Format")
-
-        if not isLarge:
-            if width > 0 and height > 0:
-                texelsPerWord = 64 // texBitSizeInt[textureProp.tex_format]
-                if width % texelsPerWord != 0:
-                    msg = prop_input.box().column()
-                    msg.label(text=f"Suggest {textureProp.tex_format} tex be multiple ", icon="INFO")
-                    msg.label(text=f"of {texelsPerWord} pixels wide for fast loading.")
-                warnClampS = (
+        if width > 0 and height > 0:
+            texelsPerWord = 64 // texBitSizeInt[textureProp.tex_format]
+            if width % texelsPerWord != 0:
+                msg = prop_input.box().column()
+                msg.label(text=f"Suggest {textureProp.tex_format} tex be multiple ", icon="INFO")
+                msg.label(text=f"of {texelsPerWord} pixels wide for fast loading.")
+            warnClampS = (
                     not isPowerOf2(width)
                     and not textureProp.S.clamp
                     and (not textureProp.autoprop or textureProp.S.mask != 0)
-                )
-                warnClampT = (
+            )
+            warnClampT = (
                     not isPowerOf2(height)
                     and not textureProp.T.clamp
                     and (not textureProp.autoprop or textureProp.T.mask != 0)
-                )
-                if warnClampS or warnClampT:
-                    msg = prop_input.box().column()
-                    msg.label(text=f"Clamping required for non-power-of-2 image", icon="ERROR")
-                    msg.label(text=f"dimensions. Enable clamp or set mask to 0.")
+            )
+            if warnClampS or warnClampT:
+                msg = prop_input.box().column()
+                msg.label(text=f"Clamping required for non-power-of-2 image", icon="ERROR")
+                msg.label(text=f"dimensions. Enable clamp or set mask to 0.")
 
-            texFieldSettings = prop_input.column()
-            clampSettings = texFieldSettings.row()
-            clampSettings.prop(textureProp.S, "clamp", text="Clamp S")
-            clampSettings.prop(textureProp.T, "clamp", text="Clamp T")
+        texFieldSettings = prop_input.column()
+        clampSettings = texFieldSettings.row()
+        clampSettings.prop(textureProp.S, "clamp", text="Clamp S")
+        clampSettings.prop(textureProp.T, "clamp", text="Clamp T")
 
-            mirrorSettings = texFieldSettings.row()
-            mirrorSettings.prop(textureProp.S, "mirror", text="Mirror S")
-            mirrorSettings.prop(textureProp.T, "mirror", text="Mirror T")
+        mirrorSettings = texFieldSettings.row()
+        mirrorSettings.prop(textureProp.S, "mirror", text="Mirror S")
+        mirrorSettings.prop(textureProp.T, "mirror", text="Mirror T")
 
-            prop_input.prop(textureProp, "autoprop", text="Auto Set Other Properties")
+        prop_input.prop(textureProp, "autoprop", text="Auto Set Other Properties")
 
-            if not textureProp.autoprop:
-                mask = prop_input.row()
-                mask.prop(textureProp.S, "mask", text="Mask S")
-                mask.prop(textureProp.T, "mask", text="Mask T")
+        if not textureProp.autoprop:
+            prop_split(prop_input, textureProp.S, 'shift', 'Shift S')
+            prop_split(prop_input, textureProp.T, 'shift', 'Shift T')
 
-                shift = prop_input.row()
-                shift.prop(textureProp.S, "shift", text="Shift S")
-                shift.prop(textureProp.T, "shift", text="Shift T")
-                if hide_lowhigh:
-                    return
-                low = prop_input.row()
-                low.prop(textureProp.S, "low", text="S Low")
-                low.prop(textureProp.T, "low", text="T Low")
-
-                high = prop_input.row()
-                high.prop(textureProp.S, "high", text="S High")
-                high.prop(textureProp.T, "high", text="T High")
+            prop_split(prop_input, textureProp, 'lod_flag', 'LOD Flag')
+            prop_split(prop_input, textureProp, 'offset', 'Offset')
+            prop_split(prop_input, textureProp, 'subcmd', 'Sub Command')
 
 
 class CombinerProperty(PropertyGroup):

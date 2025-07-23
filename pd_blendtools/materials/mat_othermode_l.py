@@ -12,11 +12,13 @@ LOWER_ALPHACOMP = [
     ('None', 'None description',         0b00),
     ('Treshold', 'Treshold description', 0b01),
     ('Dither', 'Dither description',     0b11),
+    ('[Not Set]', 'Not Set',             0xff),
 ]
 
 LOWER_ZSOURCE = [
     ('Pixel', 'Pixel description',         0),
     ('Primitive', 'Primitive description', 1),
+    ('[Not Set]', 'Not Set',            0xff),
 ]
 
 LOWER_RENDERMODECI_FLAGS = {
@@ -156,8 +158,8 @@ class MatOtherModeL(PropertyGroup):
         items = [(make_id(id), name, '', '', value) for (id, name, value) in LOWER_MODES], update=on_update,
     )
 
-    g_mdsft_alphacompare: make_prop('g_mdsft_alphacompare', {'g_mdsft_alphacompare': LOWER_ALPHACOMP}, 'none', on_update)
-    g_mdsft_zsrc: make_prop('g_mdsft_zsrc', {'g_mdsft_zsrc': LOWER_ZSOURCE}, 'pixel', on_update)
+    g_mdsft_alphacompare: make_prop('g_mdsft_alphacompare', {'g_mdsft_alphacompare': LOWER_ALPHACOMP}, 'notset', on_update)
+    g_mdsft_zsrc: make_prop('g_mdsft_zsrc', {'g_mdsft_zsrc': LOWER_ZSOURCE}, 'notset', on_update)
 
     rendermode: BoolProperty(name='rendermode', update=on_update, default=False)
 

@@ -26,6 +26,7 @@ UPPER_ALPHADITHER = [
     ('No pattern', 'No pattern description', 0b01),
     ('Noise', 'Noise description',           0b10),
     ('Disable', 'Disable description',       0b11),
+    ('[Not Set]', 'Not Set',       0xff),
 ]
 
 UPPER_RGBDITHER = [
@@ -33,45 +34,53 @@ UPPER_RGBDITHER = [
     ('Bayer',        'Bayer',   0b01),
     ('Noise',        'Noise',   0b10),
     ('Disable',      'Disable', 0b11),
+    ('[Not Set]',      'Not Set', 0xff),
 ]
 
 UPPER_CHROMAKEY = [
     ('None', 'None Description', 0),
     ('Key', 'Key Description',   1),
+    ('[Not Set]', 'Not Set',   0xff),
 ]
 
 UPPER_TEXCONV = [
     ('Convert', 'Convert description',                   0b000),
     ('Filter and Convert', 'Filter/Convert description', 0b101),
     ('Filter', 'Filter description',                     0b110),
+    ('[Not Set]', 'Not Set',                     0xff),
 ]
 
 UPPER_TEXFILTER = [
     ('Filter', 'Filter description',     0b00),
     ('Average', 'Average description',   0b10),
     ('Bilinear', 'Bilinear description', 0b11),
+    ('[Not Set]', 'Not Set', 0xff),
 ]
 
 UPPER_TEXLUT = [
     ('None', 'None',     0b00),
     ('RGBA16', 'RGBA16', 0b10),
     ('IA16', 'IA16',     0b11),
+    ('[Not Set]', 'Not Set',     0xff),
 ]
 
 UPPER_TEXLOD = [
     ('Tile', 'Tile description', 0),
     ('Lod', 'Lod description',   1),
+    ('[Not Set]', 'Not Set',   0xff),
 ]
 
 UPPER_TEXDETAIL = [
     ('Clamp', 'Clamp description',     0b00),
     ('Sharpen', 'Sharpen description', 0b01),
     ('Detail', 'Detail description',   0b10),
+    ('[Not Set]', 'Not Set',   0xff),
 ]
 
 UPPER_TEXPERSPCORR = [
     ('None', 'None description', 0),
     ('Perspective', 'Perspective description', 1),
+    ('[Not Set]', 'Not Set', 0xff),
 ]
 
 UPPER_CYCLETYPE = [
@@ -79,11 +88,13 @@ UPPER_CYCLETYPE = [
     ('2 Cycle', '2 Cycle description', 0b01),
     ('Copy', 'Copy description', 0b10),
     ('Fill', 'Fill description', 0b11),
+    ('[Not Set]', 'Not Set', 0xff),
 ]
 
 UPPER_PIPELINEMODE = [
     ('1 Primitive', '1 Primitive description', 0),
     ('N Primitive', 'N Primitive description', 1),
+    ('[Not Set]', 'Not Set', 0xff),
 ]
 
 UPPER_ITEMS = {
@@ -131,17 +142,17 @@ class MatOtherModeH(PropertyGroup):
 
         self.cmd = f'BA00{modeval:02X}{n:02X}{mode_bits:08X}'
 
-    g_mdsft_alphadither: make_prop('g_mdsft_alphadither', UPPER_ITEMS, 'pattern')
-    g_mdsft_rgbdither: make_prop('g_mdsft_rgbdither', UPPER_ITEMS, 'magicsquare')
-    g_mdsft_chromakey: make_prop('g_mdsft_chromakey', UPPER_ITEMS, 'none')
-    g_mdsft_texconv: make_prop('g_mdsft_texconv', UPPER_ITEMS, 'filter')
-    g_mdsft_texfilter: make_prop('g_mdsft_texfilter', UPPER_ITEMS, 'bilinear')
-    g_mdsft_texlut: make_prop('g_mdsft_texlut', UPPER_ITEMS, 'none')
-    g_mdsft_texlod: make_prop('g_mdsft_texlod', UPPER_ITEMS, 'tile')
-    g_mdsft_texdetail: make_prop('g_mdsft_texdetail', UPPER_ITEMS, 'clamp')
-    g_mdsft_texperspcorr: make_prop('g_mdsft_texperspcorr', UPPER_ITEMS, 'perspective')
-    g_mdsft_cycletype: make_prop('g_mdsft_cycletype', UPPER_ITEMS, '1cycle')
-    g_mdsft_pipelinemode: make_prop('g_mdsft_pipelinemode', UPPER_ITEMS, '1primitive')
+    g_mdsft_alphadither: make_prop('g_mdsft_alphadither', UPPER_ITEMS, 'notset')
+    g_mdsft_rgbdither: make_prop('g_mdsft_rgbdither', UPPER_ITEMS, 'notset')
+    g_mdsft_chromakey: make_prop('g_mdsft_chromakey', UPPER_ITEMS, 'notset')
+    g_mdsft_texconv: make_prop('g_mdsft_texconv', UPPER_ITEMS, 'notset')
+    g_mdsft_texfilter: make_prop('g_mdsft_texfilter', UPPER_ITEMS, 'notset')
+    g_mdsft_texlut: make_prop('g_mdsft_texlut', UPPER_ITEMS, 'notset')
+    g_mdsft_texlod: make_prop('g_mdsft_texlod', UPPER_ITEMS, 'notset')
+    g_mdsft_texdetail: make_prop('g_mdsft_texdetail', UPPER_ITEMS, 'notset')
+    g_mdsft_texperspcorr: make_prop('g_mdsft_texperspcorr', UPPER_ITEMS, 'notset')
+    g_mdsft_cycletype: make_prop('g_mdsft_cycletype', UPPER_ITEMS, 'notset')
+    g_mdsft_pipelinemode: make_prop('g_mdsft_pipelinemode', UPPER_ITEMS, 'notset')
 
 # updates the UI elements based on the command
 def mat_othermodeH_set(mat_othermodeH, cmd):
