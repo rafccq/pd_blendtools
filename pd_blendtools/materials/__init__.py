@@ -11,6 +11,9 @@ from materials.mat_tex import MatTexLoad, MatTexConfig
 
 from fast64 import f3d
 
+from reload_util import import_modules
+_modules_loaded = import_modules(__file__, globals())
+
 classes = [
     MatSetCombine,
     MatGeoMode,
@@ -22,12 +25,15 @@ classes = [
     PDMaterialPanel,
 ]
 
-register_cls, unregister = register_classes_factory(classes)
+register_cls, unregister_cls = register_classes_factory(classes)
 
 def register():
     f3d.mat_register()
-
     register_cls()
 
     Material.pd_mat = bpy.props.PointerProperty(type=PDMaterialProperty)
-    Material.is_pd = bpy.props.BoolProperty()
+    Material.is_pd = bpy.props.BoolProperty(name='is_pd', default=False)
+
+def unregister():
+    f3d.mat_unregister()
+    unregister_cls()

@@ -4,6 +4,10 @@ from bpy.utils import register_submodule_factory
 from .ops_bg import PDTOOLS_OT_PortalFromFace
 from .ops_tiles import PDTOOLS_OT_TilesFromFaces
 
+
+from reload_util import import_modules
+_modules_loaded = import_modules(__file__, globals())
+
 submodules = [
     'ops_bg',
     'ops_model',

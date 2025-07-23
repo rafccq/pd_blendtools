@@ -12,6 +12,14 @@ bl_info = {
     "category": "Import-Export"
 }
 
+if "bpy" in locals():
+    import reload_util as rlu
+
+    path = __path__[0]
+    rlu.reload_submodules(path)
+    rlu.reload_submodules(path, 'fast64')
+    print('--RELOAD DONE--')
+
 import os
 import sys
 import inspect
@@ -55,30 +63,6 @@ submodules = [
     pdm
 ]
 
-if "bpy" in locals():
-    import importlib
-    import pkgutil
-
-    from utils import (
-        pd_utils as pdu,
-        bg_utils as bgu,
-        setup_utils as stu,
-        img_utils as imu
-    )
-
-    for modinfo in pkgutil.iter_modules(__path__):
-        if modinfo.name == 'nodes': continue
-        submod = __import__(modinfo.name, globals(), locals(), [], 0)
-        importlib.reload(submod)
-        print(f'SUBMOD {modinfo.name}.')
-
-    importlib.reload(pdu)
-    importlib.reload(bgu)
-    importlib.reload(stu)
-    importlib.reload(imu)
-    importlib.reload(f3d)
-    importlib.reload(mdi)
-
 class PDModelPropertyGroup(PropertyGroup):
     name: StringProperty(name='name', default='', options={'LIBRARY_EDITABLE'})
     idx: IntProperty(name='idx', default=0, options={'LIBRARY_EDITABLE'})
@@ -102,14 +86,12 @@ def register():
     for m in submodules:
         m.register()
 
-    f3d.mat_register()
     bpy.app.handlers.load_post.append(pd_load_handler)
 
 def unregister_nodes():
     pdn.unregister()
 
 def unregister():
-    f3d.mat_unregister()
     for m in reversed(submodules):
         m.unregister()
 
@@ -126,6 +108,3 @@ def pd_load_handler(_dummy):
     rompath = pdp.pref_get(pdp.PD_PREF_ROMPATH)
     if rompath:
         pdops.PDTOOLS_OT_LoadRom.load_rom(context, rompath)
-
-if __name__ == "__main__":
-    register()
