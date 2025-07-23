@@ -1803,10 +1803,48 @@ def update_noise_nodes(material: Material):
         nodes["F3DNoiseFactor"].node_tree = noise_group
 
 
+def connect(node_tree, src, dst_node, dst_field):
+    nodes = node_tree.nodes
+    src_node, src_field = src.split('.')
+    node_tree.links.new(nodes[src_node].outputs[src_field], nodes[dst_node].inputs[dst_field])
+
+
+def mat_clear_node_inputs(mat, node):
+    node_tree = mat.node_tree
+    for input in node.inputs:
+        for link in input.links:
+            node_tree.links.remove(link)
+
+def mat_presetcombine(mat):
+    '''
+    Before rendering models, the game has some preambles that pre-configure the RDP
+    combiner (modelApplyRenderModeTypeX). This function configures the combiner the
+    same way, using parameters from the most common preamble (type 3)
+    '''
+    node_tree = mat.node_tree
+    nodes = mat.node_tree.nodes
+
+    mat_clear_node_inputs(mat, nodes["Cycle_1"])
+
+    connect(node_tree, 'Tex1_I.Color', 'Cycle_1', 0)  # 'A'
+    connect(node_tree, 'Tex0_I.Color', 'Cycle_1', 1)  # 'B'
+    connect(node_tree, 'CombinerInputs.LOD Fraction', 'Cycle_1', 2)  # 'C'
+    connect(node_tree, 'Tex0_I.Color', 'Cycle_1', 3)  # 'D'
+    connect(node_tree, 'Tex1_I.Alpha', 'Cycle_1', 4)  # 'Aa'
+    connect(node_tree, 'Tex0_I.Alpha', 'Cycle_1', 5)  # 'Ba'
+    connect(node_tree, 'CombinerInputs.LOD Fraction', 'Cycle_1', 6)  # 'Ca'
+    connect(node_tree, 'Tex0_I.Alpha', 'Cycle_1', 7)  # 'Da'
+
+
 def update_combiner_connections(material: Material, context: Context, combiner: int | None = None):
     f3dMat: "F3DMaterialProperty" = material.f3d_mat
 
     update_noise_nodes(material)
+
+    if not material.f3d_mat.set_combiner:
+        # configure the combiner for models preambles
+        mat_presetcombine(material)
+        return
 
     # Combiner can be specified for performance reasons
     if not combiner or combiner == 1:
