@@ -15,7 +15,7 @@ from utils import pd_utils as pdu
 
 from fast64 import f3d
 from fast64.f3d import f3d_enums
-from fast64.f3d.f3d_material import menu_items_enum
+from fast64.f3d.f3d_material import menu_items_enum, createF3DMat
 
 
 TEMPLATE_NAME = 'PD_MaterialTemplate'
@@ -323,7 +323,9 @@ def material_settex(mat, cmd):
     tex0.shift_t = (w0 >> 10) & 0xf
     tex0.lod_flag = bool(w0 & 0x200)
     tex0.subcmd = w0 & 0x7
-    tex0.autoprop = False
+
+    tex0.S.high = tex0.tex.size[0] - 1
+    tex0.T.high = tex0.tex.size[1] - 1
 
 def connect(node_tree, src, dst_node, dst_field):
     nodes = node_tree.nodes
@@ -354,7 +356,7 @@ def mat_presetcombine(mat):
     connect(node_tree, 'Tex0_I.Alpha', 'Cycle_1', 7) # 'Da'
 
 def material_create_f3d(bl_obj, matsetup, name):
-    mat = f3d.createF3DMat(bl_obj)
+    mat = createF3DMat(bl_obj)
     mat.name = name
 
     matf3d = mat.f3d_mat

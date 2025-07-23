@@ -5,7 +5,7 @@ from pd_data.gbi import *
 from nodes.nodeutils import make_prop, item_from_value
 from utils import pd_utils as pdu
 
-from fast64.f3d import prop_split
+from fast64.utility import prop_split
 
 
 DESC_GEO_ZBUFFER = 'ZBuffer description'

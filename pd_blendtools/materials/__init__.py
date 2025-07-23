@@ -28,12 +28,10 @@ classes = [
 register_cls, unregister_cls = register_classes_factory(classes)
 
 def register():
-    f3d.mat_register()
     register_cls()
 
     Material.pd_mat = bpy.props.PointerProperty(type=PDMaterialProperty)
     Material.is_pd = bpy.props.BoolProperty(name='is_pd', default=False)
 
 def unregister():
-    f3d.mat_unregister()
     unregister_cls()

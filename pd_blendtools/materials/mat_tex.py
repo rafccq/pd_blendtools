@@ -6,8 +6,7 @@ from bpy.types import SpaceNodeEditor, PropertyGroup
 
 from nodes.nodeutils import *
 
-from fast64 import utility as f3d_ut
-from fast64.f3d import prop_split
+from fast64.utility import prop_split, get_material_from_context
 
 
 class MatSetTImage(PropertyGroup):
@@ -103,7 +102,7 @@ def img_update_nodes(mat):
 
 class MatTexLoad(PropertyGroup):
     def on_update(self, context):
-        mat = f3d_ut.get_material_from_context(context)
+        mat = get_material_from_context(context)
         if not mat: return
 
         img_update_nodes(mat)
