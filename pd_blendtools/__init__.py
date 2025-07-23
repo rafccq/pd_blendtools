@@ -18,6 +18,7 @@ if "bpy" in locals():
     path = __path__[0]
     rlu.reload_submodules(path)
     rlu.reload_submodules(path, 'fast64')
+    rlu.reload_submodules(path, 'fast64.f3d')
     print('--RELOAD DONE--')
 
 import os
@@ -50,7 +51,7 @@ from pd_import import (
 )
 import materials as pdm
 
-from fast64 import f3d
+import fast64
 
 submodules = [
     pdn,
@@ -60,7 +61,8 @@ submodules = [
     tlimp,
     stpi,
     bgi,
-    pdm
+    pdm,
+    fast64,
 ]
 
 class PDModelPropertyGroup(PropertyGroup):

@@ -21,15 +21,15 @@ def import_modules(filepath, namespace):
     __import__(name=__name__, fromlist=modules)
 
     modules_loaded = [namespace[name] for name in modules if name in namespace]
-    # del namespace
 
     return modules_loaded
 
 def reload_submodules(path, root=''):
-    modulelist = [f'{path}/{root}']
+    rootpath = root.replace('.', '/')
+    modulelist = [f'{path}/{rootpath}']
     for modinfo in pkgutil.iter_modules(modulelist):
         if modinfo.name == 'nodes': continue
-        # print('----> ', modinfo)
+
         modname = f'{root}.{modinfo.name}' if root else modinfo.name
         submod = importlib.import_module(modname)
         if modinfo.ispkg:
@@ -37,4 +37,5 @@ def reload_submodules(path, root=''):
             importlib.reload(submod)
             reload_modules(submod._modules_loaded)
         else:
+            print(f'SUBMOD_RELOAD {modinfo.name}')
             importlib.reload(submod)
