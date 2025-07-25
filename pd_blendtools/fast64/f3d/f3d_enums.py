@@ -167,14 +167,14 @@ DESC_DEPTHSRC = "Changes screen-space Z value source used for Z-Buffer calculati
 NOT_SET = ('NOT_SET', '[Not Set]', 'Command will not be emitted', 0xff)
 
 
-DESC_GEO_ZBUFFER = "Enables calculation of Z value for primitives. Disable if not reading or writing Z-Buffer in the blender",
-DESC_GEO_SHADE = "Computes shade coordinates for primitives. Disable if not using lighting, vertex colors or fog",
-DESC_GEO_CULL_FRONT = "Disables drawing of front faces",
-DESC_GEO_CULL_BACK = "Disables drawing of back faces",
-DESC_GEO_LIGHTING = "Enables calculating shade color using lights. Turn off for vertex colors as shade color",
-DESC_GEO_TEXTURE_GEN = "Generates texture coordinates for reflection mapping based on vertex normals and lookat direction. On a skybox texture, maps the sky to the center of the texture and the ground to a circle inscribed in the border. Requires lighting enabled to use",
-DESC_GEO_TEXTURE_GEN_LINEAR = "Modifies the texgen mapping; enable with texgen. Use a normal panorama image for the texture, with the sky at the top and the ground at the bottom. Requires lighting enabled to use",
-DESC_GEO_SHADING_SMOOTH = "Shades primitive smoothly using interpolation between shade values for each vertex (Gouraud shading)",
+DESC_GEO_ZBUFFER = "Enables calculation of Z value for primitives. Disable if not reading or writing Z-Buffer in the blender"
+DESC_GEO_SHADE = "Computes shade coordinates for primitives. Disable if not using lighting, vertex colors or fog"
+DESC_GEO_CULL_FRONT = "Disables drawing of front faces"
+DESC_GEO_CULL_BACK = "Disables drawing of back faces"
+DESC_GEO_LIGHTING = "Enables calculating shade color using lights. Turn off for vertex colors as shade color"
+DESC_GEO_TEXTURE_GEN = "Generates texture coordinates for reflection mapping based on vertex normals and lookat direction. On a skybox texture, maps the sky to the center of the texture and the ground to a circle inscribed in the border. Requires lighting enabled to use"
+DESC_GEO_TEXTURE_GEN_LINEAR = "Modifies the texgen mapping; enable with texgen. Use a normal panorama image for the texture, with the sky at the top and the ground at the bottom. Requires lighting enabled to use"
+DESC_GEO_SHADING_SMOOTH = "Shades primitive smoothly using interpolation between shade values for each vertex (Gouraud shading)"
 
 
 # hardware v2
