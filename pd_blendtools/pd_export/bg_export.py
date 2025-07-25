@@ -394,8 +394,8 @@ def pack_section(dataout, mask = 1):
     compsec2len = len(compdata)
 
     header = bytearray()
-    header += (sec2len & mask).to_bytes(2, byteorder=DEST_BO)
-    header += compsec2len.to_bytes(2, byteorder=DEST_BO)
+    header += (sec2len & mask).to_bytes(2, byteorder='big')
+    header += compsec2len.to_bytes(2, byteorder='big')
     header += compdata
 
     return header

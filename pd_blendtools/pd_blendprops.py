@@ -1018,7 +1018,7 @@ def draw_waypoints():
             if bl_waypoint.pd_waypoint.groupnum == sel_group and neighbour_group == sel_group:
                 col = color_sel
 
-            edge_type = pdu.enum_value(neighbour, 'edgetype', neighbour.edgetype)
+            edge_type = pdu.enum_value(neighbour, 'edgetype')
             s = bl_waypoint.scale.x
             dz = 0
 

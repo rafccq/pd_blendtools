@@ -6,16 +6,18 @@ from nodes.nodeutils import make_prop, item_from_value
 from utils import pd_utils as pdu
 
 from fast64.utility import prop_split
+from fast64.f3d import f3d_enums
 
 
-DESC_GEO_ZBUFFER = 'ZBuffer description'
-DESC_GEO_SHADE = 'Shade description'
-DESC_GEO_CULL_FRONT = 'Cull front description'
-DESC_GEO_CULL_BACK = 'Cull back description'
-DESC_GEO_LIGHTING = 'Lighting description'
-DESC_GEO_TEXTURE_GEN = 'Texture gen description'
-DESC_GEO_TEXTURE_GEN_LINEAR = 'Texture gen linear description'
-DESC_GEO_SHADING_SMOOTH = 'Shading smooth description'
+DESC_GEO_ZBUFFER = f3d_enums.DESC_GEO_ZBUFFER
+DESC_GEO_SHADE = f3d_enums.DESC_GEO_SHADE
+DESC_GEO_CULL_FRONT = f3d_enums.DESC_GEO_CULL_FRONT
+DESC_GEO_CULL_BACK = f3d_enums.DESC_GEO_CULL_BACK
+DESC_GEO_LIGHTING = f3d_enums.DESC_GEO_LIGHTING
+DESC_GEO_TEXTURE_GEN = f3d_enums.DESC_GEO_TEXTURE_GEN
+DESC_GEO_TEXTURE_GEN_LINEAR = f3d_enums.DESC_GEO_TEXTURE_GEN_LINEAR
+DESC_GEO_SHADING_SMOOTH = f3d_enums.DESC_GEO_SHADING_SMOOTH
+
 
 GEO_FLAGS = {
     'g_zbuffer':            G_ZBUFFER,
@@ -29,25 +31,14 @@ GEO_FLAGS = {
 }
 
 class MatGeoMode(PropertyGroup):
-    opcode = 0xB7
-
-    def on_update(self, _context):
-        mode_bits = 0
-        for flag, bits in GEO_FLAGS.items():
-            mode_bits |= bits if getattr(self, flag) else 0
-
-        # self.cmd = f'{self.opcode:02X}000000{mode_bits:08X}'
-
-    hide: BoolProperty(name='Hide fields', default=False, description='Hide fields (still accessible in the panel)')
-
-    g_zbuffer: BoolProperty(name='Z Buffer', update=on_update, default=False, description=DESC_GEO_ZBUFFER)
-    g_shade: BoolProperty(name='Shading', update=on_update, default=False, description=DESC_GEO_SHADE)
-    g_cull_front: BoolProperty(name='Cull Front', update=on_update, default=False, description=DESC_GEO_CULL_FRONT)
-    g_cull_back: BoolProperty(name='Cull Back', update=on_update, default=False, description=DESC_GEO_CULL_BACK)
-    g_lighting: BoolProperty(name='Lighting', update=on_update, default=False, description=DESC_GEO_LIGHTING)
-    g_tex_gen: BoolProperty(name='Texture UV Generate', update=on_update, default=False, description=DESC_GEO_TEXTURE_GEN)
-    g_tex_gen_linear: BoolProperty(name='Texture UV Generate Linear', update=on_update, default=False, description=DESC_GEO_TEXTURE_GEN_LINEAR)
-    g_shade_smooth: BoolProperty(name='Shading Smooth', update=on_update, default=False, description=DESC_GEO_SHADING_SMOOTH)
+    g_zbuffer: BoolProperty(name='Z Buffer', default=False, description=DESC_GEO_ZBUFFER)
+    g_shade: BoolProperty(name='Shading', default=False, description=DESC_GEO_SHADE)
+    g_cull_front: BoolProperty(name='Cull Front', default=False, description=DESC_GEO_CULL_FRONT)
+    g_cull_back: BoolProperty(name='Cull Back', default=False, description=DESC_GEO_CULL_BACK)
+    g_lighting: BoolProperty(name='Lighting', default=False, description=DESC_GEO_LIGHTING)
+    g_tex_gen: BoolProperty(name='Texture UV Generate', default=False, description=DESC_GEO_TEXTURE_GEN)
+    g_tex_gen_linear: BoolProperty(name='Texture UV Generate Linear', default=False, description=DESC_GEO_TEXTURE_GEN_LINEAR)
+    g_shade_smooth: BoolProperty(name='Shading Smooth', default=False, description=DESC_GEO_SHADING_SMOOTH)
 
 def ident(parent, settings, text_or_prop, is_text=False):
     c = parent.column(align=True)
@@ -79,3 +70,11 @@ def matgeo_draw(geomode, layout, _context):
 def matgeo_set(geomode, cmd):
     for flag, bits in GEO_FLAGS.items():
         setattr(geomode, flag, bool(cmd & bits))
+
+def geo_command(geo):
+    mode_bits = 0
+    for flag, bits in GEO_FLAGS.items():
+        mode_bits |= bits if getattr(geo, flag) else 0
+
+    return (0xb7 << 8*7) | mode_bits
+

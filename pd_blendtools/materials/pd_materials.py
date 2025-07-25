@@ -4,8 +4,8 @@ import bpy
 from bpy.types import PointerProperty, Panel
 from bpy.utils import register_classes_factory
 
-from materials.mat_geomode import GEO_FLAGS, MatGeoMode, matgeo_set, matgeo_draw
-from materials.mat_setcombine import COMBINER_PARAMWIDTHS, MatSetCombine, mat_setcombine_set, mat_setcombine_draw
+from materials.mat_geomode import *
+from materials.mat_setcombine import *
 from materials.mat_othermode_h import *
 from materials.mat_othermode_l import *
 from materials.mat_tex import *
@@ -33,7 +33,7 @@ UPPER_MODES = {
     0x11: ('g_mdsft_textdetail', f3d_enums.enumTextDetail),
     0x13: ('g_mdsft_textpersp', f3d_enums.enumTextPersp),
     0x14: ('g_mdsft_cycletype', f3d_enums.enumCycleType),
-    0x17: ('g_mdsft_pipeline', f3d_enums.enumPipelineMode),
+    0x17: ('g_mdsft_pipelinemode', f3d_enums.enumPipelineMode),
 }
 
 TEXCONV = { 0b000: 0, 0b101: 1, 0b110: 2, }
@@ -476,43 +476,6 @@ def material_setup_nodes(nodetree, matsetup):
 
         node_prev = new_node
 
-def material_new_(matsetup, use_alpha):
-    name = matsetup.id()+'_PD'
-    # if there is already a material for this texture/mode, don't create a new one
-    if name in bpy.data.materials:
-        return bpy.data.materials[name]
-
-    has_envmap = matsetup.has_envmap()
-    preset = 'ENV_MAPPING' if has_envmap else 'DIFFUSE'
-    mat = material_from_template(name, preset)
-
-    node_tex = mat.node_tree.nodes['teximage']
-    node_bsdf = mat.node_tree.nodes['p_bsdf']
-    node_vtxcolor = mat.node_tree.nodes['vtxcolor']
-    node_vtxcolor.layer_name = 'Col'
-
-    texnum = matsetup.texnum & 0xffffff
-    img = f'{texnum:04X}.png'
-    imglib = bpy.data.images
-    node_tex.image = imglib[img]
-    node_tex.extension = tex_smode(matsetup.smode)
-
-    if use_alpha:
-        mat.node_tree.links.new(node_bsdf.inputs['Alpha'], node_tex.outputs['Alpha'])
-
-    material_setup_nodes(mat.node_tree, matsetup)
-
-    if bpy.app.version < (4, 0, 0):
-        if use_alpha and not material_has_lighting(mat):
-            mat.blend_method = 'BLEND'
-
-        # to avoid transparency issues in earlier versions
-        mat.show_transparent_back = False
-
-    mat['has_envmap'] = has_envmap
-
-    return mat
-
 def material_new(matsetup, use_alpha):
     name = matsetup.id()+'_PD'
     # if there is already a material for this texture/mode, don't create a new one
@@ -694,6 +657,148 @@ def material_cmds(mat):
         cmds.append(node.get_cmd())
 
     return cmds, geobits
+
+def _material_export(mat, prevmat):
+    if mat.is_f3d:
+        return material_export_f3d(mat, prevmat)
+    elif mat.is_pd:
+        return material_export_pd(mat, prevmat)
+
+def get_texload(mat):
+    if mat.is_pd: return mat.pd_mat.texload
+    elif mat.is_f3d: return mat.f3d_mat.tex0
+    return None
+
+def mat_attr(mat, attr_pd, attr_f3d):
+    if not mat: return None
+    if mat.is_pd: return getattr(mat.pd_mat, attr_pd)
+    elif mat.is_f3d: return getattr(mat.f3d_mat, attr_f3d)
+
+    print(f'WARNING: trying to export invalid material: {mat.name}')
+    return None
+
+def material_export(mat, prevmat):
+    cmds = []
+
+    mat_prop = lambda mat0, mat1, prop_pd, prop_f3d: [mat_attr(m, prop_pd, prop_f3d) for m in [mat0, mat1]]
+
+    cmds += export_othermodeH(*mat_prop(mat, prevmat, prop_pd='othermodeH', prop_f3d='rdp_settings'))
+    cmds += export_othermodeL(*mat_prop(mat, prevmat, prop_pd='othermodeL', prop_f3d='rdp_settings'))
+
+    cmd_combiner = export_combiner(mat, prevmat)
+    if cmd_combiner:
+        cmds.append(cmd_combiner)
+
+    cmd_texconfig = export_texconfig(*mat_prop(mat, prevmat, prop_pd='texconfig', prop_f3d='tex0'))
+    if cmd_texconfig:
+        cmds.append(cmd_texconfig)
+
+    cmd_texload = export_texload(*mat_prop(mat, prevmat, prop_pd='texload', prop_f3d='tex0'))
+    if cmd_texload:
+        cmds.append(cmd_texload)
+
+    cmd_geo = export_geo(*mat_prop(mat, prevmat, prop_pd='geomode', prop_f3d='rdp_settings'))
+    if cmd_geo:
+        cmds.append(cmd_geo)
+
+    return cmds
+
+def diff(settings0, settings1, propname):
+    attr = getattr(settings0, propname)
+    return attr != 'NOT_SET' and (not settings1 or attr != getattr(settings1, propname))
+
+def export_geo(geo, prev_geo):
+    cmd = geo_command(geo)
+    prevcmd = geo_command(prev_geo) if prev_geo else 0
+
+    return cmd if cmd != prevcmd else 0
+
+def export_texload(texload, prev_texload):
+    cmd = texload_command(texload)
+    prevcmd = texload_command(prev_texload) if prev_texload else 0
+    return cmd if cmd != prevcmd else 0
+
+def get_texscale(texconfig):
+    s = texconfig.tex_scale[0]
+    t = texconfig.tex_scale[1]
+
+    s = int(texconfig.tex_scale[0] * 2 ** 16) if s != 1.0 else 0xFFFF
+    t = int(texconfig.tex_scale[1] * 2 ** 16) if t != 1.0 else 0xFFFF
+    return s, t
+
+def export_texconfig(texconfig, prev_texconfig):
+    s, t = texconfig.get_texscale()
+    b = texconfig.tile_index | (texconfig.max_lods << 3)
+    return (0xbb00 << 8*6) | (b << 8*5) | (1 << 8*4) | (s << 8*2) | t
+
+def combiner_params(mat):
+    params = {}
+
+    if mat.is_pd:
+        combiner = mat.pd_mat.combiner
+        if not combiner.set_combiner: return {}
+
+        params = {name: pdu.enum_value(combiner, name) for name in COMBINER_PARAMWIDTHS.keys()}
+    elif mat.is_f3d:
+        matf3d = mat.f3d_mat
+        if not matf3d.combiner1.set_combiner: return {}
+
+        for name in COMBINER_PARAMWIDTHS.keys():
+            combiner = matf3d.combiner1 if '1' in name else matf3d.combiner2
+            src = name[len('combinerX_')].upper()
+            alpha = '_alpha' if alpha in name else ''
+            params[name] = pdu.enum_value(combiner, f'{src}{alpha}')
+
+    return params
+
+def export_combiner(mat, prev_mat):
+    combiner = mat.pd_mat.combiner if mat.is_pd else mat.f3d_mat.combiner1
+
+    if not combiner.set_combiner: return 0
+
+    getcmd = lambda m: combiner_command(combiner_params(m))
+    cmd = getcmd(mat)
+    prevcmd = getcmd(prev_mat) if prev_mat else 0
+
+    return cmd if cmd != prevcmd else 0
+
+def export_othermodeL(othermodeL, prev_othermodeL):
+    cmds = []
+    # export alphacompare and zsource modes
+    for modename, _, mode in LOWER_MODES[:2]:
+        if diff(othermodeL, prev_othermodeL, modename):
+            ofs = mode
+            propval = pdu.enum_value(othermodeL, modename)
+
+            modebits = propval << ofs
+            n = 2 if mode == MODE_ALPHACMP else 1
+
+            cmd = (0xB900 << 8 * 6) | (mode << 8*5) | (n << 8 * 4) | modebits
+            cmds.append(cmd)
+
+    # export alphacompare and zsource modes
+    if othermodeL.set_rendermode:
+        cmd = othermodeL_rendermode_cmd(othermodeL)
+        prevcmd = othermodeL_rendermode_cmd(prev_othermodeL) if prev_othermodeL else 0
+
+        if cmd != prevcmd:
+            cmds.append(cmd)
+
+    return cmds
+
+def export_othermodeH(othermodeH, prev_othermodeH):
+    cmds = []
+    for ofs, (modename, _) in UPPER_MODES.items():
+        if diff(othermodeH, prev_othermodeH, modename):
+            n = UPPER_MODE_WIDTHS[modename]
+            modes = UPPER_ITEMS['mode']
+            modeval = pdu.enum_value(othermodeH, modename)
+            mode_bits = modeval << ofs
+
+            cmd = (0xBA00 << 8*6) | (ofs << 8*5) | (n << 8*4) | mode_bits
+            cmds.append(cmd)
+
+    return cmds
 
 def create_basic_material(name, color = None, alpha = 0.0):
     if name in bpy.data.materials:

@@ -146,43 +146,30 @@ COMBINER_PARAMWIDTHS = {
 }
 
 class MatSetCombine(PropertyGroup):
-    def on_update(self, context):
-        ofs, cmd = 0, 0
-        for name, w in COMBINER_PARAMWIDTHS.items():
-            # propval = self.enum_value(name)
-            propval = 0 # TMP
+    combiner1_a_color: make_prop('combiner1_a_color', COMBINER_ITEMS, make_id(COMBINER_ITEMS_A[-1][0]))
+    combiner1_b_color: make_prop('combiner1_b_color', COMBINER_ITEMS, make_id(COMBINER_ITEMS_B[-1][0]))
+    combiner1_c_color: make_prop('combiner1_c_color', COMBINER_ITEMS, make_id(COMBINER_ITEMS_C[-1][0]))
+    combiner1_d_color: make_prop('combiner1_d_color', COMBINER_ITEMS, make_id(COMBINER_ITEMS_D[-3][0]))
+    combiner1_a_alpha: make_prop('combiner1_a_alpha', COMBINER_ITEMS, make_id(COMBINER_ITEMS_A_ALPHA[-1][0]))
+    combiner1_b_alpha: make_prop('combiner1_b_alpha', COMBINER_ITEMS, make_id(COMBINER_ITEMS_B_ALPHA[-1][0]))
+    combiner1_c_alpha: make_prop('combiner1_c_alpha', COMBINER_ITEMS, make_id(COMBINER_ITEMS_C_ALPHA[-1][0]))
+    combiner1_d_alpha: make_prop('combiner1_d_alpha', COMBINER_ITEMS, make_id(COMBINER_ITEMS_D_ALPHA[-3][0]))
 
-            mask = (1 << w) - 1
-            cmd |= (propval & mask) << ofs
-            ofs += w
-
-        # self.cmd = f'FC{cmd:014X}'
-        # print(f'cmd = {self.cmd}')
-
-    combiner1_a_color: make_prop('combiner1_a_color', COMBINER_ITEMS, make_id(COMBINER_ITEMS_A[-1][0]), on_update)
-    combiner1_b_color: make_prop('combiner1_b_color', COMBINER_ITEMS, make_id(COMBINER_ITEMS_B[-1][0]), on_update)
-    combiner1_c_color: make_prop('combiner1_c_color', COMBINER_ITEMS, make_id(COMBINER_ITEMS_C[-1][0]), on_update)
-    combiner1_d_color: make_prop('combiner1_d_color', COMBINER_ITEMS, make_id(COMBINER_ITEMS_D[-3][0]), on_update)
-    combiner1_a_alpha: make_prop('combiner1_a_alpha', COMBINER_ITEMS, make_id(COMBINER_ITEMS_A_ALPHA[-1][0]), on_update)
-    combiner1_b_alpha: make_prop('combiner1_b_alpha', COMBINER_ITEMS, make_id(COMBINER_ITEMS_B_ALPHA[-1][0]), on_update)
-    combiner1_c_alpha: make_prop('combiner1_c_alpha', COMBINER_ITEMS, make_id(COMBINER_ITEMS_C_ALPHA[-1][0]), on_update)
-    combiner1_d_alpha: make_prop('combiner1_d_alpha', COMBINER_ITEMS, make_id(COMBINER_ITEMS_D_ALPHA[-3][0]), on_update)
-
-    combiner2_a_color: make_prop('combiner2_a_color', COMBINER_ITEMS, make_id(COMBINER_ITEMS_A[-1][0]), on_update)
-    combiner2_b_color: make_prop('combiner2_b_color', COMBINER_ITEMS, make_id(COMBINER_ITEMS_B[-1][0]), on_update)
-    combiner2_c_color: make_prop('combiner2_c_color', COMBINER_ITEMS, make_id(COMBINER_ITEMS_C[-1][0]), on_update)
-    combiner2_d_color: make_prop('combiner2_d_color', COMBINER_ITEMS, make_id(COMBINER_ITEMS_D[-3][0]), on_update)
-    combiner2_a_alpha: make_prop('combiner2_a_alpha', COMBINER_ITEMS, make_id(COMBINER_ITEMS_A_ALPHA[-1][0]), on_update)
-    combiner2_b_alpha: make_prop('combiner2_b_alpha', COMBINER_ITEMS, make_id(COMBINER_ITEMS_B_ALPHA[-1][0]), on_update)
-    combiner2_c_alpha: make_prop('combiner2_c_alpha', COMBINER_ITEMS, make_id(COMBINER_ITEMS_C_ALPHA[-1][0]), on_update)
-    combiner2_d_alpha: make_prop('combiner2_d_alpha', COMBINER_ITEMS, make_id(COMBINER_ITEMS_D_ALPHA[-3][0]), on_update)
+    combiner2_a_color: make_prop('combiner2_a_color', COMBINER_ITEMS, make_id(COMBINER_ITEMS_A[-1][0]))
+    combiner2_b_color: make_prop('combiner2_b_color', COMBINER_ITEMS, make_id(COMBINER_ITEMS_B[-1][0]))
+    combiner2_c_color: make_prop('combiner2_c_color', COMBINER_ITEMS, make_id(COMBINER_ITEMS_C[-1][0]))
+    combiner2_d_color: make_prop('combiner2_d_color', COMBINER_ITEMS, make_id(COMBINER_ITEMS_D[-3][0]))
+    combiner2_a_alpha: make_prop('combiner2_a_alpha', COMBINER_ITEMS, make_id(COMBINER_ITEMS_A_ALPHA[-1][0]))
+    combiner2_b_alpha: make_prop('combiner2_b_alpha', COMBINER_ITEMS, make_id(COMBINER_ITEMS_B_ALPHA[-1][0]))
+    combiner2_c_alpha: make_prop('combiner2_c_alpha', COMBINER_ITEMS, make_id(COMBINER_ITEMS_C_ALPHA[-1][0]))
+    combiner2_d_alpha: make_prop('combiner2_d_alpha', COMBINER_ITEMS, make_id(COMBINER_ITEMS_D_ALPHA[-3][0]))
 
     num_cycles: IntProperty(name='num_cycles', default=1)
 
-    enabled: BoolProperty(name='enabled', default=False)
+    set_combiner: BoolProperty(name='set_combiner', default=False)
 
 def mat_setcombine_set(combiner, cmd):
-    combiner.enabled = cmd != 0
+    combiner.set_combiner = cmd != 0
 
     ofs = 0
     for name, w in COMBINER_PARAMWIDTHS.items():
@@ -209,9 +196,9 @@ def draw_combiner(combiner, layout, cycle):
         layout.label(text=f'Cycle {cycle}')
 
     box = layout.box()
-    box.prop(combiner, 'enabled', text='Color Combiner (Color = (A - B) * C + D)')
+    box.prop(combiner, 'set_combiner', text='Color Combiner (Color = (A - B) * C + D)')
     container = box.row().split(factor=0.45)
-    container.enabled = combiner.enabled
+    container.enabled = combiner.set_combiner
 
     draw_combiner_props(combiner, container, 'color', cycle)
     draw_combiner_props(combiner, container, 'alpha', cycle)
@@ -228,3 +215,17 @@ def draw_combiner_props(combiner, container, channel, cycle=1):
         row = col.row().split(factor=0.25 if alpha else 0.1)
         row.label(text=f'{label}:')
         row.prop(combiner, f'combiner{cycle}_{name}{a}', text='')
+
+def combiner_command(combparams):
+    if not combparams: return 0
+
+    ofs, cmd = 0, 0
+    for name, w in COMBINER_PARAMWIDTHS.items():
+        propval = combparams[name]
+        mask = (1 << w) - 1
+        cmd |= (propval & mask) << ofs
+        ofs += w
+
+    cmd = (0xfc << 8*7) | cmd
+    return cmd
+

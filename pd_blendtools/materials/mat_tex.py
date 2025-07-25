@@ -5,6 +5,7 @@ from bpy.props import (
 from bpy.types import SpaceNodeEditor, PropertyGroup
 
 from nodes.nodeutils import *
+from utils import pd_utils as pdu
 
 from fast64.utility import prop_split, get_material_from_context
 
@@ -34,12 +35,6 @@ class MatTexConfig(PropertyGroup):
         t = int(self.tex_scale[1] * 2**16) if t != 1.0 else 0xFFFF
         return s, t
 
-    def on_update(self, _context):
-        s, t = self.get_texscale()
-
-        b = self.tile_index | (self.max_lods << 3)
-        self.cmd = f'BB00{b:02X}01{s:04X}{t:04X}'
-
     tex_scale: bpy.props.FloatVectorProperty(
         name='tex_scale',
         min=0,
@@ -47,11 +42,10 @@ class MatTexConfig(PropertyGroup):
         size=2,
         default=(1, 1),
         step=1,
-        update=on_update,
     )
 
-    tile_index: bpy.props.IntProperty(name='tile_index', default=0, min=0, max=7, update=on_update)
-    max_lods: bpy.props.IntProperty(name='max_lods', default=0, min=0, max=7, update=on_update)
+    tile_index: bpy.props.IntProperty(name='tile_index', default=0, min=0, max=7)
+    max_lods: bpy.props.IntProperty(name='max_lods', default=0, min=0, max=7)
 
 def mat_texconfig_set(texconfig, cmd):
     s = (cmd & 0xffff00) >> 8
@@ -106,7 +100,6 @@ class MatTexLoad(PropertyGroup):
         if not mat: return
 
         img_update_nodes(mat)
-
 
     image: PointerProperty(name='image', type=bpy.types.Image, update=on_update)
     smode: make_prop('smode', {'smode': TEX_WRAPMODES}, 'wrap', on_update)
@@ -170,3 +163,17 @@ def mat_tex_draw(pd_mat, layout, context):
     texconfig = pd_mat.texconfig
     box = col.box()
     mat_texconfig_draw(texconfig, box, context)
+
+def texload_command(texload):
+    img = int(texload.image.name.replace('.png', ''), 16)
+
+    smode = pdu.enum_value(texload, 'smode')
+    tmode = pdu.enum_value(texload, 'tmode')
+    offset = 2 if texload.offset else 0
+    shifts = texload.shift_s
+    shiftt = texload.shift_t
+
+    w0 = (0xc0 << 24) | (smode << 22) | (tmode << 20) | (offset << 18) | \
+         (shifts << 14) | (shiftt << 10) | (texload.lod_flag << 9) | texload.subcmd
+
+    return (w0 << 8*4) | (img & 0xffff)

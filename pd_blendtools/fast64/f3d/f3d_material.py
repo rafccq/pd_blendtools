@@ -3453,51 +3453,51 @@ class RDPSettings(PropertyGroup):
     g_mdsft_alpha_dither: bpy.props.EnumProperty(
         name="Alpha Dither",
         items=enumAlphaDither,
-        default="G_AD_DISABLE",
+        default=NOT_SET[0],
         update=update_node_values_with_preset,
-        description="Applies your choice dithering type to output framebuffer alpha. Dithering is used to convert high precision source colors into lower precision framebuffer values",
+        description=DESC_ALPHADITHER,
     )
     # v2 only
     g_mdsft_rgb_dither: bpy.props.EnumProperty(
         name="RGB Dither",
         items=enumRGBDither,
-        default="G_CD_MAGICSQ",
+        default=NOT_SET[0],
         update=update_node_values_with_preset,
-        description="Applies your choice dithering type to output framebuffer color. Dithering is used to convert high precision source colors into lower precision framebuffer values",
+        description=DESC_RGBDITHER,
     )
     g_mdsft_combkey: bpy.props.EnumProperty(
         name="Chroma Key",
         items=enumCombKey,
-        default="G_CK_NONE",
+        default=NOT_SET[0],
         update=update_node_values_with_preset,
-        description="Turns on/off the chroma key. Chroma key requires a special setup to work properly",
+        description=DESC_CHROMAKEY,
     )
     g_mdsft_textconv: bpy.props.EnumProperty(
         name="Texture Convert",
         items=enumTextConv,
-        default="G_TC_CONV",
+        default=NOT_SET[0],
         update=update_node_values_with_preset,
-        description="Sets the function of the texture convert unit, to do texture filtering, YUV to RGB conversion, or both",
+        description=DESC_TEXCONV,
     )
     g_mdsft_text_filt: bpy.props.EnumProperty(
         name="Texture Filter",
         items=enumTextFilt,
-        default="G_TF_POINT",
+        default=NOT_SET[0],
         update=update_node_values_without_preset,
-        description="Applies your choice of filtering to texels",
+        description=DESC_TEXFILTER,
     )
     g_mdsft_textlut: bpy.props.EnumProperty(
         name="Texture LUT",
         items=enumTextLUT,
-        default="G_TT_NONE",
-        description="Changes texture look up table (LUT) behavior. This property is auto set if you choose a CI texture",
+        default=NOT_SET[0],
+        description=DESC_TEXLUT,
     )
     g_mdsft_textlod: bpy.props.EnumProperty(
         name="Texture LOD",
         items=enumTextLOD,
-        default="G_TL_TILE",
+        default=NOT_SET[0],
         update=update_node_values_with_preset,
-        description="Turns on/off the use of LoD on textures. LoD textures change the used tile based on the texel/pixel ratio",
+        description=DESC_TEXLOD,
     )
     num_textures_mipmapped: bpy.props.IntProperty(
         name="Number of Mipmaps",
@@ -3509,23 +3509,23 @@ class RDPSettings(PropertyGroup):
     g_mdsft_textdetail: bpy.props.EnumProperty(
         name="Texture Detail",
         items=enumTextDetail,
-        default="G_TD_CLAMP",
+        default=NOT_SET[0],
         update=update_node_values_with_preset,
-        description="Changes type of LoD usage. Affects how tiles are selected based on texel magnification. Only works when G_TL_LOD is selected",
+        description=DESC_TEXDETAIL,
     )
     g_mdsft_textpersp: bpy.props.EnumProperty(
         name="Texture Perspective Correction",
         items=enumTextPersp,
-        default="G_TP_NONE",
+        default=NOT_SET[0],
         update=update_node_values_with_preset,
-        description="Turns on/off texture perspective correction",
+        description=DESC_TEXPERSP,
     )
     g_mdsft_cycletype: bpy.props.EnumProperty(
         name="Cycle Type",
         items=enumCycleType,
-        default="G_CYC_1CYCLE",
+        default=NOT_SET[0],
         update=update_node_values_with_preset,
-        description="Changes RDP pipeline configuration. For normal textured triangles use one or two cycle mode",
+        description=DESC_CYCLETYPE,
     )
     # v1 only
     g_mdsft_color_dither: bpy.props.EnumProperty(
@@ -3538,9 +3538,9 @@ class RDPSettings(PropertyGroup):
     g_mdsft_pipeline: bpy.props.EnumProperty(
         name="Pipeline Span Buffer Coherency",
         items=enumPipelineMode,
-        default="G_PM_NPRIMITIVE",
+        default=NOT_SET[0],
         update=update_node_values_with_preset,
-        description="Changes primitive rasterization timing by adding syncs after tri draws. Vanilla SM64 has synchronization issues which could cause a crash if not using 1 prim. For any modern SM64 hacking project or other game N-prim should always be used",
+        description=DESC_PIPELINE,
     )
 
     # lower half mode
@@ -3549,14 +3549,14 @@ class RDPSettings(PropertyGroup):
         items=enumAlphaCompare,
         default="G_AC_NONE",
         update=update_node_values_with_preset,
-        description="Uses alpha comparisons to decide if a pixel should be written. Applies before blending",
+        description=DESC_ALPHACMP
     )
     g_mdsft_zsrcsel: bpy.props.EnumProperty(
         name="Z Source Selection",
         items=enumDepthSource,
         default="G_ZS_PIXEL",
         update=update_node_values_with_preset,
-        description="Changes screen-space Z value source used for Z-Buffer calculations",
+        description=DESC_DEPTHSRC
     )
 
     prim_depth: bpy.props.PointerProperty(

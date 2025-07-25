@@ -1,94 +1,95 @@
 combiner_enums = {
     "Case A": (
-        ("COMBINED", "Combined Color", "Combined Color"),
-        ("TEXEL0", "Texture 0 Color", "Texture 0 Color"),
-        ("TEXEL1", "Texture 1 Color", "Texture 1 Color"),
-        ("PRIMITIVE", "Primitive Color", "Primitive Color"),
-        ("SHADE", "Shade Color", "Shade Color"),
-        ("ENVIRONMENT", "Environment Color", "Environment Color"),
-        ("1", "1", "1"),
-        ("NOISE", "Noise", "Noise"),
-        ("0", "0", "0"),
+        ("COMBINED", "Combined Color", "Combined Color", 0),
+        ("TEXEL0", "Texture 0 Color", "Texture 0 Color", 1),
+        ("TEXEL1", "Texture 1 Color", "Texture 1 Color", 2),
+        ("PRIMITIVE", "Primitive Color", "Primitive Color", 3),
+        ("SHADE", "Shade Color", "Shade Color", 4),
+        ("ENVIRONMENT", "Environment Color", "Environment Color", 5),
+        ("1", "1", "1", 6),
+        ("NOISE", "Noise", "Noise", 7),
+        ("0", "0", "0", 8),
     ),
     "Case B": (
-        ("COMBINED", "Combined Color", "Combined Color"),
-        ("TEXEL0", "Texture 0 Color", "Texture 0 Color"),
-        ("TEXEL1", "Texture 1 Color", "Texture 1 Color"),
-        ("PRIMITIVE", "Primitive Color", "Primitive Color"),
-        ("SHADE", "Shade Color", "Shade Color"),
-        ("ENVIRONMENT", "Environment Color", "Environment Color"),
-        ("CENTER", "Chroma Key Center", "Chroma Key Center"),
-        ("K4", "YUV Convert K4", "YUV Convert K4"),
-        ("0", "0", "0"),
+        ("COMBINED", "Combined Color", "Combined Color", 0),
+        ("TEXEL0", "Texture 0 Color", "Texture 0 Color", 1),
+        ("TEXEL1", "Texture 1 Color", "Texture 1 Color", 2),
+        ("PRIMITIVE", "Primitive Color", "Primitive Color", 3),
+        ("SHADE", "Shade Color", "Shade Color", 4),
+        ("ENVIRONMENT", "Environment Color", "Environment Color", 5),
+        ("CENTER", "Chroma Key Center", "Chroma Key Center", 6),
+        ("K4", "YUV Convert K4", "YUV Convert K4", 7),
+        ("0", "0", "0", 15),
     ),
     "Case C": (
-        ("COMBINED", "Combined Color", "Combined Color"),
-        ("TEXEL0", "Texture 0 Color", "Texture 0 Color"),
-        ("TEXEL1", "Texture 1 Color", "Texture 1 Color"),
-        ("PRIMITIVE", "Primitive Color", "Primitive Color"),
-        ("SHADE", "Shade Color", "Shade Color"),
-        ("ENVIRONMENT", "Environment Color", "Environment Color"),
-        ("SCALE", "Chroma Key Scale", "Chroma Key Scale"),
-        ("COMBINED_ALPHA", "Combined Color Alpha", "Combined Color Alpha"),
-        ("TEXEL0_ALPHA", "Texture 0 Alpha", "Texture 0 Alpha"),
-        ("TEXEL1_ALPHA", "Texture 1 Alpha", "Texture 1 Alpha"),
-        ("PRIMITIVE_ALPHA", "Primitive Color Alpha", "Primitive Color Alpha"),
-        ("SHADE_ALPHA", "Shade Color Alpha", "Shade Color Alpha"),
-        ("ENV_ALPHA", "Environment Color Alpha", "Environment Color Alpha"),
-        ("LOD_FRACTION", "LOD Fraction", "LOD Fraction"),
-        ("PRIM_LOD_FRAC", "Primitive LOD Fraction", "Primitive LOD Fraction"),
-        ("K5", "YUV Convert K5", "YUV Convert K5"),
-        ("0", "0", "0"),
+        ("COMBINED", "Combined Color", "Combined Color", 0),
+        ("TEXEL0", "Texture 0 Color", "Texture 0 Color", 1),
+        ("TEXEL1", "Texture 1 Color", "Texture 1 Color", 2),
+        ("PRIMITIVE", "Primitive Color", "Primitive Color", 3),
+        ("SHADE", "Shade Color", "Shade Color", 4),
+        ("ENVIRONMENT", "Environment Color", "Environment Color", 5),
+        ("SCALE", "Chroma Key Scale", "Chroma Key Scale", 6),
+        ("COMBINED_ALPHA", "Combined Color Alpha", "Combined Color Alpha", 7),
+        ("TEXEL0_ALPHA", "Texture 0 Alpha", "Texture 0 Alpha", 8),
+        ("TEXEL1_ALPHA", "Texture 1 Alpha", "Texture 1 Alpha", 9),
+        ("PRIMITIVE_ALPHA", "Primitive Color Alpha", "Primitive Color Alpha", 0xa),
+        ("SHADE_ALPHA", "Shade Color Alpha", "Shade Color Alpha", 0xb),
+        ("ENV_ALPHA", "Environment Color Alpha", "Environment Color Alpha", 0xc),
+        ("LOD_FRACTION", "LOD Fraction", "LOD Fraction", 0xd),
+        ("PRIM_LOD_FRAC", "Primitive LOD Fraction", "Primitive LOD Fraction", 0xe),
+        ("K5", "YUV Convert K5", "YUV Convert K5", 0xf),
+        ("0", "0", "0", 0x1f),
     ),
     "Case D": (
-        ("COMBINED", "Combined Color", "Combined Color"),
-        ("TEXEL0", "Texture 0 Color", "Texture 0 Color"),
-        ("TEXEL1", "Texture 1 Color", "Texture 1 Color"),
-        ("PRIMITIVE", "Primitive Color", "Primitive Color"),
-        ("SHADE", "Shade Color", "Shade Color"),
-        ("ENVIRONMENT", "Environment Color", "Environment Color"),
-        ("1", "1", "1"),
-        ("0", "0", "0"),
+        ("COMBINED", "Combined Color", "Combined Color", 0),
+        ("TEXEL0", "Texture 0 Color", "Texture 0 Color", 1),
+        ("TEXEL1", "Texture 1 Color", "Texture 1 Color", 2),
+        ("PRIMITIVE", "Primitive Color", "Primitive Color", 3),
+        ("SHADE", "Shade Color", "Shade Color", 4),
+        ("ENVIRONMENT", "Environment Color", "Environment Color", 5),
+        ("1", "1", "1", 6),
+        ("0", "0", "0", 7),
     ),
     "Case A Alpha": (
-        ("COMBINED", "Combined Color Alpha", "Combined Color Alpha"),
-        ("TEXEL0", "Texture 0 Alpha", "Texture 0 Alpha"),
-        ("TEXEL1", "Texture 1 Alpha", "Texture 1 Alpha"),
-        ("PRIMITIVE", "Primitive Color Alpha", "Primitive Color Alpha"),
-        ("SHADE", "Shade Color Alpha", "Shade Color Alpha"),
-        ("ENVIRONMENT", "Environment Color Alpha", "Environment Color Alpha"),
-        ("1", "1", "1"),
-        ("0", "0", "0"),
+        ("COMBINED", "Combined Color Alpha", "Combined Color Alpha", 0),
+        ("TEXEL0", "Texture 0 Alpha", "Texture 0 Alpha", 1),
+        ("TEXEL1", "Texture 1 Alpha", "Texture 1 Alpha", 2),
+        ("PRIMITIVE", "Primitive Color Alpha", "Primitive Color Alpha", 3),
+        ("SHADE", "Shade Color Alpha", "Shade Color Alpha", 4),
+        ("ENVIRONMENT", "Environment Color Alpha", "Environment Color Alpha", 5),
+        ("1", "1", "1", 6),
+        ("0", "0", "0", 7),
     ),
     "Case B Alpha": (
-        ("COMBINED", "Combined Color Alpha", "Combined Color Alpha"),
-        ("TEXEL0", "Texture 0 Alpha", "Texture 0 Alpha"),
-        ("TEXEL1", "Texture 1 Alpha", "Texture 1 Alpha"),
-        ("PRIMITIVE", "Primitive Color Alpha", "Primitive Color Alpha"),
-        ("SHADE", "Shade Color Alpha", "Shade Color Alpha"),
-        ("ENVIRONMENT", "Environment Color Alpha", "Environment Color Alpha"),
-        ("1", "1", "1"),
-        ("0", "0", "0"),
+        ("COMBINED", "Combined Color Alpha", "Combined Color Alpha", 0),
+        ("TEXEL0", "Texture 0 Alpha", "Texture 0 Alpha", 1),
+        ("TEXEL1", "Texture 1 Alpha", "Texture 1 Alpha", 2),
+        ("PRIMITIVE", "Primitive Color Alpha", "Primitive Color Alpha", 3),
+        ("SHADE", "Shade Color Alpha", "Shade Color Alpha", 4),
+        ("ENVIRONMENT", "Environment Color Alpha", "Environment Color Alpha", 5),
+        ("1", "1", "1", 6),
+        ("0", "0", "0", 7),
+        ("Noise", "Noise", "Noise", 15),
     ),
     "Case C Alpha": (
-        ("LOD_FRACTION", "LOD Fraction", "LOD Fraction"),
-        ("TEXEL0", "Texture 0 Alpha", "Texture 0 Alpha"),
-        ("TEXEL1", "Texture 1 Alpha", "Texture 1 Alpha"),
-        ("PRIMITIVE", "Primitive Color Alpha", "Primitive Color Alpha"),
-        ("SHADE", "Shade Color Alpha", "Shade Color Alpha"),
-        ("ENVIRONMENT", "Environment Color Alpha", "Environment Color Alpha"),
-        ("PRIM_LOD_FRAC", "Primitive LOD Fraction", "Primitive LOD Fraction"),
-        ("0", "0", "0"),
+        ("LOD_FRACTION", "LOD Fraction", "LOD Fraction", 0),
+        ("TEXEL0", "Texture 0 Alpha", "Texture 0 Alpha", 1),
+        ("TEXEL1", "Texture 1 Alpha", "Texture 1 Alpha", 2),
+        ("PRIMITIVE", "Primitive Color Alpha", "Primitive Color Alpha", 3),
+        ("SHADE", "Shade Color Alpha", "Shade Color Alpha", 4),
+        ("ENVIRONMENT", "Environment Color Alpha", "Environment Color Alpha", 5),
+        ("PRIM_LOD_FRAC", "Primitive LOD Fraction", "Primitive LOD Fraction", 6),
+        ("0", "0", "0", 7),
     ),
     "Case D Alpha": (
-        ("COMBINED", "Combined Color Alpha", "Combined Color Alpha"),
-        ("TEXEL0", "Texture 0 Alpha", "Texture 0 Alpha"),
-        ("TEXEL1", "Texture 1 Alpha", "Texture 1 Alpha"),
-        ("PRIMITIVE", "Primitive Color Alpha", "Primitive Color Alpha"),
-        ("SHADE", "Shade Color Alpha", "Shade Color Alpha"),
-        ("ENVIRONMENT", "Environment Color Alpha", "Environment Color Alpha"),
-        ("1", "1", "1"),
-        ("0", "0", "0"),
+        ("COMBINED", "Combined Color Alpha", "Combined Color Alpha", 0),
+        ("TEXEL0", "Texture 0 Alpha", "Texture 0 Alpha", 1),
+        ("TEXEL1", "Texture 1 Alpha", "Texture 1 Alpha", 2),
+        ("PRIMITIVE", "Primitive Color Alpha", "Primitive Color Alpha", 3),
+        ("SHADE", "Shade Color Alpha", "Shade Color Alpha", 4),
+        ("ENVIRONMENT", "Environment Color Alpha", "Environment Color Alpha", 5),
+        ("1", "1", "1", 6),
+        ("0", "0", "0", 7),
     ),
 }
 
@@ -147,64 +148,94 @@ combinerToNodeDictAlpha = {
     "0": ("0", 0),
 }
 
+DESC_ALPHADITHER = "Applies your choice dithering type to output framebuffer alpha. Dithering is used to convert high precision source colors into lower precision framebuffer values"
+DESC_RGBDITHER = "Applies your choice dithering type to output framebuffer color. Dithering is used to convert high precision source colors into lower precision framebuffer values"
+DESC_CHROMAKEY = "Turns on/off the chroma key. Chroma key requires a special setup to work properly"
+DESC_TEXCONV = "Sets the function of the texture convert unit, to do texture filtering, YUV to RGB conversion, or both"
+DESC_TEXFILTER = "Applies your choice of filtering to texels"
+DESC_TEXLUT = "Changes texture look up table (LUT) behavior. This property is auto set if you choose a CI texture"
+DESC_TEXLOD = "Turns on/off the use of LoD on textures. LoD textures change the used tile based on the texel/pixel ratio"
+DESC_TEXDETAIL = "Changes type of LoD usage. Affects how tiles are selected based on texel magnification. Only works when G_TL_LOD is selected"
+DESC_TEXPERSP = "Turns on/off texture perspective correction"
+DESC_CYCLETYPE = "Changes RDP pipeline configuration. For normal textured triangles use one or two cycle mode"
+DESC_PIPELINE = "Changes primitive rasterization timing by adding syncs after tri draws. Vanilla SM64 has synchronization issues which could cause a crash if not using 1 prim. For any modern SM64 hacking project or other game N-prim should always be used"
+
+
+DESC_ALPHACMP = "Uses alpha comparisons to decide if a pixel should be written. Applies before blending"
+DESC_DEPTHSRC = "Changes screen-space Z value source used for Z-Buffer calculations"
+
+NOT_SET = ('NOT_SET', '[Not Set]', 'Command will not be emitted', 0xff)
+
+
+DESC_GEO_ZBUFFER = "Enables calculation of Z value for primitives. Disable if not reading or writing Z-Buffer in the blender",
+DESC_GEO_SHADE = "Computes shade coordinates for primitives. Disable if not using lighting, vertex colors or fog",
+DESC_GEO_CULL_FRONT = "Disables drawing of front faces",
+DESC_GEO_CULL_BACK = "Disables drawing of back faces",
+DESC_GEO_LIGHTING = "Enables calculating shade color using lights. Turn off for vertex colors as shade color",
+DESC_GEO_TEXTURE_GEN = "Generates texture coordinates for reflection mapping based on vertex normals and lookat direction. On a skybox texture, maps the sky to the center of the texture and the ground to a circle inscribed in the border. Requires lighting enabled to use",
+DESC_GEO_TEXTURE_GEN_LINEAR = "Modifies the texgen mapping; enable with texgen. Use a normal panorama image for the texture, with the sky at the top and the ground at the bottom. Requires lighting enabled to use",
+DESC_GEO_SHADING_SMOOTH = "Shades primitive smoothly using interpolation between shade values for each vertex (Gouraud shading)",
+
+
 # hardware v2
 enumAlphaDither = [
-    ("G_AD_PATTERN", "Pattern", "Pattern"),
-    ("G_AD_NOTPATTERN", "NOT Pattern", "NOT Pattern"),
-    ("G_AD_NOISE", "Noise", "Noise"),
-    ("G_AD_DISABLE", "Disable", "Disable"),
-    ("[Not Set]", "Not Set", "Not Set (Command will not be emitted)"),
+    ("G_AD_PATTERN", "Pattern", "Pattern",            0b00),
+    ("G_AD_NOTPATTERN", "NOT Pattern", "NOT Pattern", 0b01),
+    ("G_AD_NOISE", "Noise", "Noise",                  0b10),
+    ("G_AD_DISABLE", "Disable", "Disable",            0b11),
+    NOT_SET
 ]
 
 # hardware v2
 enumRGBDither = [
-    ("G_CD_MAGICSQ", "Magic Square", "Magic Square"),
-    ("G_CD_BAYER", "Bayer", "Bayer"),
-    ("G_CD_NOISE", "Noise", "Noise"),
-    ("G_CD_DISABLE", "Disable", "Disable"),
-    ("G_CD_ENABLE", "Enable", "Enable"),
-    ("[Not Set]", "Not Set", "Not Set (Command will not be emitted)"),
+    ("G_CD_MAGICSQ", "Magic Square", "Magic Square", 0b00),
+    ("G_CD_BAYER", "Bayer", "Bayer",       0b01),
+    ("G_CD_NOISE", "Noise", "Noise",       0b10),
+    ("G_CD_DISABLE", "Disable", "Disable", 0b11),
+    NOT_SET
 ]
 
 enumCombKey = [
-    ("G_CK_NONE", "None", "Disables chroma key."),
-    ("G_CK_KEY", "Key", "Enables chroma key."),
-    ("[Not Set]", "Not Set", "Not Set (Command will not be emitted)"),
+    ("G_CK_NONE", "None", "Disables chroma key.", 0),
+    ("G_CK_KEY", "Key", "Enables chroma key.",    1),
+    NOT_SET
 ]
 
 enumTextConv = [
-    ("G_TC_CONV", "Convert", "Convert YUV to RGB"),
+    ("G_TC_CONV", "Convert", "Convert YUV to RGB", 0b000),
     (
         "G_TC_FILTCONV",
         "Filter And Convert",
         "Applies chosen filter on cycle 1 and converts YUB to RGB in the second cycle",
+         0b101
     ),
-    ("G_TC_FILT", "Filter", "Applies chosen filter on textures with no color conversion"),
-    ("[Not Set]", "Not Set", "Not Set (Command will not be emitted)"),
+    ("G_TC_FILT", "Filter", "Applies chosen filter on textures with no color conversion", 0b110),
+    NOT_SET
 ]
 
 enumTextFilt = [
-    ("G_TF_POINT", "Point", "Point filtering"),
-    ("G_TF_AVERAGE", "Average", "Four sample filter, not recommended except for pixel aligned texrects"),
-    ("G_TF_BILERP", "Bilinear", "Standard N64 filtering with 3 point sample"),
-    ("[Not Set]", "Not Set", "Not Set (Command will not be emitted)"),
+    ("G_TF_POINT", "Point", "Point filtering", 0b00),
+    ("G_TF_AVERAGE", "Average", "Four sample filter, not recommended except for pixel aligned texrects", 0b10),
+    ("G_TF_BILERP", "Bilinear", "Standard N64 filtering with 3 point sample", 0b11),
+    NOT_SET
 ]
 
 enumTextLUT = [
-    ("G_TT_NONE", "None", "None"),
-    ("G_TT_RGBA16", "RGBA16", "RGBA16"),
-    ("G_TT_IA16", "IA16", "IA16"),
-    ("[Not Set]", "Not Set", "Not Set (Command will not be emitted)"),
+    ("G_TT_NONE", "None", "None", 0b00),
+    ("G_TT_RGBA16", "RGBA16", "RGBA16", 0b10),
+    ("G_TT_IA16", "IA16", "IA16", 0b11),
+    NOT_SET
 ]
 
 enumTextLOD = [
-    ("G_TL_TILE", "Tile", "Shows selected color combiner tiles"),
+    ("G_TL_TILE", "Tile", "Shows selected color combiner tiles", 0),
     (
         "G_TL_LOD",
         "LoD",
         "Enables LoD calculations, LoD tile is base tile + clamp(log2(texel/pixel)), remainder of log2(texel/pixel) ratio gets stored to LoD Fraction in the color combiner",
+        1
     ),
-    ("[Not Set]", "Not Set", "Not Set (Command will not be emitted)"),
+    NOT_SET
 ]
 
 enumTextDetail = [
@@ -212,24 +243,25 @@ enumTextDetail = [
         "G_TD_CLAMP",
         "Clamp",
         "Shows base tile for texel0 and texel 1 when magnifying (>1 texel/pixel), else shows LoD tiles",
+        0b00
     ),
-    ("G_TD_SHARPEN", "Sharpen", "Sharpens pixel colors when magnifying (<1 texel/pixel), always shows LoD tiles"),
-    ("G_TD_DETAIL", "Detail", "Shows base tile when magnifying (<1 texel/pixel), else shows LoD tiles + 1"),
-    ("[Not Set]", "Not Set", "Not Set (Command will not be emitted)"),
+    ("G_TD_SHARPEN", "Sharpen", "Sharpens pixel colors when magnifying (<1 texel/pixel), always shows LoD tiles", 0b01),
+    ("G_TD_DETAIL", "Detail", "Shows base tile when magnifying (<1 texel/pixel), else shows LoD tiles + 1", 0b010),
+    NOT_SET
 ]
 
 enumTextPersp = [
-    ("G_TP_NONE", "None", "None"),
-    ("G_TP_PERSP", "Perspective", "Perspective"),
-    ("[Not Set]", "Not Set", "Not Set (Command will not be emitted)"),
+    ("G_TP_NONE", "None", "None", 0),
+    ("G_TP_PERSP", "Perspective", "Perspective", 1),
+    NOT_SET
 ]
 
 enumCycleType = [
-    ("G_CYC_1CYCLE", "1 Cycle", "1 Cycle"),
-    ("G_CYC_2CYCLE", "2 Cycle", "2 Cycle"),
-    ("G_CYC_COPY", "Copy", "Copies texture values to framebuffer with no perspective correction or blending"),
-    ("G_CYC_FILL", "Fill", "Uses fill color to fill primitve"),
-    ("[Not Set]", "Not Set", "Not Set (Command will not be emitted)"),
+    ("G_CYC_1CYCLE", "1 Cycle", "1 Cycle", 0b00),
+    ("G_CYC_2CYCLE", "2 Cycle", "2 Cycle", 0b01),
+    ("G_CYC_COPY", "Copy", "Copies texture values to framebuffer with no perspective correction or blending", 0b10),
+    ("G_CYC_FILL", "Fill", "Uses fill color to fill primitve", 0b11),
+    NOT_SET
 ]
 
 enumColorDither = [
@@ -243,26 +275,28 @@ enumPipelineMode = [
         "G_PM_1PRIMITIVE",
         "1 Primitive",
         "Adds in pipe sync after every tri draw. Adds significant amounts of lag. Only use in vanilla SM64 hacking projects",
+        0
     ),
     (
         "G_PM_NPRIMITIVE",
         "N Primitive",
         "No additional syncs are added after tri draws. Default option for every game but vanilla SM64",
+        1
     ),
-    ("[Not Set]", "Not Set", "Not Set (Command will not be emitted)"),
+    NOT_SET
 ]
 
 enumAlphaCompare = [
     ("G_AC_NONE", "None", "No alpha comparison is made, writing is based on coverage"),
     ("G_AC_THRESHOLD", "Threshold", "Writes if alpha is greater than blend color alpha"),
     ("G_AC_DITHER", "Dither", "Writes if alpha is greater than random value"),
-    ("[Not Set]", "Not Set", "Not Set (Command will not be emitted)"),
+    NOT_SET
 ]
 
 enumDepthSource = [
     ("G_ZS_PIXEL", "Pixel", "Z value is calculated per primitive pixel"),
     ("G_ZS_PRIM", "Primitive", "Uses prim depth to set Z value, does not work on HLE emulation"),
-    ("[Not Set]", "Not Set", "Not Set (Command will not be emitted)"),
+    NOT_SET
 ]
 
 enumCoverage = [

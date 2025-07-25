@@ -520,10 +520,18 @@ def waypoint_remove_neighbour(pd_waypoint, padnum):
             neighbours_coll.remove(idx)
             return
 
-def enum_value(bl_obj, enum_name, propval):
+def enum_items(bl_obj, enum_name):
     prop = bl_obj.bl_rna.properties[enum_name]
-    items = prop.enum_items
-    return items.get(propval).value
+    return prop.enum_items
+
+def enum_value(prop, enum_name):
+    id = getattr(prop, enum_name)
+    return enum_items(prop, enum_name).get(id).value
+
+def enum_from_value(enum_items, value):
+    for e in enum_items:
+        if e.value == value: return e
+    return None
 
 def get_view_location():
     area = next(area for area in bpy.context.screen.areas if area.type == 'VIEW_3D')

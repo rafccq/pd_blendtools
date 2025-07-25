@@ -356,20 +356,22 @@ def create_gdl(mesh: ExportMeshData, segment_vtx, segment_col, env_enabled=False
 
     geobits = 0
     env_emitted = False
-    prevmat = -1
+    prevmat_idx = -1
     for idx, batch in enumerate(mesh.batches):
         if batch.mat < 0: continue
 
         # don't emmit the material cmds if this batch material is the same as the previous
-        if batch.mat != prevmat:
+        if batch.mat != prevmat_idx:
             mat = materials[batch.mat]
-            mat_cmds, mat_geobits = pdm.material_cmds(mat)
+            prevmat = materials[prevmat_idx] if prevmat_idx >= 0 else None
+            mat_cmds = pdm.material_export(mat, prevmat)
+            mat_geobits = pdm.geo_command(pdm.mat_attr(mat, 'geomode', 'rdp_settings')) & 0xffffffff
 
             geobits |= mat_geobits
             for cmd in mat_cmds:
-                gdlbytes += bytearray.fromhex(cmd)
+                gdlbytes += cmd.to_bytes(8, 'big')
 
-        prevmat = batch.mat
+        prevmat_idx = batch.mat
 
         if env_enabled and not env_emitted:
             gdlbytes += pdm.cmd_G_SETENVCOLOR(0xff)

@@ -5,156 +5,94 @@ from nodes.nodeutils import *
 from utils import pd_utils as pdu
 
 from fast64.utility import prop_split
+from fast64.f3d import f3d_enums
 
 
-UPPER_MODES = [
-    ('g_mdsft_alphadither',  'Alpha Dither',              0x4),
-    ('g_mdsft_rgbdither',    'RGB Dither',                0x6),
-    ('g_mdsft_chromakey',    'Chroma Key',                0x8),
-    ('g_mdsft_texconv',      'Texture Convert',           0x9),
-    ('g_mdsft_texfilter',    'Texture Filter',            0x0c),
-    ('g_mdsft_texlut',       'Texture LUT',               0x0e),
-    ('g_mdsft_texlod',       'Texture LOD',               0x10),
-    ('g_mdsft_texdetail',    'Texture Detail',            0x11),
-    ('g_mdsft_texperspcorr', 'Texture Persp. Correction', 0x13),
-    ('g_mdsft_cycletype',    'Cycle Type',                0x14),
-    ('g_mdsft_pipelinemode', 'Pipeline Mode',             0x17),
-]
+DESC_ALPHADITHER = f3d_enums.DESC_ALPHADITHER
+DESC_RGBDITHER   = f3d_enums.DESC_RGBDITHER
+DESC_CHROMAKEY   = f3d_enums.DESC_CHROMAKEY
+DESC_TEXCONV     = f3d_enums.DESC_TEXCONV
+DESC_TEXFILTER   = f3d_enums.DESC_TEXFILTER
+DESC_TEXLUT      = f3d_enums.DESC_TEXLUT
+DESC_TEXLOD      = f3d_enums.DESC_TEXLOD
+DESC_TEXDETAIL   = f3d_enums.DESC_TEXDETAIL
+DESC_TEXPERSP    = f3d_enums.DESC_TEXPERSP
+DESC_CYCLETYPE   = f3d_enums.DESC_CYCLETYPE
+DESC_PIPELINE    = f3d_enums.DESC_PIPELINE
 
-UPPER_ALPHADITHER = [
-    ('Pattern', 'Pattern description',       0b00),
-    ('No pattern', 'No pattern description', 0b01),
-    ('Noise', 'Noise description',           0b10),
-    ('Disable', 'Disable description',       0b11),
-    ('[Not Set]', 'Not Set',       0xff),
-]
+ENUM_ALPHADITHER = f3d_enums.enumAlphaDither
+ENUM_RGBDITHER = f3d_enums.enumRGBDither
+ENUM_CHROMAKEY   = f3d_enums.enumCombKey
+ENUM_TEXCONV     = f3d_enums.enumTextConv
+ENUM_TEXFILTER   = f3d_enums.enumTextFilt
+ENUM_TEXLUT      = f3d_enums.enumTextLUT
+ENUM_TEXLOD      = f3d_enums.enumTextLOD
+ENUM_TEXDETAIL   = f3d_enums.enumTextDetail
+ENUM_TEXPERSP    = f3d_enums.enumTextPersp
+ENUM_CYCLETYPE   = f3d_enums.enumCycleType
+ENUM_PIPELINE    = f3d_enums.enumPipelineMode
 
-UPPER_RGBDITHER = [
-    ('Magic Square', 'Magic Square Description', 0b00),
-    ('Bayer',        'Bayer',   0b01),
-    ('Noise',        'Noise',   0b10),
-    ('Disable',      'Disable', 0b11),
-    ('[Not Set]',      'Not Set', 0xff),
-]
+NOT_SET = f3d_enums.NOT_SET
 
-UPPER_CHROMAKEY = [
-    ('None', 'None Description', 0),
-    ('Key', 'Key Description',   1),
-    ('[Not Set]', 'Not Set',   0xff),
-]
 
-UPPER_TEXCONV = [
-    ('Convert', 'Convert description',                   0b000),
-    ('Filter and Convert', 'Filter/Convert description', 0b101),
-    ('Filter', 'Filter description',                     0b110),
-    ('[Not Set]', 'Not Set',                     0xff),
-]
-
-UPPER_TEXFILTER = [
-    ('Filter', 'Filter description',     0b00),
-    ('Average', 'Average description',   0b10),
-    ('Bilinear', 'Bilinear description', 0b11),
-    ('[Not Set]', 'Not Set', 0xff),
-]
-
-UPPER_TEXLUT = [
-    ('None', 'None',     0b00),
-    ('RGBA16', 'RGBA16', 0b10),
-    ('IA16', 'IA16',     0b11),
-    ('[Not Set]', 'Not Set',     0xff),
-]
-
-UPPER_TEXLOD = [
-    ('Tile', 'Tile description', 0),
-    ('Lod', 'Lod description',   1),
-    ('[Not Set]', 'Not Set',   0xff),
-]
-
-UPPER_TEXDETAIL = [
-    ('Clamp', 'Clamp description',     0b00),
-    ('Sharpen', 'Sharpen description', 0b01),
-    ('Detail', 'Detail description',   0b10),
-    ('[Not Set]', 'Not Set',   0xff),
-]
-
-UPPER_TEXPERSPCORR = [
-    ('None', 'None description', 0),
-    ('Perspective', 'Perspective description', 1),
-    ('[Not Set]', 'Not Set', 0xff),
-]
-
-UPPER_CYCLETYPE = [
-    ('1 Cycle', '1 Cycle description', 0b00),
-    ('2 Cycle', '2 Cycle description', 0b01),
-    ('Copy', 'Copy description', 0b10),
-    ('Fill', 'Fill description', 0b11),
-    ('[Not Set]', 'Not Set', 0xff),
-]
-
-UPPER_PIPELINEMODE = [
-    ('1 Primitive', '1 Primitive description', 0),
-    ('N Primitive', 'N Primitive description', 1),
-    ('[Not Set]', 'Not Set', 0xff),
+ENUM_UPPER_MODES = [
+    ('g_mdsft_alpha_dither',  'Alpha Dither',              0x4),
+    ('g_mdsft_rgb_dither',    'RGB Dither',                0x6),
+    ('g_mdsft_combkey',       'Chroma Key',                0x8),
+    ('g_mdsft_textconv',      'Texture Convert',           0x9),
+    ('g_mdsft_text_filt',     'Texture Filter',            0x0c),
+    ('g_mdsft_textlut',       'Texture LUT',               0x0e),
+    ('g_mdsft_textlod',       'Texture LOD',               0x10),
+    ('g_mdsft_textdetail',    'Texture Detail',            0x11),
+    ('g_mdsft_textpersp',     'Texture Persp. Correction', 0x13),
+    ('g_mdsft_cycletype',     'Cycle Type',                0x14),
+    ('g_mdsft_pipelinemode',  'Pipeline Mode',             0x17),
 ]
 
 UPPER_ITEMS = {
-    'mode':                 UPPER_MODES,
-    'g_mdsft_alphadither':  UPPER_ALPHADITHER,
-    'g_mdsft_rgbdither':    UPPER_RGBDITHER,
-    'g_mdsft_chromakey':    UPPER_CHROMAKEY,
-    'g_mdsft_texconv':      UPPER_TEXCONV,
-    'g_mdsft_texfilter':    UPPER_TEXFILTER,
-    'g_mdsft_texlut':       UPPER_TEXLUT,
-    'g_mdsft_texlod':       UPPER_TEXLOD,
-    'g_mdsft_texdetail':    UPPER_TEXDETAIL,
-    'g_mdsft_texperspcorr': UPPER_TEXPERSPCORR,
-    'g_mdsft_cycletype':    UPPER_CYCLETYPE,
-    'g_mdsft_pipelinemode': UPPER_PIPELINEMODE,
+    'mode':                  ENUM_UPPER_MODES,
+    'g_mdsft_alpha_dither':  ENUM_ALPHADITHER,
+    'g_mdsft_rgb_dither':    ENUM_RGBDITHER,
+    'g_mdsft_combkey':       ENUM_CHROMAKEY,
+    'g_mdsft_textconv':      ENUM_TEXCONV,
+    'g_mdsft_text_filt':     ENUM_TEXFILTER,
+    'g_mdsft_textlut':       ENUM_TEXLUT,
+    'g_mdsft_textlod':       ENUM_TEXLOD,
+    'g_mdsft_textdetail':    ENUM_TEXDETAIL,
+    'g_mdsft_textpersp':     ENUM_TEXPERSP,
+    'g_mdsft_cycletype':     ENUM_CYCLETYPE,
+    'g_mdsft_pipelinemode':  ENUM_PIPELINE,
 }
 
 UPPER_MODE_WIDTHS = {
-    'g_mdsft_alphadither': 2,
-    'g_mdsft_rgbdither': 2,
-    'g_mdsft_chromakey': 1,
-    'g_mdsft_texconv': 3,
-    'g_mdsft_texfilter': 2,
-    'g_mdsft_texlut': 2,
-    'g_mdsft_texlod': 1,
-    'g_mdsft_texdetail': 2,
-    'g_mdsft_texperspcorr': 1,
+    'g_mdsft_alpha_dither': 2,
+    'g_mdsft_rgb_dither': 2,
+    'g_mdsft_combkey': 1,
+    'g_mdsft_textconv': 3,
+    'g_mdsft_text_filt': 2,
+    'g_mdsft_textlut': 2,
+    'g_mdsft_textlod': 1,
+    'g_mdsft_textdetail': 2,
+    'g_mdsft_textpersp': 1,
     'g_mdsft_cycletype': 2,
     'g_mdsft_pipelinemode': 1,
 }
 
 
 class MatOtherModeH(PropertyGroup):
-    def on_update(self, context, propname):
-        propval = self.bl_rna.properties[enum_name]
+    g_mdsft_alpha_dither: EnumProperty( name="Alpha Dither", items=ENUM_ALPHADITHER, default=NOT_SET[0], description=DESC_ALPHADITHER)
+    g_mdsft_rgb_dither: EnumProperty(name="RGB Dither", items=ENUM_RGBDITHER, default=NOT_SET[0], description=DESC_ALPHADITHER)
+    g_mdsft_combkey: EnumProperty(name="Chroma Key", items=ENUM_CHROMAKEY, default=NOT_SET[0], description=DESC_ALPHADITHER)
+    g_mdsft_textconv: EnumProperty(name="Texture Conv", items=ENUM_TEXCONV, default=NOT_SET[0], description=DESC_TEXCONV)
+    g_mdsft_text_filt: EnumProperty(name="Texture Filter", items=ENUM_TEXFILTER, default=NOT_SET[0], description=DESC_TEXFILTER)
+    g_mdsft_textlut: EnumProperty(name="Texture LUT", items=ENUM_TEXLUT, default=NOT_SET[0], description=DESC_TEXLUT)
+    g_mdsft_textlod: EnumProperty(name="Texture LOD", items=ENUM_TEXLOD, default=NOT_SET[0], description=DESC_TEXLOD)
+    g_mdsft_textdetail: EnumProperty(name="Texture Detail", items=ENUM_TEXDETAIL, default=NOT_SET[0], description=DESC_TEXDETAIL)
+    g_mdsft_textpersp: EnumProperty(name="Texture Persp Corr", items=ENUM_TEXPERSP, default=NOT_SET[0], description=DESC_TEXPERSP)
+    g_mdsft_cycletype: EnumProperty(name="Cycle Type", items=ENUM_CYCLETYPE, default=NOT_SET[0], description=DESC_CYCLETYPE)
+    g_mdsft_pipelinemode: EnumProperty(name="Pipeline Mode", items=ENUM_PIPELINE, default=NOT_SET[0], description=DESC_PIPELINE)
 
-        mode = self.mode
-        modeval = self.enum_value('mode')
 
-        propname = mode if propname == 'mode' else propname
-        n = UPPER_MODE_WIDTHS[propname]
-        modes = UPPER_ITEMS['mode']
-        ofs = next(filter(lambda e: e[0] == propname, modes))[2]
-        mode_bits = propval << ofs
-
-        self.cmd = f'BA00{modeval:02X}{n:02X}{mode_bits:08X}'
-
-    g_mdsft_alphadither: make_prop('g_mdsft_alphadither', UPPER_ITEMS, 'notset')
-    g_mdsft_rgbdither: make_prop('g_mdsft_rgbdither', UPPER_ITEMS, 'notset')
-    g_mdsft_chromakey: make_prop('g_mdsft_chromakey', UPPER_ITEMS, 'notset')
-    g_mdsft_texconv: make_prop('g_mdsft_texconv', UPPER_ITEMS, 'notset')
-    g_mdsft_texfilter: make_prop('g_mdsft_texfilter', UPPER_ITEMS, 'notset')
-    g_mdsft_texlut: make_prop('g_mdsft_texlut', UPPER_ITEMS, 'notset')
-    g_mdsft_texlod: make_prop('g_mdsft_texlod', UPPER_ITEMS, 'notset')
-    g_mdsft_texdetail: make_prop('g_mdsft_texdetail', UPPER_ITEMS, 'notset')
-    g_mdsft_texperspcorr: make_prop('g_mdsft_texperspcorr', UPPER_ITEMS, 'notset')
-    g_mdsft_cycletype: make_prop('g_mdsft_cycletype', UPPER_ITEMS, 'notset')
-    g_mdsft_pipelinemode: make_prop('g_mdsft_pipelinemode', UPPER_ITEMS, 'notset')
-
-# updates the UI elements based on the command
 def mat_othermodeH_set(mat_othermodeH, cmd):
     mode = (cmd & 0xff0000000000) >> 40
     mode_bits = (cmd & 0xffffffff) >> mode
@@ -162,21 +100,21 @@ def mat_othermodeH_set(mat_othermodeH, cmd):
     modes = UPPER_ITEMS['mode']
     modename = next(filter(lambda e: e[2] == mode, modes))[0]
 
-    items = UPPER_ITEMS[modename]
-    modeval = next(filter(lambda e: e[2] == mode_bits, items))[0]
-    setattr(mat_othermodeH, modename, make_id(modeval))
+    items = pdu.enum_items(mat_othermodeH, modename)
+    item = pdu.enum_from_value(items, mode_bits)
+    setattr(mat_othermodeH, modename, item.identifier)
 
 def mat_othermodeH_draw(mat_othermodeH, layout, context):
     col: UILayout = layout.column(align=True)
 
-    prop_split(col, mat_othermodeH, 'g_mdsft_alphadither',  'Alpha Dither')
-    prop_split(col, mat_othermodeH, 'g_mdsft_rgbdither',    'RGB Dither')
-    prop_split(col, mat_othermodeH, 'g_mdsft_chromakey',    'Chroma Key')
-    prop_split(col, mat_othermodeH, 'g_mdsft_texconv',      'Texture Convert')
-    prop_split(col, mat_othermodeH, 'g_mdsft_texfilter',    'Texture Filter')
-    prop_split(col, mat_othermodeH, 'g_mdsft_texlut',       'Texture LUT')
-    prop_split(col, mat_othermodeH, 'g_mdsft_texlod',       'Texture LOD')
-    prop_split(col, mat_othermodeH, 'g_mdsft_texdetail',    'Texture Detail')
-    prop_split(col, mat_othermodeH, 'g_mdsft_texperspcorr', 'Texture Persp. Correction')
+    prop_split(col, mat_othermodeH, 'g_mdsft_alpha_dither',  'Alpha Dither')
+    prop_split(col, mat_othermodeH, 'g_mdsft_rgb_dither',    'RGB Dither')
+    prop_split(col, mat_othermodeH, 'g_mdsft_combkey',    'Chroma Key')
+    prop_split(col, mat_othermodeH, 'g_mdsft_textconv',      'Texture Convert')
+    prop_split(col, mat_othermodeH, 'g_mdsft_text_filt',    'Texture Filter')
+    prop_split(col, mat_othermodeH, 'g_mdsft_textlut',       'Texture LUT')
+    prop_split(col, mat_othermodeH, 'g_mdsft_textlod',       'Texture LOD')
+    prop_split(col, mat_othermodeH, 'g_mdsft_textdetail',    'Texture Detail')
+    prop_split(col, mat_othermodeH, 'g_mdsft_textpersp', 'Texture Persp. Correction')
     prop_split(col, mat_othermodeH, 'g_mdsft_cycletype',    'Cycle Type')
     prop_split(col, mat_othermodeH, 'g_mdsft_pipelinemode', 'Pipeline Mode')

@@ -6,6 +6,15 @@ from nodes.nodeutils import *
 from utils import pd_utils as pdu
 
 from fast64.utility import prop_split
+from fast64.f3d import f3d_enums
+
+ENUM_ALPHACMP = f3d_enums.enumAlphaCompare
+ENUM_DEPTHSRC = f3d_enums.enumDepthSource
+
+DESC_ALPHACMP = f3d_enums.DESC_ALPHACMP
+DESC_DEPTHSRC = f3d_enums.DESC_DEPTHSRC
+
+NOT_SET = f3d_enums.NOT_SET
 
 
 LOWER_ALPHACOMP = [
@@ -88,9 +97,9 @@ MODE_ZSRC       = 2
 MODE_RENDERMODE = 3
 
 LOWER_MODES = [
-    ('Alpha Compare',       'Alpha Compare',      MODE_ALPHACMP),
-    ('Z Source Selection',  'Z Source Selection', MODE_ZSRC),
-    ('Render Mode',         'Render Mode',        MODE_RENDERMODE),
+    ('g_mdsft_alpha_compare', 'Alpha Compare',      MODE_ALPHACMP),
+    ('g_mdsft_zsrcsel',       'Z Source Selection', MODE_ZSRC),
+    ('rendermode',            'Render Mode',        MODE_RENDERMODE),
 ]
 
 DESC_LOWER_AA_EN         = 'AA_EN description'
@@ -103,90 +112,35 @@ DESC_LOWER_ALPHA_CVG_SEL = 'ALPHA_CVG_SEL description'
 DESC_LOWER_FORCE_BL      = 'FORCE_BL description'
 
 class MatOtherModeL(PropertyGroup):
-    def on_update(self, context):
-        return #TMP
-        mode = self.enum_value('mode')
+    g_mdsft_alpha_compare: EnumProperty( name="Alpha Compare", items=ENUM_ALPHACMP, default=NOT_SET[0], description=DESC_ALPHACMP)
+    g_mdsft_zsrcsel: EnumProperty( name="Depth Source", items=ENUM_DEPTHSRC, default=NOT_SET[0], description=DESC_DEPTHSRC)
 
-        if mode in [MODE_ALPHACMP, MODE_ZSRC]:
-            if not hasattr(context, 'enum'):
-                print(f'mode {mode} expected to have an enum pointer set')
-                return
+    set_rendermode: BoolProperty(name='set_rendermode', default=False)
 
-            ofs = 0 if mode == MODE_ALPHACMP else 2
-            propname = 'g_mdsft_alphacompare' if mode == MODE_ALPHACMP else 'g_mdsft_zsrc'
-            propval = self.enum_value(propname)
-
-            modebits = propval << ofs
-            n = 2 if mode == MODE_ALPHACMP else 1
-        else:
-            # cycle independent params
-            cvg_dst = self.enum_value('cvg_dst')
-            zmode = self.enum_value('zmode')
-
-            modebits = 0
-            for flag, (_, bits) in LOWER_RENDERMODECI_FLAGS.items():
-                modebits |= bits if self.get(flag) else 0
-
-            modebits |= cvg_dst << 5
-            modebits |= zmode << 7
-            modebits <<= 3
-
-            # cycle dependent params
-            f = self.enum_value
-            p1, a1, m1, b1 = f('blend_p1'), f('blend_a1'), f('blend_m1'), f('blend_b1')
-            p2, a2, m2, b2 = f('blend_p2'), f('blend_a2'), f('blend_m2'), f('blend_b2')
-
-            b = (b1 << 2) | (b2 << 0)
-            m = (m1 << 6) | (m2 << 4)
-            a = (a1 << 2) | (a2 << 0)
-            p = (p1 << 6) | (p2 << 4)
-
-            pa = (p | a)
-            mb = (m | b)
-
-            modebits |= ((pa << 8) | mb) << 16
-
-            n = 29
-
-        self.cmd = f'B900{mode:02X}{n:02X}{modebits:08X}'
-
-    hide: BoolProperty(name='Hide fields', default=False, description='Hide fields (still accessible in the panel)')
-
-    mode: EnumProperty(
-        name='mode', default='alphacompare',
-        # items = [(make_id('mode', id), name, name) for (id, name, _) in LOWER_MODES], update=on_update,
-        items = [(make_id(id), name, '', '', value) for (id, name, value) in LOWER_MODES], update=on_update,
-    )
-
-    g_mdsft_alphacompare: make_prop('g_mdsft_alphacompare', {'g_mdsft_alphacompare': LOWER_ALPHACOMP}, 'notset', on_update)
-    g_mdsft_zsrc: make_prop('g_mdsft_zsrc', {'g_mdsft_zsrc': LOWER_ZSOURCE}, 'notset', on_update)
-
-    rendermode: BoolProperty(name='rendermode', update=on_update, default=False)
-
-    aa_en: BoolProperty(name='aa_en', update=on_update, default=False, description=DESC_LOWER_AA_EN)
-    z_cmp: BoolProperty(name='z_cmp', update=on_update, default=False, description=DESC_LOWER_Z_CMP)
-    z_upd: BoolProperty(name='z_upd', update=on_update, default=False, description=DESC_LOWER_Z_UPD)
-    im_rd: BoolProperty(name='im_rd', update=on_update, default=False, description=DESC_LOWER_IM_RD)
-    clr_on_cvg: BoolProperty(name='clr_on_cvg', update=on_update, default=False, description=DESC_LOWER_CLR_ON_CVG)
-    cvg_x_alpha: BoolProperty(name='cvg_x_alpha', update=on_update, default=False, description=DESC_LOWER_CVG_X_ALPHA)
-    alpha_cvg_sel: BoolProperty(name='alpha_cvg_sel', update=on_update, default=False, description=DESC_LOWER_ALPHA_CVG_SEL)
-    force_bl: BoolProperty(name='force_bl', update=on_update, default=False, description=DESC_LOWER_FORCE_BL)
+    aa_en: BoolProperty(name='aa_en', default=False, description=DESC_LOWER_AA_EN)
+    z_cmp: BoolProperty(name='z_cmp', default=False, description=DESC_LOWER_Z_CMP)
+    z_upd: BoolProperty(name='z_upd', default=False, description=DESC_LOWER_Z_UPD)
+    im_rd: BoolProperty(name='im_rd', default=False, description=DESC_LOWER_IM_RD)
+    clr_on_cvg: BoolProperty(name='clr_on_cvg', default=False, description=DESC_LOWER_CLR_ON_CVG)
+    cvg_x_alpha: BoolProperty(name='cvg_x_alpha', default=False, description=DESC_LOWER_CVG_X_ALPHA)
+    alpha_cvg_sel: BoolProperty(name='alpha_cvg_sel', default=False, description=DESC_LOWER_ALPHA_CVG_SEL)
+    force_bl: BoolProperty(name='force_bl', default=False, description=DESC_LOWER_FORCE_BL)
 
     # cycle independent props
-    cvg_dst: make_prop('cvg_dst', {'cvg_dst': LOWER_RENDERMODECI_CVGDST}, 'clamp', on_update)
-    zmode: make_prop('zmode', {'zmode': LOWER_RENDERMODECI_ZMODE}, 'opaque', on_update)
+    cvg_dst: make_prop('cvg_dst', {'cvg_dst': LOWER_RENDERMODECI_CVGDST}, 'clamp')
+    zmode: make_prop('zmode', {'zmode': LOWER_RENDERMODECI_ZMODE}, 'opaque')
 
     # cycle dependent props cycle 1
-    blend_b1: make_prop('blend_b1', LOWER_RENDERMODECD_ITEMS, make_id(LOWER_RENDERMODECD_BLENDMIX[0][0]), on_update)
-    blend_m1: make_prop('blend_m1', LOWER_RENDERMODECD_ITEMS, make_id(LOWER_RENDERMODECD_BLENDCOLOR[0][0]), on_update)
-    blend_a1: make_prop('blend_a1', LOWER_RENDERMODECD_ITEMS, make_id(LOWER_RENDERMODECD_BLENDALPHA[0][0]), on_update)
-    blend_p1: make_prop('blend_p1', LOWER_RENDERMODECD_ITEMS, make_id(LOWER_RENDERMODECD_BLENDCOLOR[0][0]), on_update)
+    blend_b1: make_prop('blend_b1', LOWER_RENDERMODECD_ITEMS, make_id(LOWER_RENDERMODECD_BLENDMIX[0][0]))
+    blend_m1: make_prop('blend_m1', LOWER_RENDERMODECD_ITEMS, make_id(LOWER_RENDERMODECD_BLENDCOLOR[0][0]))
+    blend_a1: make_prop('blend_a1', LOWER_RENDERMODECD_ITEMS, make_id(LOWER_RENDERMODECD_BLENDALPHA[0][0]))
+    blend_p1: make_prop('blend_p1', LOWER_RENDERMODECD_ITEMS, make_id(LOWER_RENDERMODECD_BLENDCOLOR[0][0]))
 
     # cycle dependent props cycle 2
-    blend_b2: make_prop('blend_b2', LOWER_RENDERMODECD_ITEMS, make_id(LOWER_RENDERMODECD_BLENDMIX[0][0]), on_update)
-    blend_m2: make_prop('blend_m2', LOWER_RENDERMODECD_ITEMS, make_id(LOWER_RENDERMODECD_BLENDCOLOR[0][0]), on_update)
-    blend_a2: make_prop('blend_a2', LOWER_RENDERMODECD_ITEMS, make_id(LOWER_RENDERMODECD_BLENDALPHA[0][0]), on_update)
-    blend_p2: make_prop('blend_p2', LOWER_RENDERMODECD_ITEMS, make_id(LOWER_RENDERMODECD_BLENDCOLOR[0][0]), on_update)
+    blend_b2: make_prop('blend_b2', LOWER_RENDERMODECD_ITEMS, make_id(LOWER_RENDERMODECD_BLENDMIX[0][0]))
+    blend_m2: make_prop('blend_m2', LOWER_RENDERMODECD_ITEMS, make_id(LOWER_RENDERMODECD_BLENDCOLOR[0][0]))
+    blend_a2: make_prop('blend_a2', LOWER_RENDERMODECD_ITEMS, make_id(LOWER_RENDERMODECD_BLENDALPHA[0][0]))
+    blend_p2: make_prop('blend_p2', LOWER_RENDERMODECD_ITEMS, make_id(LOWER_RENDERMODECD_BLENDCOLOR[0][0]))
 
     num_cycles: IntProperty(name='num_cycles', default=1)
 
@@ -201,10 +155,10 @@ def mat_othermodeL_set(mat_othermodeL, cmd):
         modebits = (cmd & 0xffffffff) >> mode
         items = LOWER_ALPHACOMP if mode == MODE_ALPHACMP else LOWER_ZSOURCE
         propval = next(filter(lambda e: e[2] == modebits, items))[0]
-        propname = 'g_mdsft_alphacompare' if mode == MODE_ALPHACMP else 'g_mdsft_zsrc'
+        propname = 'g_mdsft_alpha_compare' if mode == MODE_ALPHACMP else 'g_mdsft_zsrcsel'
         setattr(mat_othermodeL, propname, make_id(propval))
     else: # RENDERMODE
-        mat_othermodeL.rendermode = True
+        mat_othermodeL.set_rendermode = True
         # cycle independent params
         modebits = (cmd & 0xfff8) >> 3
         for flag, (_, bits) in LOWER_RENDERMODECI_FLAGS.items():
@@ -258,8 +212,8 @@ def enum_val(item, enum, idx):
 
 def mat_othermodeL_draw(othermodeL, layout, context):
     col: UILayout = layout.column(align=True)
-    prop_split(col, othermodeL, "g_mdsft_alphacompare", "Alpha Compare")
-    prop_split(col, othermodeL, "g_mdsft_zsrc", "Z Source Selection")
+    prop_split(col, othermodeL, "g_mdsft_alpha_compare", "Alpha Compare")
+    prop_split(col, othermodeL, "g_mdsft_zsrcsel", "Z Source Selection")
 
     draw_rendermode(col, othermodeL)
 
@@ -294,3 +248,37 @@ def draw_blender(othermodeL, cycle, header, layout):
     col1.prop(othermodeL, f'blend_m{cycle}', text='M')
     col2.prop(othermodeL, f'blend_a{cycle}', text='A')
     col2.prop(othermodeL, f'blend_b{cycle}', text='B')
+
+def othermodeL_rendermode_cmd(othermodeL):
+    if not othermodeL: return 0
+
+    # cycle independent params
+    cvg_dst = pdu.enum_value(othermodeL, 'cvg_dst')
+    zmode = pdu.enum_value(othermodeL, 'zmode')
+
+    modebits = 0
+    for flag, (_, bits) in LOWER_RENDERMODECI_FLAGS.items():
+        modebits |= bits if getattr(othermodeL, flag) else 0
+
+    modebits |= cvg_dst << 5
+    modebits |= zmode << 7
+    modebits <<= 3
+
+    # cycle dependent params
+    f = lambda e: pdu.enum_value(othermodeL, e)
+    p1, a1, m1, b1 = f('blend_p1'), f('blend_a1'), f('blend_m1'), f('blend_b1')
+    p2, a2, m2, b2 = f('blend_p2'), f('blend_a2'), f('blend_m2'), f('blend_b2')
+
+    b = (b1 << 2) | (b2 << 0)
+    m = (m1 << 6) | (m2 << 4)
+    a = (a1 << 2) | (a2 << 0)
+    p = (p1 << 6) | (p2 << 4)
+
+    pa = (p | a)
+    mb = (m | b)
+
+    modebits |= ((pa << 8) | mb) << 16
+
+    n = 29
+
+    return (0xB900 << 8 * 6) | (MODE_RENDERMODE << 8 * 5) | (n << 8 * 4) | modebits
