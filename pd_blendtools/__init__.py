@@ -17,6 +17,13 @@ if "bpy" in locals():
 
     path = __path__[0]
     rlu.reload_submodules(path)
+    rlu.reload_submodules(path, 'materials')
+    rlu.reload_submodules(path, 'operators')
+    rlu.reload_submodules(path, 'pd_data')
+    rlu.reload_submodules(path, 'pd_export')
+    rlu.reload_submodules(path, 'pd_import')
+    rlu.reload_submodules(path, 'ui')
+    rlu.reload_submodules(path, 'utils')
     rlu.reload_submodules(path, 'fast64')
     rlu.reload_submodules(path, 'fast64.f3d')
     print('--RELOAD DONE--')
@@ -100,9 +107,13 @@ def unregister():
     bpy.utils.unregister_class(PDModelPropertyGroup)
     bpy.utils.unregister_class(PD_AddonPreferences)
 
+def clear_cache():
+    bgi.bg_load.cache_clear()
+    stpi.get_setupdata.cache_clear()
 
 @persistent
 def pd_load_handler(_dummy):
+    clear_cache()
     from ui import mtxpalette_panel as mtxp
     context = bpy.context
 
