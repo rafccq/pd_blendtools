@@ -12,7 +12,7 @@ class PD_SetupFile:
         self.paths = []
         self.pads = []
         self.ailists = []
-        self.lists = []
+        self.lists = {}
         self.headers = None
 
         self.read()
@@ -120,4 +120,4 @@ class PD_SetupFile:
             end = listaddrs[i+1][0]
             totalsize += end - start
             block = bs.read_block_raw(start, end)
-            self.lists.append(block)
+            self.lists[listaddrs[i][1]] = block.bytes

@@ -872,6 +872,10 @@ class PDObject_SetupLift(PropertyGroup):
     interlinks: CollectionProperty(name='interlinks', type=PDObject_SetupInterlinkObject)
     active_interlink_idx: IntProperty(name='active_interlink_idx', default=0, options={'LIBRARY_EDITABLE'})
 
+class PD_AIList(PropertyGroup):
+    id: IntProperty(name='id')
+    addr: IntProperty(name='addr')
+    bytes: StringProperty(name='bytes', subtype='BYTE_STRING')
 
 class PDModelListItem(PropertyGroup):
     name: StringProperty(name='name')
@@ -1172,6 +1176,7 @@ classes = [
     PDObject_SetupWaypointNeighbour,
     PDObject_SetupWaypoint,
     PDObject_SetupIntro,
+    PD_AIList,
     PDModelListItem,
     Fast64RenderSettings_Properties,
     Fast64_Properties,
@@ -1211,6 +1216,7 @@ def register():
     Scene.flags_toggle = BoolProperty(name="Flags UI Style", default=False, description='Show Flags As Toggle/Checkbox')
     Scene.pd_waypoint_vis = ndu.make_prop('pd_waypoint_vis', {'pd_waypoint_vis': WAYPOINTS_VISIBILITY}, 'allsets', update_scene_wp_vis)
     Scene.pd_bspwidth = IntProperty(name="pd_bspwidth", default=1000, min=1, options={'TEXTEDIT_UPDATE'})
+    Scene.pd_ailists = CollectionProperty(type=PD_AIList)
 
     # object creation
     Scene.weapon_num = EnumProperty(items=WEAPONS_NUMS_ITEMS, name="weapon_num", default=WEAPONS_NUMS[0])

@@ -4,7 +4,7 @@ from pd_import import setup_import as stpi
 import pd_blendprops as pdprops
 from utils import pd_utils as pdu
 from pd_data.decl_setupfile import *
-from data.bytestream import ByteStream
+from data.bytestream import ByteStream, add_padding
 from data.datablock import DataBlock
 from data.typeinfo import TypeInfo
 
@@ -39,24 +39,50 @@ def export_intro(rd, dataout):
 
 def export(filename, compress):
     dataout = bytearray()
-    rd = ByteStream(None)
+    bs = ByteStream(None)
 
     header = DataBlock.New('stagesetup')
-    rd.write_block(dataout, header)
+    bs.write_block(dataout, header)
 
     ofs_props = len(dataout)
-    export_objects(rd, dataout)
+    export_objects(bs, dataout)
 
     ofs_intro = len(dataout)
-    export_intro(rd, dataout)
+    export_intro(bs, dataout)
+
+    ofs_ailists = export_ailists(bs, dataout)
 
     header.update(dataout, 'props', ofs_props)
     header.update(dataout, 'intro', ofs_intro)
+    header.update(dataout, 'ailists', ofs_ailists)
 
     if compress:
         dataout = pdu.compress(dataout)
 
     pdu.write_file(filename, dataout)
+
+def export_ailists(bs, dataout):
+    scn = bpy.context.scene
+    ailists = scn.pd_ailists
+
+    # first, write the lists bytes
+    add_padding(dataout, 4)
+    for li in ailists:
+        li.addr = len(dataout)
+        block = DataBlock('', 0, li.bytes)
+        bs.write_block_raw(dataout, block)
+        add_padding(dataout, 4)
+
+    ofs_ailists = len(dataout)
+
+    # next, write the ailists structs (addrs and ids)
+    for li in ailists:
+        bs.write(dataout, li.addr, 'u32')
+        bs.write(dataout, li.id, 'u32')
+
+    # end marker for ailists
+    bs.write(dataout, 0, 'u32')
+    return ofs_ailists
 
 def export_objects(rd, dataout):
     ObjCount = {}

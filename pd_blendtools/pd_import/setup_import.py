@@ -288,8 +288,16 @@ def setup_import(romdata, all_props, objnum, duration):
         import_intro(pdsetup.introcmds, pdpads)
         import_waypoints(pdpads)
         import_coverpads(pdpads)
+        import_ailists(pdsetup)
 
     return import_objects(romdata, pdsetup, pdpads, all_props, objnum, duration)
+
+def import_ailists(pdsetup):
+    scn = bpy.context.scene
+    for id, data in pdsetup.lists.items():
+        item = scn.pd_ailists.add()
+        item.id = id
+        item.bytes = data
 
 def import_objects(romdata, setupdata, paddata, all_props, objnum, duration):
     wm = bpy.context.window_manager
