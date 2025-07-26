@@ -525,7 +525,8 @@ class PDTOOLS_OT_SetupDoorPlaySound(Operator):
         return 'Play: Door Close' if close else 'Play: Door Open'
 
     def execute(self, _context):
-        soundpath = f'{pdu.addon_path()}/sounds/'
+        assets_path = pdu.assets_path()
+        soundpath = f'{assets_path}/sounds'
         device = aud.Device()
         device.stopAll()
         openclose = 'OPEN' if self.open else 'CLOSE'

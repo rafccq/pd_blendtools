@@ -487,8 +487,7 @@ def import_model(romdata, matcache, single_mesh=False, modelname=None, filename=
 def loadimages_embedded(model):
     imglib = bpy.data.images
 
-    addon_path = pdu.addon_path()
-    tex_path = f'{addon_path}/tex'
+    tex_path = pdu.tex_path()
 
     for tc in model.texconfigs:
         texnum = tc['texturenum']
@@ -531,8 +530,7 @@ def loadimage(texdata, tex_path, texnum):
     }
 
 def loadimages_external(path):
-    addon_path = pdu.addon_path()
-    tex_path = f'{addon_path}/tex'
+    tex_path = pdu.tex_path()
 
     for filename in glob.iglob(f'{path}/*.bin'):
         texdata = pdu.read_file(filename, autodecomp=False)
@@ -542,9 +540,7 @@ def loadimages_external(path):
 
 def loadimages(romdata, texnums):
     imglib = bpy.data.images
-
-    addon_path = pdu.addon_path()
-    tex_path = f'{addon_path}/tex'
+    tex_path = pdu.tex_path()
 
     for texnum in texnums:
         if texnum & 0x05000000 or texnum > 3503: continue #TODO temp hack

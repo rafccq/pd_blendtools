@@ -413,6 +413,15 @@ def addon_path():
     path = bpy.utils.user_resource('SCRIPTS')
     return f'{path}/addons/{name}'
 
+def assets_path():
+    return f'{addon_path()}/assets'
+
+def sounds_path():
+    return f'{assets_path()}/sounds'
+
+def tex_path():
+    return f'{assets_path()}/tex'
+
 def addon_name():
     return bl_info['name']
 
