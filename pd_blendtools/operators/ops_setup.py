@@ -525,12 +525,12 @@ class PDTOOLS_OT_SetupDoorPlaySound(Operator):
         return 'Play: Door Close' if close else 'Play: Door Open'
 
     def execute(self, _context):
-        blend_dir = os.path.dirname(bpy.data.filepath) # TODO propertly get the sound dir
+        soundpath = f'{pdu.addon_path()}/sounds/'
         device = aud.Device()
         device.stopAll()
         openclose = 'OPEN' if self.open else 'CLOSE'
         name = f'{self.soundnum}{openclose}'
-        sound = aud.Sound(f'{blend_dir}/sounds/{name}.ogg')
+        sound = aud.Sound(f'{soundpath}/{name}.ogg')
         sound_buffered = aud.Sound.cache(sound)
         device.play(sound_buffered)
         return {'FINISHED'}
