@@ -114,7 +114,7 @@ class PDTOOLS_PT_Scene(Panel):
         for idx, name in enumerate(pdprops.PD_COLLECTIONS):
             container.prop(context.scene, 'collections_sel', index=idx, toggle=togg, text=name)
 
-        addon_updater_ops.update_notice_box_ui()
+        addon_updater_ops.update_notice_box_ui(self, context)
 
 
 class PDModelListItem(PropertyGroup):
