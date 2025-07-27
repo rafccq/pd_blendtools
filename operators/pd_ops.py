@@ -21,7 +21,7 @@ from pd_export import (
     setup_export as stpe,
     bg_export as bge,
 )
-import pd_addonprefs as pda
+from pd_blendtools import pd_addonprefs as pda
 import pd_blendprops as pdprops
 
 from fast64.f3d import f3d_material as f3dm
@@ -57,7 +57,7 @@ class PDTOOLS_OT_LoadRom(Operator, ImportHelper):
         romdata = rom.Romdata(filepath)
 
         # save into the addon settings
-        pda.pref_save(pda.PD_PREF_ROMPATH, filepath)
+        pda.set_rompath(filepath)
 
         # fill the scene's list of models
         scn.pd_modelfiles.clear()
@@ -260,7 +260,7 @@ class PDTOOLS_OT_ImportLevel(Operator):
         return {'PASS_THROUGH'}
 
     def loadrom(self):
-        rompath = pda.pref_get(pda.PD_PREF_ROMPATH)
+        rompath = pda.rompath()
         self.romdata = rom.load(rompath)
 
     def execute(self, context):

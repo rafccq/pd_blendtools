@@ -6,7 +6,7 @@ from bpy.types import Operator
 from bpy_extras.io_utils import ImportHelper, ExportHelper
 from bpy.props import IntProperty, StringProperty
 
-import pd_addonprefs as pda
+from pd_blendtools import pd_addonprefs as pda
 from ui.mtxpalette_panel import gen_icons
 from pd_data.model_info import ModelNames
 from utils import (
@@ -24,7 +24,7 @@ from materials import pd_materials as pdm
 from fast64.f3d import f3d_material as f3dm
 
 def load_model(_context, modelname=None, filename=None):
-    rompath = pda.pref_get(pda.PD_PREF_ROMPATH)
+    rompath = pda.rompath()
     romdata = rom.Romdata(rompath)
 
     matlib = bpy.data.materials

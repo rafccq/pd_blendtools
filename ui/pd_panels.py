@@ -9,7 +9,7 @@ from utils import (
 )
 from nodes import nodeutils as ndu
 from operators import pd_ops as pdops
-import pd_addonprefs as pdp
+from pd_blendtools import pd_addonprefs as pdp
 import pd_blendprops as pdprops
 
 
@@ -22,7 +22,8 @@ class PDTOOLS_PT_ImportExport(Panel):
     def draw(self, context: Context) -> None:
         self.layout.operator_context = "INVOKE_DEFAULT"
 
-        rompath = pdp.pref_get(pdp.PD_PREF_ROMPATH)
+        rompath = pdp.rompath()
+
         rom_exists = bool(rompath)
 
         row = self.layout.row()

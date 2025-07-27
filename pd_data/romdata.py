@@ -1,7 +1,7 @@
 from functools import cache
 
 from utils import pd_utils as pdu
-import pd_addonprefs as pdp
+from pd_blendtools import pd_addonprefs as pdp
 
 
 class Romdata:
@@ -101,5 +101,6 @@ section_offsets = {
 @cache
 def load(filename=None):
     if not filename:
-        filename = pdp.pref_get(pdp.PD_PREF_ROMPATH)
+        filename = pdp.rompath()
+
     return Romdata(filename)
