@@ -10,6 +10,7 @@ from utils import (
 from nodes import nodeutils as ndu
 from operators import pd_ops as pdops
 from pd_blendtools import pd_addonprefs as pdp
+from pd_blendtools import addon_updater_ops
 import pd_blendprops as pdprops
 
 
@@ -112,6 +113,8 @@ class PDTOOLS_PT_Scene(Panel):
         container = box.grid_flow(columns=3, align=True)
         for idx, name in enumerate(pdprops.PD_COLLECTIONS):
             container.prop(context.scene, 'collections_sel', index=idx, toggle=togg, text=name)
+
+        addon_updater_ops.update_notice_box_ui()
 
 
 class PDModelListItem(PropertyGroup):

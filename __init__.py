@@ -1,9 +1,8 @@
 bl_info = {
-    "name": "pd_blendtools",
+    "name": "Perfect Dark Blender Editor",
     "author": "Raf Ccq",
     "version": (0, 0, 1),
-    "blender": (4, 0, 0),
-    # "blender": (3, 5, 0),
+    "blender": (3, 6, 0),
     "description": "A tool to help import/edit/export PD models in Blender",
     "location": "View3D > UI panel > PDTools",
     "wiki_url": "https://github.com/rafccq/pd_blendtools",
@@ -39,17 +38,18 @@ import bpy
 from bpy.types import PropertyGroup, Object
 from bpy.props import StringProperty, IntProperty
 from bpy.app.handlers import persistent
+from . import addon_updater_ops
 
 from data.typeinfo import TypeInfo
 from pd_data.decl_model import model_decls
-from pd_addonprefs import PD_AddonPreferences
+from .pd_addonprefs import PD_AddonPreferences
+from . import pd_addonprefs as pdp
 import pd_blendprops as pdprops
 
 from nodes import pd_shadernodes as pdn
 from operators import pd_ops as pdops
 import operators as ops
 import ui
-import pd_addonprefs as pdp
 from pd_import import (
     bg_import as bgi,
     model_import as mdi,
@@ -83,9 +83,12 @@ def register_types():
         TypeInfo.register(name, decl)
 
 def register():
+    v = bl_info['version']
     print(f'---------------------------------')
-    print(f'PD Blend Tools Register')
+    print(f'PD Blend Tools Register v = {v[0]}.{v[1]}.{v[2]}')
     print(f'---------------------------------')
+
+    addon_updater_ops.register(bl_info)
     bpy.utils.register_class(PD_AddonPreferences)
     bpy.utils.register_class(PDModelPropertyGroup)
     Object.pd_model = bpy.props.PointerProperty(type=PDModelPropertyGroup)
@@ -107,6 +110,8 @@ def unregister():
     bpy.utils.unregister_class(PDModelPropertyGroup)
     bpy.utils.unregister_class(PD_AddonPreferences)
 
+    addon_updater_ops.unregister()
+
 def clear_cache():
     bgi.bg_load.cache_clear()
     stpi.get_setupdata.cache_clear()
@@ -118,6 +123,6 @@ def pd_load_handler(_dummy):
     context = bpy.context
 
     mtxp.gen_icons(context) # we need to generate the mtx icons again
-    rompath = pdp.pref_get(pdp.PD_PREF_ROMPATH)
+    rompath = pdp.rompath()
     if rompath:
         pdops.PDTOOLS_OT_LoadRom.load_rom(context, rompath)

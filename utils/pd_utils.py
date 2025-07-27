@@ -3,11 +3,13 @@ from functools import cache
 from pathlib import Path
 from glob import glob
 import struct
+import os
 
 import bpy
 import bmesh
 from mathutils import Vector
 from bl_ui.space_toolsystem_common import ToolSelectPanelHelper
+import addon_utils
 
 from pd_blendtools import bl_info
 from ui import mtxpalette as mtxp
@@ -408,10 +410,16 @@ def f32(value):
 def u32(value):
     return struct.unpack('I', value.to_bytes(4, 'little'))[0]
 
+@cache
 def addon_path():
-    name = addon_name()
-    path = bpy.utils.user_resource('SCRIPTS')
-    return f'{path}/addons/{name}'
+    addon_name = bl_info['name']
+
+    for mod in addon_utils.modules():
+       if mod.bl_info['name'] == addon_name:
+           filepath = mod.__file__
+           return os.path.dirname(filepath)
+
+    return None
 
 def assets_path():
     return f'{addon_path()}/assets'
@@ -421,12 +429,6 @@ def sounds_path():
 
 def tex_path():
     return f'{assets_path()}/tex'
-
-def addon_name():
-    return bl_info['name']
-
-def addon_prefs():
-    return bpy.context.preferences.addons[addon_name()].preferences
 
 @cache
 def ini_file(filename):

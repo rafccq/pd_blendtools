@@ -1,15 +1,11 @@
 import bpy
+from pd_blendtools import addon_updater_ops
 
 from utils import pd_utils as pdu
 
-PD_PREF_ROMPATH = 'rompath'
-
-PD_Prefs = [
-    PD_PREF_ROMPATH
-]
-
+@addon_updater_ops.make_annotations
 class PD_AddonPreferences(bpy.types.AddonPreferences):
-    bl_idname = pdu.addon_name()
+    bl_idname = __package__
 
     rompath: bpy.props.StringProperty(
         name="Rom Path",
@@ -17,36 +13,66 @@ class PD_AddonPreferences(bpy.types.AddonPreferences):
         default='',
     )
 
+    # ######### ADDON UPDATER #########
+    auto_check_update = bpy.props.BoolProperty(
+        name="Auto-check for Update",
+        description="If enabled, auto-check for updates using an interval",
+        default=False)
+
+    updater_interval_months = bpy.props.IntProperty(
+        name='Months',
+        description="Number of months between checking for updates",
+        default=0,
+        min=0)
+
+    updater_interval_days = bpy.props.IntProperty(
+        name='Days',
+        description="Number of days between checking for updates",
+        default=7,
+        min=0,
+        max=31)
+
+    updater_interval_hours = bpy.props.IntProperty(
+        name='Hours',
+        description="Number of hours between checking for updates",
+        default=0,
+        min=0,
+        max=23)
+
+    updater_interval_minutes = bpy.props.IntProperty(
+        name='Minutes',
+        description="Number of minutes between checking for updates",
+        default=0,
+        min=0,
+        max=59)
+    # ####################################
+
     def draw(self, context):
         row = self.layout.row()
 
+        addon_updater_ops.check_for_update_background()
+
         row.prop(self, "rompath")
         row.operator("pdtools.load_rom")
+        addon_updater_ops.update_settings_ui(self, context)
+        addon_updater_ops.update_notice_box_ui(self, context)
 
-def _pref_value(prefs, key):
-    if key == PD_PREF_ROMPATH:
-        return prefs.rompath
+def addon_prefs():
+    addon = bpy.context.preferences.addons.get(__package__, None)
+    if not addon:
+        print(f'ERROR: addon not found: {__package__}')
+        return None
 
-def pref_get(key):
-    if key not in PD_Prefs:
-        raise RuntimeError(f'preference not found: {key}')
+    return addon.preferences
 
-    name = pdu.addon_name()
-    if name in bpy.context.preferences.addons:
-        prefs = bpy.context.preferences.addons[name].preferences
-        return _pref_value(prefs, key)
+def rompath():
+    prefs = addon_prefs()
+    if not prefs: return
 
-    blend_dir = bpy.path.abspath('//')
-    configs = pdu.ini_file(f'{blend_dir}/config.ini')
-    return configs[key]
+    return prefs.rompath
 
-def pref_save(key, value):
-    if key not in PD_Prefs:
-        raise RuntimeError(f'preference not found: {key}')
+def set_rompath(rompath):
+    prefs = addon_prefs()
+    if not prefs: return
 
-    name = pdu.addon_name()
-    if name not in bpy.context.preferences.addons: return
-    prefs = bpy.context.preferences.addons[name].preferences
-
-    if key == PD_PREF_ROMPATH:
-        prefs.rompath = value
+    prefs.rompath = rompath
