@@ -550,15 +550,15 @@ def import_waypoints(paddata):
             edge = pdprops.WAYPOINT_EDGETYPES[edgeidx][0]
             neighbour_item.edgetype = edge
 
-def create_waypoint(pad_id, pos, groupnum, pad=None):
-    objname = stu.wp_name(pad_id)
+def create_waypoint(id, pos, groupnum, pad=None):
+    objname = stu.wp_name(id)
     groupname = pdu.group_name(groupnum)
     bl_group = bpy.data.objects[groupname]
     bl_waypoint = tmesh.create_mesh(objname, 'cube')
     bl_waypoint.parent = bl_group
 
     pd_waypoint = bl_waypoint.pd_waypoint
-    pd_waypoint.id = pad_id
+    pd_waypoint.id = id
     pd_waypoint.groupnum = groupnum
     pd_waypoint.group_enum = groupname
 
@@ -581,7 +581,7 @@ def create_waypoint(pad_id, pos, groupnum, pad=None):
 
     scn = bpy.context.scene
     waypoints = scn['waypoints']
-    waypoints[str(pad_id)] = bl_waypoint
+    waypoints[str(id)] = bl_waypoint
     return bl_waypoint
 
 def import_coverpads(paddata):

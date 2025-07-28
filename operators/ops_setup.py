@@ -14,7 +14,10 @@ from pd_data.pd_padsfile import *
 from pd_data import romdata as rom, pd_padsfile as pdpads
 from pd_import import setup_import as stpi
 import pd_blendprops as pdprops
-from utils import pd_utils as pdu
+from utils import (
+    pd_utils as pdu,
+    setup_utils as stu,
+)
 
 class PDTOOLS_OT_SetupLiftCreateStop(Operator):
     bl_idname = "pdtools.op_setup_lift_create_stop"
@@ -140,12 +143,15 @@ class PDTOOLS_OT_SetupWaypointRemoveNeighbour(Operator):
         pd_neighbours_coll = pd_waypoint.neighbours_coll
         index = pd_waypoint.active_neighbour_idx
         pd_neighbour = pd_neighbours_coll[index]
-        padnum = pd_neighbour.padnum
+        id = pd_neighbour.id
         pd_neighbours_coll.remove(index)
 
-        bl_neighbour = context.scene['waypoints'][str(padnum)]
+        bl_neighbour = context.scene['waypoints'][str(id)]
         pd_neighbour = bl_neighbour.pd_waypoint
-        pdu.waypoint_remove_neighbour(pd_neighbour, pd_waypoint.padnum)
+        stu.wp_remove_neighbour(pd_neighbour, pd_waypoint.id)
+
+        if index >= len(pd_waypoint.neighbours_coll):
+            pd_waypoint.active_neighbour_idx = index - 1
 
         pdu.redraw_ui()
         return {'FINISHED'}
@@ -174,16 +180,15 @@ class PDTOOLS_OT_SetupWaypointCreate(Operator):
     def execute(self, context):
         groupname = self.group_enum
         if groupname == pdprops.NEWGROUP:
-            groupnum, bl_group = pdu.waypoint_newgroup()
+            groupnum, bl_group = stu.wp_newgroup()
         else:
             groups = [g[0] for g in pdprops.get_groupitems(context.scene, context)]
             groupnum = groups.index(self.group_enum)
 
-        wp_coll = bpy.data.collections['Waypoints']
-        pad_id = 1 + max([wp.pd_waypoint.id for wp in wp_coll.objects])
+        id = stu.wp_nextid()
 
         pos = pdu.get_view_location()
-        bl_waypoint = stpi.create_waypoint(pad_id, pos, groupnum)
+        bl_waypoint = stpi.create_waypoint(id, pos, groupnum)
         pdu.select_obj(bl_waypoint)
         return {'FINISHED'}
 
@@ -196,19 +201,19 @@ class PDTOOLS_OT_SetupWaypointDelete(Operator):
 
     def execute(self, context):
         scn = context.scene
-        waypoints = scn['waypoints']
 
         bl_waypoint = context.active_object
         pd_waypoint = bl_waypoint.pd_waypoint
-        padnum = pd_waypoint.padnum
+        wp_id = pd_waypoint.id
 
+        waypoints = scn['waypoints']
         neighbours_coll = pd_waypoint.neighbours_coll
         for neighbour in neighbours_coll:
-            bl_neighbour = waypoints[str(neighbour.padnum)]
+            bl_neighbour = waypoints[str(neighbour.id)]
             pd_neighbour = bl_neighbour.pd_waypoint
-            pdu.waypoint_remove_neighbour(pd_neighbour, padnum)
+            stu.wp_remove_neighbour(pd_neighbour, wp_id)
 
-        del waypoints[str(padnum)]
+        del waypoints[str(wp_id)]
         bpy.data.objects.remove(bl_waypoint)
         return {'FINISHED'}
 
@@ -239,12 +244,11 @@ class PDTOOLS_OT_SetupWaypointCreateFromMesh(Operator):
 
         pos = bl_obj.matrix_world.translation
 
-        wp_coll = bpy.data.collections['Waypoints']
-        padnum = 1 + max([wp.pd_waypoint.padnum for wp in wp_coll.objects])
+        id = stu.wp_nextid()
 
         groupname = self.group_enum
         if groupname == pdprops.NEWGROUP:
-            groupnum, bl_group = pdu.waypoint_newgroup()
+            groupnum, bl_group = stu.wp_newgroup()
             groupname = bl_group.name
         else:
             groups = [g[0] for g in pdprops.get_groupitems(context.scene, context)]
@@ -252,13 +256,14 @@ class PDTOOLS_OT_SetupWaypointCreateFromMesh(Operator):
 
         waypoints = []
         for v in bm.verts:
-            bl_waypoint = stpi.create_waypoint(padnum, pos + v.co, groupnum)
+            bl_waypoint = stpi.create_waypoint(id, pos + v.co, groupnum)
             pd_waypoint = bl_waypoint.pd_waypoint
-            pd_waypoint.padnum = padnum
+            bl_waypoint.pd_prop.padnum = id
+            pd_waypoint.id = id
             pd_waypoint.groupnum = groupnum
             pd_waypoint.group_enum = groupname
             waypoints.append(bl_waypoint)
-            padnum += 1
+            id += 1
 
         for e in bm.edges:
             v0, v1 = e.verts
@@ -302,8 +307,7 @@ class PDTOOLS_OT_SetupWaypointCreateNeighbours(Operator):
         pd_waypoint = bl_waypoint.pd_waypoint
         objpos = bl_waypoint.matrix_world.translation
 
-        wp_coll = bpy.data.collections['Waypoints']
-        padnum = 1 + max([wp.pd_waypoint.padnum for wp in wp_coll.objects])
+        id = stu.wp_nextid()
         groupnum = pd_waypoint.groupnum
         groupname = pdu.group_name(groupnum)
         bl_group = bpy.data.objects[groupname]
@@ -314,9 +318,9 @@ class PDTOOLS_OT_SetupWaypointCreateNeighbours(Operator):
             p = (r * math.cos(angle), r * math.sin(angle), 0)
             pos = objpos + Vector(p)
 
-            bl_neighbour = stpi.create_waypoint(padnum, pos, bl_group, False)
+            bl_neighbour = stpi.create_waypoint(id, pos, groupnum, False)
             pd_neighbour = bl_neighbour.pd_waypoint
-            pd_neighbour.padnum = padnum
+            pd_neighbour.id = id
             pd_neighbour.groupnum = groupnum
             pd_neighbour.group_enum = groupname
 
@@ -324,7 +328,7 @@ class PDTOOLS_OT_SetupWaypointCreateNeighbours(Operator):
             stu.wp_addneighbour(bl_neighbour, bl_waypoint)
 
             angle += 2*math.pi / self.num
-            padnum += 1
+            id += 1
 
         return {'FINISHED'}
 

@@ -832,7 +832,7 @@ class PDObject_SetupWaypoint(PropertyGroup):
     def update_group(self, context):
         groupname = self.group_enum
         if groupname == NEWGROUP:
-            groupnum, bl_group = pdu.waypoint_newgroup()
+            groupnum, bl_group = stu.wp_newgroup()
             groupname = bl_group.name
         else:
             bl_group = bpy.data.objects[groupname]

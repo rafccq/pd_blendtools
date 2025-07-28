@@ -507,30 +507,6 @@ def flags_unpack(flaglist, valuepacked, flagvalues):
 
 def group_name(num): return f'Set {num:02X}'
 
-def waypoint_newgroup():
-    groupnum = waypoint_maxgroup()
-    groupname = group_name(groupnum)
-    bl_group = new_empty_obj(groupname, dsize=0, link=False)
-    add_to_collection(bl_group, 'Waypoints')
-
-    return groupnum, bl_group
-
-def waypoint_maxgroup():
-    n = 0
-    wp_coll = bpy.data.collections['Waypoints']
-    for group in wp_coll.objects:
-        if group.parent is not None: continue
-        n += 1
-
-    return n
-
-def waypoint_remove_neighbour(pd_waypoint, padnum):
-    neighbours_coll = pd_waypoint.neighbours_coll
-    for idx, neighbour in enumerate(neighbours_coll):
-        if neighbour.padnum == padnum:
-            neighbours_coll.remove(idx)
-            return
-
 def enum_items(bl_obj, enum_name):
     prop = bl_obj.bl_rna.properties[enum_name]
     return prop.enum_items

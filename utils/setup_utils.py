@@ -209,3 +209,31 @@ def wp_addneighbour(bl_waypoint, bl_neighbour):
 
     edge = pdprops.WAYPOINT_EDGETYPES[0][0]
     neighbour_item.edgetype = edge
+
+def wp_nextid():
+    wp_coll = bpy.data.collections['Waypoints']
+    return 1 + max([wp.pd_waypoint.id for wp in wp_coll.objects])
+
+def wp_remove_neighbour(pd_waypoint, id):
+    neighbours_coll = pd_waypoint.neighbours_coll
+    for idx, neighbour in enumerate(neighbours_coll):
+        if neighbour.id == id:
+            neighbours_coll.remove(idx)
+            return
+
+def wp_newgroup():
+    groupnum = wp_maxgroup()
+    groupname = group_name(groupnum)
+    bl_group = new_empty_obj(groupname, dsize=0, link=False)
+    add_to_collection(bl_group, 'Waypoints')
+
+    return groupnum, bl_group
+
+def wp_maxgroup():
+    n = 0
+    wp_coll = bpy.data.collections['Waypoints']
+    for group in wp_coll.objects:
+        if group.parent is not None: continue
+        n += 1
+
+    return n
