@@ -219,8 +219,10 @@ class PDTOOLS_PT_SetupObjectTools(Panel):
             box.alignment = 'CENTER'
             box.scale_x = 2.0
             box2.label(text='Click: create. Right click/ESC: end.', icon='INFO')
+            context.workspace.status_text_set(text='Click on waypoints to add. Right click/ESC to end.')
         else:
             box.operator('pdtools.op_setup_object_create')
+            context.workspace.status_text_set(None)
 
 
 class PDTOOLS_PT_SetupDoorFlags(bpy.types.Panel):
@@ -396,6 +398,15 @@ class PDTOOLS_PT_SetupWaypoint(Panel):
             # row.label(text=f'{pd_neighbour.name} ({pd_neighbour.groupnum:02X})')
             row.label(text=f'{pd_neighbour.name}')
             row.prop(pd_neighbour, 'edgetype', text='')
+
+        ops = bpy.context.window.modal_operators if bpy.app.version >= (4, 2, 0) else []
+
+        if 'PDTOOLS_OT_op_setup_waypoint_addneighbour' in ops:
+            box2 = box.box()
+            box2.alignment = 'CENTER'
+            box2.scale_x = 2.0
+            box2.label(text='Click on waypoints to add', icon='INFO')
+            box2.label(text='Right click/ESC to end')
 
         pdu.ui_separator(box, type='LINE')
         row = box.row()

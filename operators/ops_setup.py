@@ -51,7 +51,7 @@ class PDTOOLS_OT_SetupLiftCreateStop(Operator):
 class PDTOOLS_OT_SetupWaypointAddNeighbour(Operator):
     bl_idname = "pdtools.op_setup_waypoint_addneighbour"
     bl_label = 'Add Neighbour'
-    bl_description = 'Click on waypoints to add a neighbor. Right click or esc to exit'
+    bl_description = 'Click on waypoints to add a neighbour. Right click or esc to exit'
 
     @staticmethod
     def raycast(context, event):
@@ -110,13 +110,20 @@ class PDTOOLS_OT_SetupWaypointAddNeighbour(Operator):
             stu.wp_addneighbour(sel_obj, picked_obj)
             stu.wp_addneighbour(picked_obj, sel_obj)
 
+    def done(self, context):
+        context.workspace.status_text_set(None)
+        pdu.redraw_ui()
+
     def modal(self, context, event):
+        context.workspace.status_text_set(text='Click on waypoints to add a neighbour. Right click/ESC to end.')
+
         if event.type in {'MIDDLEMOUSE', 'WHEELUPMOUSE', 'WHEELDOWNMOUSE'}:
             return {'PASS_THROUGH'}
         elif event.type == 'LEFTMOUSE' and event.value == 'PRESS':
             self.raycast(context, event)
             return {'RUNNING_MODAL'}
         elif event.type in {'RIGHTMOUSE', 'ESC'}:
+            self.done(context)
             return {'CANCELLED'}
 
         return {'RUNNING_MODAL'}
@@ -692,18 +699,21 @@ class PDTOOLS_OT_SetupObjectCreate(Operator):
         pad = pdpads.Pad(pos, look, up, normal, bbox, 0)
         return stpi.setup_create_door(prop, prop_base, romdata, pad, False)
 
-    def done(self):
+    def done(self, context):
         pdu.select_objects(self.created_objs)
+        context.workspace.status_text_set(text=None)
         pdu.redraw_ui()
 
     def modal(self, context, event):
+        context.workspace.status_text_set(text='Click on BG to create a new object. Right click/ESC to end.')
+
         if event.type in {'MIDDLEMOUSE', 'WHEELUPMOUSE', 'WHEELDOWNMOUSE'}:
             return {'PASS_THROUGH'}
         elif event.type == 'LEFTMOUSE' and event.value == 'PRESS':
             self.raycast(context, event)
             return {'RUNNING_MODAL'}
         elif event.type in {'RIGHTMOUSE', 'ESC'}:
-            self.done()
+            self.done(context)
             return {'FINISHED'}
 
         return {'RUNNING_MODAL'}
