@@ -757,11 +757,6 @@ def tmemUsageUI(layout, textureProp):
         tmemUsage = getTmemWordUsage(textureProp.tex_format, tex.size[0], tex.size[1]) * 8
         tmemMax = getTmemMax(textureProp.tex_format)
         layout.label(text="TMEM Usage: " + str(tmemUsage) + " / " + str(tmemMax) + " bytes")
-        if tmemUsage > tmemMax:
-            tmemSizeWarning = layout.box()
-            tmemSizeWarning.label(text="WARNING: Texture size is too large.")
-            tmemSizeWarning.label(text="Note that width will be internally padded to 64 bit boundaries.")
-
 
 # UI Assumptions:
 # shading = 1
@@ -1409,11 +1404,15 @@ class F3DPanel(Panel):
         layout = self.layout
 
         layout.operator(CreateFast3DMaterial.bl_idname)
+        layout.operator('pdtools.create_pd_mat')
         material = context.material
         if material is None:
             return
-        elif not material.use_nodes or not material.is_f3d:
-            layout.label(text="This is not a Fast3D material.")
+        elif not material.use_nodes or (not material.is_f3d and not material.is_pd):
+            layout.label(text="This is not a PD material.")
+            return
+
+        if not material.is_f3d:
             return
 
         f3dMat = material.f3d_mat
@@ -2849,7 +2848,7 @@ class RecreateF3DNodes(Operator):
 
 class CreateFast3DMaterial(Operator):
     bl_idname = "object.create_f3d_mat"
-    bl_label = "Create Fast3D Material"
+    bl_label = "Create Fast3D Material (Accurate)"
     bl_options = {"REGISTER", "UNDO", "PRESET"}
 
     def execute(self, context):
@@ -3111,14 +3110,16 @@ def ui_image(
         prop_input_name = inputGroup.column()
         prop_input = inputGroup.column()
 
-        if showCheckBox:
+        texIndex = int(name[-1])
+
+        if showCheckBox and texIndex == 0:
             prop_input_name.prop(textureProp, "tex_set", text="Set Texture")
         else:
             prop_input_name.label(text=name)
-        texIndex = name[-1]
+
 
         prop_input.template_ID(
-            textureProp, "tex", new="image.new", open="image.open", unlink="image.tex" + texIndex + "_unlink"
+            textureProp, "tex", new="image.new", open="image.open", unlink=f"image.tex{texIndex}_unlink"
         )
         prop_input.enabled = textureProp.tex_set
 
@@ -3132,45 +3133,24 @@ def ui_image(
 
         tmemUsageUI(prop_input, textureProp)
 
-        if width > 0 and height > 0:
-            texelsPerWord = 64 // texBitSizeInt[textureProp.tex_format]
-            if width % texelsPerWord != 0:
-                msg = prop_input.box().column()
-                msg.label(text=f"Suggest {textureProp.tex_format} tex be multiple ", icon="INFO")
-                msg.label(text=f"of {texelsPerWord} pixels wide for fast loading.")
-            warnClampS = (
-                    not isPowerOf2(width)
-                    and not textureProp.S.clamp
-                    and (not textureProp.autoprop or textureProp.S.mask != 0)
-            )
-            warnClampT = (
-                    not isPowerOf2(height)
-                    and not textureProp.T.clamp
-                    and (not textureProp.autoprop or textureProp.T.mask != 0)
-            )
-            if warnClampS or warnClampT:
-                msg = prop_input.box().column()
-                msg.label(text=f"Clamping required for non-power-of-2 image", icon="ERROR")
-                msg.label(text=f"dimensions. Enable clamp or set mask to 0.")
+        if texIndex == 0:
+            texFieldSettings = prop_input.column()
+            clampSettings = texFieldSettings.row()
+            clampSettings.prop(textureProp.S, "clamp", text="Clamp S")
+            clampSettings.prop(textureProp.T, "clamp", text="Clamp T")
 
-        texFieldSettings = prop_input.column()
-        clampSettings = texFieldSettings.row()
-        clampSettings.prop(textureProp.S, "clamp", text="Clamp S")
-        clampSettings.prop(textureProp.T, "clamp", text="Clamp T")
+            mirrorSettings = texFieldSettings.row()
+            mirrorSettings.prop(textureProp.S, "mirror", text="Mirror S")
+            mirrorSettings.prop(textureProp.T, "mirror", text="Mirror T")
 
-        mirrorSettings = texFieldSettings.row()
-        mirrorSettings.prop(textureProp.S, "mirror", text="Mirror S")
-        mirrorSettings.prop(textureProp.T, "mirror", text="Mirror T")
+            otherSettings = texFieldSettings.row()
+            prop_split(texFieldSettings, textureProp, 'lod_flag', 'LOD Flag')
+            prop_split(texFieldSettings, textureProp, 'offset', 'Offset')
+            prop_split(texFieldSettings, textureProp, 'subcmd', 'Sub Command')
 
-        prop_input.prop(textureProp, "autoprop", text="Auto Set Other Properties")
-
-        if not textureProp.autoprop:
-            prop_split(prop_input, textureProp.S, 'shift', 'Shift S')
-            prop_split(prop_input, textureProp.T, 'shift', 'Shift T')
-
-            prop_split(prop_input, textureProp, 'lod_flag', 'LOD Flag')
-            prop_split(prop_input, textureProp, 'offset', 'Offset')
-            prop_split(prop_input, textureProp, 'subcmd', 'Sub Command')
+        if texIndex == 1:
+            prop_split(prop_input, textureProp, 'shift_s', 'Shift S')
+            prop_split(prop_input, textureProp, 'shift_t', 'Shift T')
 
 
 class CombinerProperty(PropertyGroup):

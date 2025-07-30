@@ -144,8 +144,22 @@ class PDMaterialSetup:
 
         return allcmds
 
+    def mat_is_translucent(self):
+        translucent = False
+        for cmd in self.othermodeL.values():
+            mode = (cmd & 0xff0000000000) >> 40
+            bits = (cmd & 0xffffffff) >> mode
+
+            if mode == MODE_RENDERMODE:
+                modebits = (cmd & 0xfff8) >> 3
+                zmode = (modebits & 0x180) >> 7
+                translucent = zmode == 2
+
+        return translucent
+
     def copy(self):
         mat = PDMaterialSetup()
+        mat.texnum = self.texnum
         mat.texload = self.texload
         mat.texconfig = self.texconfig
         mat.othermodeL = self.othermodeL
@@ -492,7 +506,7 @@ def material_new(matsetup, use_alpha):
     node_vtxcolor = mat.node_tree.nodes['vtxcolor']
     node_vtxcolor.layer_name = 'Col'
 
-    texnum = matsetup.texnum & 0xffffff
+    texnum = matsetup.texnum & 0xfff
     img = f'{texnum:04X}.png'
     imglib = bpy.data.images
     node_tex.image = imglib[img]
@@ -619,22 +633,6 @@ def material_lastnode(mat):
         node = node.outputs[0].links[0].to_node
 
     return node
-
-from nodes.shadernode_othermode_h import PD_ShaderNodeSetOtherModeH, UPPER_TEXLOD
-# TODO TEMP: pre-calculate all mode bits instead of this
-def material_texlod(mat):
-    node = material_get_setup(mat)
-
-    lod = None
-    while node:
-        if len(node.outputs[0].links) == 0: break
-
-        node = node.outputs[0].links[0].to_node
-        if node.bl_idname == PD_ShaderNodeSetOtherModeH.bl_idname:
-            if node.mode == 'g_mdsft_texlod':
-                lod = node.g_mdsft_texlod == UPPER_TEXLOD[1][0].lower()
-
-    return lod
 
 def material_cmds(mat):
     geobits = 0

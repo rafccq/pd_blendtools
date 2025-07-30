@@ -68,8 +68,8 @@ submodules = [
     tlimp,
     stpi,
     bgi,
-    pdm,
     fast64,
+    pdm,
 ]
 
 class PDModelPropertyGroup(PropertyGroup):

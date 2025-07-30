@@ -564,6 +564,13 @@ def str_remove(src, items):
     mapping = str.maketrans({c: '' for c in items})
     return src.translate(mapping)
 
+def str_replace(src, replacements):
+    txt = src
+    for k, v in replacements.items():
+        txt = txt.replace(k, v)
+
+    return txt
+
 def msg_import_step(wm):
     step, nsteps = wm.import_step, wm.import_numsteps
     return f'({step}/{nsteps}) '

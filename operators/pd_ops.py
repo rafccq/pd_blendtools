@@ -23,6 +23,7 @@ from pd_export import (
 )
 from pd_blendtools import pd_addonprefs as pda
 import pd_blendprops as pdprops
+from materials import pd_materials as pdm
 
 from fast64.f3d import f3d_material as f3dm
 
@@ -509,9 +510,28 @@ class PDTOOLS_OT_UnlinkPDMaterialImage0(Operator):
     bl_options = {"REGISTER", "UNDO", "PRESET"}
 
     def execute(self, context):
-        context.material.pd_mat.texload.image = None
+        context.material.pd_mat.texload.tex0 = None
         return {"FINISHED"}
 
+class PDTOOLS_OT_CreatePDMaterial(Operator):
+    bl_idname = "pdtools.create_pd_mat"
+    bl_label = "Create PD Material (Simple)"
+    bl_options = {"REGISTER", "UNDO", "PRESET"}
+
+    @classmethod
+    def poll(cls, context):
+        return context.active_object is not None
+
+    def execute(self, context):
+        bl_obj = context.active_object
+        replacements = {'(opa)': '', '(xlu)': '', ' ': '_', '__': '_'}
+        name = pdu.str_replace(bl_obj.name, replacements)
+        name = f'{name[0].upper()}{name[1:]}' #capitalize the name
+        n = len(bl_obj.data.materials)
+        mat = pdm.material_from_template(f'{name}_Mat{n}', 'DIFFUSE')
+        mat.is_pd = True
+        bl_obj.data.materials.append(mat)
+        return {"FINISHED"}
 
 classes = [
     PDTOOLS_OT_LoadRom,
@@ -521,6 +541,7 @@ classes = [
     PDTOOLS_OT_SelectDirectory,
     PDTOOLS_OT_MessageBox,
     PDTOOLS_OT_UnlinkPDMaterialImage0,
+    PDTOOLS_OT_CreatePDMaterial,
 ]
 
 register, unregister = bpy.utils.register_classes_factory(classes)

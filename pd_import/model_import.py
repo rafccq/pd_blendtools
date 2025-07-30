@@ -109,17 +109,19 @@ def create_mesh(mesh, tex_configs, meshidx, sub_idx, matcache):
             print(f'WARNING: No config found for tex {matsetup.texnum:04X}')
 
         matname = matsetup.id()
-        # mat_idx = bl_obj.data.materials.find(matname)
         mathash = matsetup.hash()
 
-        if mathash not in matcache:
-            # if 1 or matsetup.has_envmap():
-            #     mat = pdm.material_create_f3d(bl_obj, matsetup, matname)
-            # else:
-            #     mat = pdm.material_new(matsetup, False)
+        use_alpha = False
+        if tc:
+            fmt = tex.TexFormatGbiMapping[tc['format']]
+            use_alpha = pdm.tex_has_alpha(fmt, tc['depth'])
 
-            # mat = pdm.material_create_f3d(bl_obj, matsetup, matname)
-            mat = pdm.material_new(matsetup, False)
+        if mathash not in matcache:
+            if matsetup.has_envmap() or matsetup.mat_is_translucent():
+                mat = pdm.material_create_f3d(bl_obj, matsetup, matname)
+            else:
+                mat = pdm.material_new(matsetup, use_alpha)
+
             mat.hashed = mathash
             matcache[mathash] = mat.name
         else:
@@ -128,14 +130,6 @@ def create_mesh(mesh, tex_configs, meshidx, sub_idx, matcache):
 
         if not pdm.mat_find_by_hash(bl_obj, mathash):
             bl_obj.data.materials.append(mat)
-
-        use_alpha = False
-        if tc:
-            fmt = tex.TexFormatGbiMapping[tc['format']]
-            # use_alpha = matsetup.smode == 1 or pdm.tex_has_alpha(fmt, tc['depth'])
-            if pdm.tex_has_alpha(fmt, tc['depth']):
-                matf3d = mat.f3d_mat
-                matf3d.rdp_settings.rendermode_preset_cycle_1 = 'G_RM_AA_ZB_OPA_SURF'
 
         mat_idx = bl_obj.data.materials.find(mat.name)
         face.material_index = mat_idx
