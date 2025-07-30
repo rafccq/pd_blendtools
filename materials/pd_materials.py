@@ -320,12 +320,21 @@ def material_setcombine(mat, cmd):
         ofs += w
 
 def material_settex(mat, cmd):
-    texnum = cmd & 0xfff
-    texname = f'{texnum:04X}.png'
+    texnum0 = cmd & 0xfff
+    texname0 = f'{texnum0:04X}.png'
+
+    min = (cmd >> 8*4) & 0xff
+
+    imglib = bpy.data.images
 
     tex0 = mat.tex0
-    tex0.tex = bpy.data.images[texname]
+    tex0.tex = imglib[texname0]
     tex0.tex_set = True
+
+    texnum1 = (cmd >> 4*3) & 0xfff
+    if texnum1:
+        texname1 = f'{texnum2:04X}.png'
+        tex0.tex = imglib[texname0]
 
     w0 = (cmd & 0xffffffff00000000) >> 32
     smode = bool((w0 >> 22) & 0x3)

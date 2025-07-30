@@ -91,7 +91,7 @@ def img_update_nodes(mat):
     node_tex = tree.nodes['teximage']
 
     modemap = {'wrap': 'REPEAT', 'clamp': 'EXTEND', 'mirror': 'MIRROR'}
-    node_tex.image = texload.image
+    node_tex.image = texload.tex0
     node_tex.extension = modemap[texload.smode]
 
 class MatTexLoad(PropertyGroup):
@@ -101,19 +101,20 @@ class MatTexLoad(PropertyGroup):
 
         img_update_nodes(mat)
 
-    image: PointerProperty(name='image', type=bpy.types.Image, update=on_update)
+    tex0: PointerProperty(name='tex0', type=bpy.types.Image, update=on_update)
+    tex1: PointerProperty(name='tex1', type=bpy.types.Image)
     smode: make_prop('smode', {'smode': TEX_WRAPMODES}, 'wrap', on_update)
     tmode: make_prop('tmode', {'tmode': TEX_WRAPMODES}, 'wrap', on_update)
-    lod_flag: BoolProperty(name='lod_flag', default=False, description='Write LOD', update=on_update)
-    offset: BoolProperty(name='offset', default=True, description='Offset', update=on_update)
+    lod_flag: BoolProperty(name='lod_flag', default=False, description='Write LOD')
+    offset: BoolProperty(name='offset', default=True, description='Offset')
 
-    shift_s: bpy.props.IntProperty(name='shift_s', default=0, min=0, max=15, update=on_update)
-    shift_t: bpy.props.IntProperty(name='shift_t', default=0, min=0, max=15, update=on_update)
+    shift_s: bpy.props.IntProperty(name='shift_s', default=0, min=0, max=15)
+    shift_t: bpy.props.IntProperty(name='shift_t', default=0, min=0, max=15)
     subcmd: bpy.props.IntProperty(name='subcmd', default=0, min=0, max=4, update=on_update)
 
-    menu: BoolProperty(name='menu', default=False, description='Texture Params', update=on_update)
-    autoprop: BoolProperty(name='autoprop', default=False, description='Auto Set Other Properties')
-    enabled: BoolProperty(name='enabled', default=False, description='Texture Enabled')
+    menu0: BoolProperty(name='menu0', default=False, description='Texture Params')
+    menu1: BoolProperty(name='menu1', default=False, description='Texture Params')
+    tex_set: BoolProperty(name='tex_set', default=False, description='Texture Enabled')
 
 def mat_texload_set(texload, cmd):
     w0 = (cmd & 0xffffffff00000000) >> 32
@@ -125,55 +126,69 @@ def mat_texload_set(texload, cmd):
     texload.shift_t = (w0 >> 10) & 0xf
     texload.lod_flag = bool(w0 & 0x200)
     texload.subcmd = w0 & 0x7
-    img = cmd & 0x0fff
 
-    if img != 0:
-        texload.image = bpy.data.images[f'{img:04X}.png']
+    imglib = bpy.data.images
+    tex0 = cmd & 0x0fff
 
-def mat_texload_draw(texload, layout, context):
-    layout.prop(texload, 'enabled', text='Set Texture')
+    if tex0:
+        texload.tex0 = imglib[f'{tex0:04X}.png']
+        texload.tex_set = True
 
+    tex1 = (cmd >> 4*3) & 0xfff
+    if tex1:
+        texload.tex1 = imglib[f'{tex1:04X}.png']
+
+def mat_texload_draw(texload, idx, layout, context):
     layout = layout.column()
-    layout.enabled = texload.enabled
+    layout.enabled = texload.tex_set
 
     layout.template_ID(
-        texload, "image", new="image.new", open="image.open", unlink="pdtools.tex0_unlink"
+        texload, f'tex{idx}', new="image.new", open="image.open", unlink=f"pdtools.tex{idx}_unlink"
     )
 
-    prop_split(layout, texload, 'smode', 'S Mode')
-    prop_split(layout, texload, 'tmode', 'T Mode')
-
-    layout.prop(texload, 'autoprop', text='Auto Set Other Properties')
-    if not texload.autoprop:
-        prop_split(layout, texload, 'shift_s', 'Shift S')
-        prop_split(layout, texload, 'shift_t', 'Shift T')
-
+    if idx == 0:
+        layout.prop(texload, 'tex_set', text='Set Texture')
+        prop_split(layout, texload, 'smode', 'S Mode')
+        prop_split(layout, texload, 'tmode', 'T Mode')
         prop_split(layout, texload, 'lod_flag', 'LOD Flag')
         prop_split(layout, texload, 'offset', 'Offset')
         prop_split(layout, texload, 'subcmd', 'Sub Command')
+
+    if idx == 1:
+        prop_split(layout, texload, 'shift_s', 'Shift S')
+        prop_split(layout, texload, 'shift_t', 'Shift T')
 
 def mat_tex_draw(pd_mat, layout, context):
     texload = pd_mat.texload
 
     col = layout.column()
-    col.prop(texload, 'menu', text = 'Texture 0 Properties+', icon = 'TRIA_DOWN' if texload.menu else 'TRIA_RIGHT')
-    if texload.menu:
-        mat_texload_draw(texload, col, context)
-        
+    col.prop(texload, 'menu0', text = 'Texture 0 Properties', icon = 'TRIA_DOWN' if texload.menu0 else 'TRIA_RIGHT')
+    if texload.menu0:
+        mat_texload_draw(texload, 0, col, context)
+
+    if texload.subcmd == 1:
+        col.prop(texload, 'menu1', text='Texture 1 Properties', icon='TRIA_DOWN' if texload.menu1 else 'TRIA_RIGHT')
+        if texload.menu1:
+            mat_texload_draw(texload, 1, col, context)
+
     texconfig = pd_mat.texconfig
+    pdu.ui_separator(col, type='SPACE')
     box = col.box()
     mat_texconfig_draw(texconfig, box, context)
 
 def texload_command(texload):
-    img = int(texload.image.name.replace('.png', ''), 16)
+    tex0 = int(texload.tex0.name.replace('.png', ''), 16)
+    teximg1 = texload.tex1
+    tex1 = int(teximg1.name.replace('.png', ''), 16) if teximg1 else 0
 
     smode = pdu.enum_value(texload, 'smode')
     tmode = pdu.enum_value(texload, 'tmode')
     offset = 2 if texload.offset else 0
     shifts = texload.shift_s
     shiftt = texload.shift_t
+    minlv = 0xf8 if tex1 else 0 # min level fixed at F8 for now (TODO check)
 
     w0 = (0xc0 << 24) | (smode << 22) | (tmode << 20) | (offset << 18) | \
          (shifts << 14) | (shiftt << 10) | (texload.lod_flag << 9) | texload.subcmd
 
-    return (w0 << 8*4) | (img & 0xffff)
+    return (w0 << 8*4) | (minlv << 4*6) | (tex1 << 4*3) | (tex0 & 0xfff)

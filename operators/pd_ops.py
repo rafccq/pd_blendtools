@@ -513,6 +513,15 @@ class PDTOOLS_OT_UnlinkPDMaterialImage0(Operator):
         context.material.pd_mat.texload.tex0 = None
         return {"FINISHED"}
 
+class PDTOOLS_OT_UnlinkPDMaterialImage1(Operator):
+    bl_idname = "pdtools.tex1_unlink"
+    bl_label = "Unlink PD Material Image"
+    bl_options = {"REGISTER", "UNDO", "PRESET"}
+
+    def execute(self, context):
+        context.material.pd_mat.texload.tex1 = None
+        return {"FINISHED"}
+
 class PDTOOLS_OT_CreatePDMaterial(Operator):
     bl_idname = "pdtools.create_pd_mat"
     bl_label = "Create PD Material (Simple)"
@@ -541,6 +550,7 @@ classes = [
     PDTOOLS_OT_SelectDirectory,
     PDTOOLS_OT_MessageBox,
     PDTOOLS_OT_UnlinkPDMaterialImage0,
+    PDTOOLS_OT_UnlinkPDMaterialImage1,
     PDTOOLS_OT_CreatePDMaterial,
 ]
 
