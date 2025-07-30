@@ -166,6 +166,30 @@ def new_room_from_selection(context):
     # bpy.context.view_layer.objects.active = bl_roomblock_new
     # bpy.ops.object.mode_set(mode='EDIT')
 
+def new_room(roomnum, pos=None):
+    bl_room = pdu.new_obj(f'Room_{roomnum:02X}', link=False, dsize=0.0001)
+
+    bl_room.pd_obj.name = bl_room.name
+    bl_room.pd_obj.type = pdprops.PD_OBJTYPE_ROOM
+    bl_room.pd_room.roomnum = roomnum
+    bl_room.pd_room.room = bl_room
+
+    pdu.add_to_collection(bl_room, 'Rooms')
+    bl_room.matrix_world.translation = pos if pos else (0, 0, 0)
+
+    scn = bpy.context.scene
+    scn['rooms'][str(roomnum)] = bl_room
+
+    return bl_room
+
+def get_numrooms():
+    coll = bpy.data.collections['Rooms']
+    nrooms = 0
+    for bl_obj in coll.objects:
+        if pdu.pdtype(bl_obj) != pdprops.PD_OBJTYPE_ROOM: continue
+        nrooms += 1
+    return nrooms
+
 def check_normals(faces):
     if not faces:
         return 'No Selection'
@@ -276,7 +300,6 @@ def new_portal_from_verts(bl_obj, verts):
         bl_portal.pd_portal.room1 = bl_obj
 
     bl_portal.location = center
-
 
 def select(verts):
     for v in verts:

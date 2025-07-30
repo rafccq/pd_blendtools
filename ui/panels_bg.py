@@ -122,6 +122,10 @@ class PDTOOLS_PT_RoomTools(Panel):
         row.operator('pdtools.op_room_select_all_blocks', text='Select All Blocks In Room')
         row.enabled = nsel == 1 and pdtype in [pdprops.PD_OBJTYPE_ROOM, pdprops.PD_OBJTYPE_ROOMBLOCK]
 
+        row = layout.column()
+        row.operator('pdtools.op_room_create', text='Create Room')
+        row.enabled = pdu.get_mode(context) in ['', 'OBJECT']
+
 
 classes = [
     PDTOOLS_PT_Portal,

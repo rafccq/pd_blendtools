@@ -2,7 +2,7 @@ import bpy
 from bpy.types import Operator, WorkSpaceTool
 import bmesh
 import gpu
-from bpy.props import EnumProperty, FloatProperty
+from bpy.props import EnumProperty, FloatProperty, FloatVectorProperty
 from bl_ui import space_toolsystem_common
 from gpu_extras.batch import batch_for_shader
 
@@ -137,7 +137,7 @@ class PDTOOLS_OT_RoomCreateBlock(Operator):
 
         blocks = [b for b in bl_room.children]
         for block in blocks: blocks += [b for b in block.children]
-        blocknum = 1 + max([block.pd_room.blocknum for block in blocks])
+        blocknum = 1 + max([block.pd_room.blocknum for block in blocks], default=0)
 
         pd_room = bl_room.pd_room
         roomnum = pd_room.roomnum
@@ -152,6 +152,49 @@ class PDTOOLS_OT_RoomCreateBlock(Operator):
         bgu.roomblock_set_props(bl_roomblock, roomnum, pd_room.room, blocknum, layer, self.blocktype)
 
         pdu.select_obj(bl_roomblock)
+        return {'FINISHED'}
+
+
+ENUM_ROOMPOS = [
+    ('Origin', 'Origin', 'Origin'),
+    ('3D Cursor', '3D Cursor', '3D Cursor'),
+    ('Custom', 'Custom', 'Custom'),
+]
+class PDTOOLS_OT_RoomCreate(Operator):
+    bl_idname = "pdtools.op_room_create"
+    bl_label = "Create Room"
+    bl_description = "Create a new room"
+    bl_options = {'REGISTER', 'INTERNAL'}
+
+    pos: FloatVectorProperty(name='bsp_pos', default=(0,0,0), subtype='XYZ', options={'LIBRARY_EDITABLE'})
+    pos_src: EnumProperty(name="Position", items=ENUM_ROOMPOS, default=ENUM_ROOMPOS[0][0], description='Position')
+
+    def invoke(self, context, event):
+        return context.window_manager.invoke_props_dialog(self, width=160)
+
+    def draw(self, context):
+        layout = self.layout
+        col = layout.column().split(factor=0.4)
+        col.label(text='Position:')
+        col.prop(self, 'pos_src', text='')
+
+        col = layout.column()
+        if self.pos_src == 'Custom':
+            col.prop(self, 'pos', text='')
+
+    def get_pos(self, context):
+        if self.pos_src == 'Custom':
+            return self.pos
+        elif self.pos_src == '3D Cursor':
+            return context.scene.cursor.location
+
+        return (0, 0, 0)
+
+    def execute(self, context):
+        roomnum = bgu.get_numrooms() + 1
+        pos = self.get_pos(context)
+        bl_room = bgu.new_room(roomnum, pos)
+        pdu.select_obj(bl_room)
         return {'FINISHED'}
 
 
@@ -377,6 +420,7 @@ classes = [
     PDTOOLS_OT_RoomSelectAllBlocks,
     PDTOOLS_OT_RoomSelectRoom,
     PDTOOLS_OT_RoomCreateBlock,
+    PDTOOLS_OT_RoomCreate,
     PDTOOLS_OT_PortalFromEdge,
     PDTOOLS_OT_PortalFromFace,
 ]

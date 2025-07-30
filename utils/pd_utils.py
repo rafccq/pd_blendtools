@@ -595,3 +595,7 @@ def ui_separator(layout, factor=1.0, type='LINE'):
         layout.separator(factor=factor)
     else:
         layout.separator(factor=factor, type=type)
+
+def get_mode(context):
+    ob = context.active_object
+    return ob.mode if ob else ''

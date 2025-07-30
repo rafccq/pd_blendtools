@@ -129,19 +129,10 @@ def bg_loadportals(bgdata, roomrange):
         bl_portal.pd_portal.room2 = rooms[str(room2)]
 
 def loadroom(bgdata, roomnum, tex_configs):
-    # print(f'loadroom {roomnum:02X}')
     room = bgdata.rooms[roomnum]
     gfxdata = room['gfxdata']
 
-    bl_room = pdu.new_obj(f'Room_{roomnum:02X}', link=False, dsize=0.0001)
-
-    bl_room.pd_obj.name = bl_room.name
-    bl_room.pd_obj.type = pdprops.PD_OBJTYPE_ROOM
-    bl_room.pd_room.roomnum = roomnum
-    bl_room.pd_room.room = bl_room
-
-    pdu.add_to_collection(bl_room, 'Rooms')
-    bl_room.matrix_world.translation = get_vec3(room['pos'])
+    bl_room = bgu.new_room(roomnum, get_vec3(room['pos']))
 
     # to blender coords
     R = Euler((pi / 2, 0, pi / 2)).to_matrix().to_4x4()
@@ -149,9 +140,6 @@ def loadroom(bgdata, roomnum, tex_configs):
 
     idx = bg_create_roomblocks(room, gfxdata['opablocks'], bl_room, bl_room, tex_configs, 'opa', 0)
     bg_create_roomblocks(room, gfxdata['xlublocks'], bl_room, bl_room, tex_configs, 'xlu', idx)
-
-    scn = bpy.context.scene
-    scn['rooms'][str(roomnum)] = bl_room
 
 def get_vec3(pos):
     x = pdu.f32(pos['x'])

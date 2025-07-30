@@ -212,7 +212,7 @@ def wp_addneighbour(bl_waypoint, bl_neighbour):
 
 def wp_nextid():
     wp_coll = bpy.data.collections['Waypoints']
-    return 1 + max([wp.pd_waypoint.id for wp in wp_coll.objects])
+    return 1 + max([wp.pd_waypoint.id for wp in wp_coll.objects], default=0)
 
 def wp_remove_neighbour(pd_waypoint, id):
     neighbours_coll = pd_waypoint.neighbours_coll
