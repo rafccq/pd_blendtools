@@ -1878,7 +1878,8 @@ def set_output_node_groups(material: Material):
     nodes = material.node_tree.nodes
     output_node = nodes["OUTPUT"]
     f3dMat: "F3DMaterialProperty" = material.f3d_mat
-    cycle = f3dMat.rdp_settings.g_mdsft_cycletype.lstrip("G_CYC_").rstrip("_CYCLE")
+    cycletype = f3dMat.rdp_settings.g_mdsft_cycletype
+    cycle = 1 if cycletype == 'NOT_SET' else cycletype.lstrip("G_CYC_").rstrip("_CYCLE")
     output_method = get_output_method(material)
     if bpy.app.version < (4, 2, 0) and output_method == "CLIP":
         output_method = "XLU"
