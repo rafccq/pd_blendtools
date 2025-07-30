@@ -138,6 +138,15 @@ def mat_texload_set(texload, cmd):
     if tex1:
         texload.tex1 = imglib[f'{tex1:04X}.png']
 
+def mat_settimg_set(texload, cmd):
+    texnum = cmd & 0xffff
+    texname = f'{texnum:04X}.png'
+
+    imglib = bpy.data.images
+
+    texload.tex0 = imglib[texname]
+    texload.tex_set = True
+
 def mat_texload_draw(texload, idx, layout, context):
     layout = layout.column()
     layout.enabled = texload.tex_set

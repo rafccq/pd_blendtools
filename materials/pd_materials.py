@@ -378,6 +378,16 @@ def mat_presetcombine(mat):
     connect(node_tree, 'CombinerInputs.LOD Fraction', 'Cycle_1', 6) # 'Ca'
     connect(node_tree, 'Tex0_I.Alpha', 'Cycle_1', 7) # 'Da'
 
+def material_settimg(mat, cmd):
+    texnum = cmd & 0xffff
+    texname = f'{texnum:04X}.png'
+
+    imglib = bpy.data.images
+
+    tex0 = mat.tex0
+    tex0.tex = imglib[texname]
+    tex0.tex_set = True
+
 def material_create_f3d(bl_obj, matsetup, name):
     mat = createF3DMat(bl_obj)
     mat.name = name
@@ -397,8 +407,10 @@ def material_create_f3d(bl_obj, matsetup, name):
             material_othermodeL(matf3d, cmd)
         elif op == G_SETCOMBINE:
             material_setcombine(matf3d, cmd)
-        if op == G_PDTEX:
+        elif op == G_PDTEX:
             material_settex(matf3d, cmd)
+        elif op == G_SETTIMG:
+            material_settimg(matf3d, cmd)
 
     return mat
 
@@ -515,7 +527,7 @@ def material_new(matsetup, use_alpha):
     node_vtxcolor = mat.node_tree.nodes['vtxcolor']
     node_vtxcolor.layer_name = 'Col'
 
-    texnum = matsetup.texnum & 0xfff
+    texnum = matsetup.texnum & 0xffff
     img = f'{texnum:04X}.png'
     imglib = bpy.data.images
     node_tex.image = imglib[img]
@@ -552,7 +564,12 @@ def material_setup_props(mat, matsetup):
 
     mat_setcombine_set(pd_mat.combiner, matsetup.setcombine)
     mat_texconfig_set(pd_mat.texconfig, matsetup.texconfig)
-    mat_texload_set(pd_mat.texload, matsetup.texload)
+
+    if matsetup.texload:
+        mat_texload_set(pd_mat.texload, matsetup.texload)
+
+    if matsetup.settimg:
+        mat_settimg_set(pd_mat.texload, matsetup.settimg)
 
 def mat_show_vtxcolors(mat):
     node_bsdf = mat.node_tree.nodes['p_bsdf']
