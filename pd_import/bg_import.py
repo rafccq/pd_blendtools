@@ -122,6 +122,7 @@ def bg_loadportals(bgdata, roomrange):
         bl_portal = bpy.data.objects.new(f'{basename}({room1:02X}-{room2:02X})', portalmesh)
         # bl_portal.display_type = 'WIRE'
         bgu.init_portal(bl_portal, basename)
+        bgu.center_mesh(bl_portal)
 
         scn = bpy.context.scene
         rooms = scn['rooms']

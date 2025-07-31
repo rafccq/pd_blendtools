@@ -6,7 +6,10 @@ import bpy
 from pd_data.pd_bgtiles import PD_TilesFile as PD_BGTiles
 from pd_data.decl_bgtiles import *
 from data.typeinfo import TypeInfo
-from utils import pd_utils as pdu
+from utils import (
+    pd_utils as pdu,
+    bg_utils as bgu,
+)
 from ui import mtxpalette as mtxp
 import pd_blendprops as pdprops
 
@@ -96,6 +99,7 @@ def tiles_import(romdata, tilenum, count):
             bl_tile.show_wire = True
             pdu.add_to_collection(bl_tile, 'Tiles')
             tile_setprops(bl_tile, geo)
+            bgu.center_mesh(bl_tile)
 
     return tilenum == ntiles - 1
 

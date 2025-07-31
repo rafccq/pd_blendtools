@@ -166,6 +166,14 @@ def new_room_from_selection(context):
     # bpy.context.view_layer.objects.active = bl_roomblock_new
     # bpy.ops.object.mode_set(mode='EDIT')
 
+# repositions the mesh to its median point, and make the verts relative to it
+def center_mesh(bl_obj):
+    verts = bl_obj.data.vertices
+    center = pdu.verts_median(verts)
+    for v in verts:
+        v.co -= center
+    bl_obj.matrix_world.translation = center
+
 def new_room(roomnum, pos=None):
     bl_room = pdu.new_obj(f'Room_{roomnum:02X}', link=False, dsize=0.0001)
 
