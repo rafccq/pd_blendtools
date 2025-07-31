@@ -882,8 +882,10 @@ class PDModelListItem(PropertyGroup):
     alias: StringProperty(name='alias')
 
 
-def update_scene_vis(self, context):
+def update_scene_vis(_self, context):
     for idx, name in enumerate(PD_COLLECTIONS):
+        if name not in bpy.data.collections: continue
+
         coll = bpy.data.collections[name]
         coll.hide_viewport = not context.scene.collections_vis[idx]
 

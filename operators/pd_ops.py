@@ -203,7 +203,7 @@ class PDTOOLS_OT_ImportLevel(Operator):
         context.window_manager.import_step += 1
         bpy.context.view_layer.objects.active = None
 
-    def finished(self, context):
+    def done(self, context):
         scn = context.scene
         scn.level_loading = False
         [a.tag_redraw() for a in context.screen.areas]
@@ -216,6 +216,9 @@ class PDTOOLS_OT_ImportLevel(Operator):
             f3dm.update_node_values_of_material(mat, bpy.context)
             # print(f'Mat {i}/{n} {time.time() - t0:2.3f}')
 
+        # print(f'LV_IMPORT done {time.time() - self.t_bgload:2.1f}')
+        pdprops.update_scene_vis(None, context)
+
     def modal(self, context, event):
         scn = context.scene
         if event.type in {'RIGHTMOUSE', 'ESC'}:
@@ -224,7 +227,7 @@ class PDTOOLS_OT_ImportLevel(Operator):
 
         if event.type == 'TIMER':
             if not self.steps:
-                self.finished(context)
+                self.done(context)
                 return {'FINISHED'}
 
             current_step = self.steps[0]
