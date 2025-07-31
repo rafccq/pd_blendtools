@@ -511,9 +511,7 @@ def material_setup_nodes(nodetree, matsetup):
 
         node_prev = new_node
 
-def material_new(matsetup, use_alpha):
-    name = matsetup.id()+'_PD'
-    # if there is already a material for this texture/mode, don't create a new one
+def material_new(matsetup, use_alpha, name):
     if name in bpy.data.materials:
         return bpy.data.materials[name]
 
