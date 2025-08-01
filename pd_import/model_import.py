@@ -17,7 +17,7 @@ from pd_data import texload as tex
 from ui import mtxpalette as mtxp
 from utils import (
     pd_utils as pdu,
-    log_util as log,
+    log_util as logu,
 )
 from materials import pd_materials as pdm
 import pd_blendprops as pdprops
@@ -26,11 +26,10 @@ from fast64.f3d import f3d_material as f3dm
 
 
 def update_log():
-    log.log_config(logger, log.LOG_FILE_IMPORT)
+    logu.log_config(logger, logu.LOG_FILE_IMPORT)
 
 
-logger = log.log_get(__name__)
-# log.log_config(logger, log.LOG_FILE_IMPORT)
+logger = logu.log_get(__name__)
 update_log()
 
 

@@ -3,6 +3,9 @@ import logging
 
 import bpy
 
+from utils import pd_utils as pdu
+from pd_blendtools import pd_addonprefs as pda
+
 LOG_FILE_IMPORT = 'pd_import.log'
 LOG_FILE_EXPORT = 'pd_export.log'
 LOG_FMT = '%(asctime)s [%(name)s] %(message)s'
@@ -11,12 +14,24 @@ LOG_DATEFMT = '%H:%M:%S'
 def log_get(name): return logging.getLogger(name.split('.')[0])
 
 def log_filename(filename):
-    # log_dir = os.path.dirname(bpy.data.filepath)
+    env = os.environ
+    log_dir = env['TEMP'] if 'TEMP' in env else env['TMPDIR']
 
-    # when we save the log in the addon folder, Blender will lock the file and we
-    # aren't able to uninstall the addon, so we save in the root of the addons dir
-    user_path = bpy.utils.resource_path('USER') # TODO find a proper way to store the log
-    log_dir = os.path.join(user_path, 'scripts', 'addons')
+    if not log_dir:
+        print('Error: unable to find temp directory, log files will not be created.')
+        return ''
+
+    log_dir += '/pd_blendtools_logs'
+    if os.path.isdir(log_dir):
+        return f'{log_dir}/{filename}'
+
+    # log dir doesn't exist, try to create
+    try:
+        os.mkdir(log_dir)
+    except Exception as err:
+        print(f'Error occurred while creating log dir {log_dir}: {err}')
+        return ''
+
     return f'{log_dir}/{filename}'
 
 def log_clear(filename):
@@ -25,18 +40,31 @@ def log_clear(filename):
     f.truncate(0)
     f.close()
 
-def log_config(logger, filename):
-    logger.handlers.clear()
-    logger.setLevel(logging.DEBUG)
+def log_get_level():
+    lvmap = {
+        'info': logging.INFO,
+        'debug': logging.DEBUG,
+        'error': logging.ERROR,
+    }
 
-    fh = logging.FileHandler(log_filename(filename))
-    fh.setLevel(logging.DEBUG)
-    ch = logging.StreamHandler()
-    ch.setLevel(logging.ERROR)
+    lv = pda.log_level()
+    return lvmap.get(lv, logging.ERROR)
+
+def log_config(logger, filename):
+    level = log_get_level()
+    logger.handlers.clear()
+    logger.setLevel(level)
+
+    file_h = None
+    logfile = log_filename(filename)
+    file_h = logging.FileHandler(logfile) if logfile else None
+    stream_h = logging.StreamHandler()
 
     formatter = logging.Formatter(LOG_FMT, datefmt=LOG_DATEFMT)
-    fh.setFormatter(formatter)
-    ch.setFormatter(formatter)
+    stream_h.setFormatter(formatter)
+    logger.addHandler(stream_h)
 
-    logger.addHandler(fh)
-    logger.addHandler(ch)
+    if file_h:
+        file_h.setFormatter(formatter)
+        logger.addHandler(file_h)
+

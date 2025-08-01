@@ -3,6 +3,12 @@ from pd_blendtools import addon_updater_ops
 
 from utils import pd_utils as pdu
 
+ENUM_LOG_LEVEL = [
+    ('info', 'Info', 'Info'),
+    ('debug', 'Debug', 'Debug'),
+    ('error', 'Error', 'Error'),
+]
+
 @addon_updater_ops.make_annotations
 class PD_AddonPreferences(bpy.types.AddonPreferences):
     bl_idname = __package__
@@ -12,6 +18,9 @@ class PD_AddonPreferences(bpy.types.AddonPreferences):
         description="Path to a valid Perfect Dark Rom",
         default='',
     )
+
+    log_level: bpy.props.EnumProperty(name='log_level', items=ENUM_LOG_LEVEL, default='error')
+
 
     # ######### ADDON UPDATER #########
     auto_check_update = bpy.props.BoolProperty(
@@ -48,12 +57,18 @@ class PD_AddonPreferences(bpy.types.AddonPreferences):
     # ####################################
 
     def draw(self, context):
-        row = self.layout.row()
+        row = self.layout.row().split(factor=.8)
 
         addon_updater_ops.check_for_update_background()
 
         row.prop(self, "rompath")
         row.operator("pdtools.load_rom")
+
+        row = self.layout.row().split(factor=0.4)
+        row.label(text='Log Level:')
+        row = row.row()
+        row.prop(self, 'log_level', text='Log Level', expand=True)
+
         addon_updater_ops.update_settings_ui(self, context)
         addon_updater_ops.update_notice_box_ui(self, context)
 
@@ -76,3 +91,10 @@ def set_rompath(rompath):
     if not prefs: return
 
     prefs.rompath = rompath
+
+def log_level():
+    prefs = addon_prefs()
+    if not prefs: return
+
+    return prefs.log_level
+

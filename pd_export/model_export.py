@@ -10,8 +10,14 @@ from ui import mtxpalette as mtxp
 from pd_data import romdata as rom
 from materials import pd_materials as pdm
 
-logger = logu.log_get(__name__)
-logu.log_config(logger, logu.LOG_FILE_EXPORT)
+
+def update_log():
+    logu.log_config(logger, log.LOG_FILE_EXPORT)
+
+
+logger = log.log_get(__name__)
+update_log()
+
 
 
 # col is a tuple (r,g,b,a) with each element in the range [0:1]
@@ -420,6 +426,7 @@ def loadmodel(romdata, modelname=None, filename=None):
     return PD_ModelFile(modeldata)
 
 def export_model(model_obj, filename):
+    update_log()
     logu.log_clear(logu.LOG_FILE_EXPORT)
 
     objmap = build_meshmap(model_obj)
@@ -469,7 +476,6 @@ def export_model(model_obj, filename):
                 vtxdata += batch.vtx_bytes(texsize, mtxs)
                 colordata += batch.color_bytes()
 
-        # print(idx, vtxdata)
         model.replace_vtxdata(idx, vtxdata)
         model.replace_colordata(idx, colordata)
 
@@ -498,14 +504,13 @@ def export_model(model_obj, filename):
         model.replace_gdl(modeldata, gdlbytes_opa, idx, opa)
         model.replace_gdl(modeldata, gdlbytes_xlu, idx, xlu)
 
-    # pdu.write_file(filename+'.bin', modeldata)
     modeldata = pdu.compress(modeldata)
     pdu.write_file(filename, modeldata)
 
 def print_batches(mesh, tri_batches, matrices=None):
     f = 0
     prevmat = -1
-    # print(f'mesh {mesh.idx:02X} batches')
+
     for bidx, batch in enumerate(tri_batches):
         mat = batch.mat
         if mat < 0: continue

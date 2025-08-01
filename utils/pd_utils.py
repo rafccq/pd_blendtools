@@ -591,7 +591,7 @@ def obj_ray_cast(obj, matrix, ray_origin, ray_target):
         return None, None, None
 
 def ui_separator(layout, factor=1.0, type='LINE'):
-    if bpy.app.version < (4, 0, 0):
+    if bpy.app.version < (4, 2, 0):
         layout.separator(factor=factor)
     else:
         layout.separator(factor=factor, type=type)
