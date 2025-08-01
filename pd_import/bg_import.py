@@ -178,7 +178,7 @@ def bg_create_roomblockDL(room, block, bl_room, rootobj, tex_configs, layer, idx
     gdldata, _, _ = mdi.gdl_read_data(meshdata, idx, False)
 
     name = bgu.blockname(roomnum, idx, 'Display List', layer)
-    bl_roomblock = mdi.create_mesh(gdldata, tex_configs, name, matcache)
+    bl_roomblock = mdi.create_mesh(gdldata, tex_configs, name, matcache, mdi.ASSET_TYPE_BG)
     bl_roomblock['addr'] = f'{block.addr:08X}'
     bl_roomblock.name = name
     bl_roomblock.parent = rootobj

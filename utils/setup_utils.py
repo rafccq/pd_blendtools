@@ -143,9 +143,9 @@ def obj_load_model(romdata, modelnum):
 
     if load_external:
         filename = f'{scn.external_models_dir}/{modelname}'
-        return mdi.import_model(romdata, matcache, single_mesh=True, filename=filename)
+        return mdi.import_model(romdata, matcache, mdi.ASSET_TYPE_OBJ, filename=filename)
     else:
-        return mdi.import_model(romdata, matcache, single_mesh=True, modelname=modelname)
+        return mdi.import_model(romdata, matcache, mdi.ASSET_TYPE_OBJ, modelname=modelname)
 
 def change_model(bl_obj, modelnum):
     if not bl_obj: return

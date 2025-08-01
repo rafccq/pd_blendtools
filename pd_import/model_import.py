@@ -2,9 +2,11 @@ import struct
 import os
 from collections import namedtuple
 import glob
+from enum import IntEnum
 
 import bpy
 import bmesh
+from bpy.app.handlers import persistent
 from mathutils import Vector
 
 from pd_data.pd_model import unmask, PD_ModelFile
@@ -22,13 +24,29 @@ import pd_blendprops as pdprops
 
 from fast64.f3d import f3d_material as f3dm
 
+
+def update_log():
+    log.log_config(logger, log.LOG_FILE_IMPORT)
+
+
 logger = log.log_get(__name__)
-log.log_config(logger, log.LOG_FILE_IMPORT)
+# log.log_config(logger, log.LOG_FILE_IMPORT)
+update_log()
+
+
+class MeshLayer(IntEnum):
+    OPA = 0
+    XLU = 1
+
+
+ASSET_TYPE_BG = 'BG'
+ASSET_TYPE_OBJ = 'OBJ'
+ASSET_TYPE_MODEL = 'MODEL'
 
 PDMeshData = namedtuple('PDMeshData',
                         'opagdl xlugdl ptr_vtx ptr_col vtxdata coldata matrices')
 
-def create_mesh(mesh, tex_configs, name, matcache):
+def create_mesh(mesh, tex_configs, name, matcache, asset_type):
     mesh_data = bpy.data.meshes.new('mesh_data')
 
     verts = mesh.verts
@@ -115,7 +133,7 @@ def create_mesh(mesh, tex_configs, name, matcache):
             use_alpha = pdm.tex_has_alpha(fmt, tc['depth'])
 
         if mathash not in matcache:
-            if matsetup.has_envmap() or matsetup.mat_is_translucent():
+            if should_use_f3d(matsetup, asset_type):
                 matname += ' (F3D)'
                 mat = pdm.material_create_f3d(bl_obj, matsetup, matname)
             else:
@@ -163,6 +181,23 @@ def create_mesh(mesh, tex_configs, name, matcache):
 
     return bl_obj
 
+def should_use_f3d(matsetup, asset_type):
+    if asset_type == ASSET_TYPE_MODEL: return True
+
+    OFS_ENVMAP = 0
+    OFS_TRANSLUCENT = 1
+    OFS_OTHER = 2
+
+    scn = bpy.context.scene
+    ofs = 0 if asset_type == ASSET_TYPE_BG else 3
+    settings = scn.import_settings.packed
+    bit_set = lambda pos: settings & (1 << (pos + ofs))
+
+    if bit_set(OFS_ENVMAP) and matsetup.has_envmap(): return True
+    if bit_set(OFS_TRANSLUCENT) and matsetup.mat_is_translucent(): return True
+    return bit_set(OFS_OTHER) != 0
+
+
 def posNodeName(idx): return f'{idx:02X}.Position'
 
 def create_joint(model, node, idx, depth, **kwargs):
@@ -190,11 +225,6 @@ def create_joint(model, node, idx, depth, **kwargs):
 
         joint_obj = pdu.new_obj(posNodeName(idx), parentobj)
         joint_obj.location = (x, y, z)
-
-from enum import IntEnum
-class MeshLayer(IntEnum):
-    OPA = 0
-    XLU = 1
 
 class ImportMeshData:
     def __init__(self, layer, has_mtx=False):
@@ -402,7 +432,7 @@ def aggregate_mesh(finalmesh, idx, meshdata, apply_mtx):
 
     return finalmesh
 
-def create_model_meshes(model, name, apply_mtx, single_mesh, matcache):
+def create_model_meshes(model, name, apply_mtx, asset_type, matcache):
     tex_configs = {}
     for tc in model.texconfigs:
         texnum = tc['texturenum']
@@ -410,6 +440,7 @@ def create_model_meshes(model, name, apply_mtx, single_mesh, matcache):
 
     idx = 0
     mesh_objs = []
+    single_mesh = asset_type == ASSET_TYPE_OBJ
     finalmesh = None
     for ro in model.rodatas:
         nodetype = ro['_node_type_']
@@ -440,18 +471,18 @@ def create_model_meshes(model, name, apply_mtx, single_mesh, matcache):
             if single_mesh:
                 finalmesh = aggregate_mesh(finalmesh, idx, meshdata, apply_mtx)
             else:
-                mesh_obj = create_model_mesh(idx, meshdata, tex_configs, apply_mtx, matcache)
+                mesh_obj = create_model_mesh(idx, meshdata, tex_configs, apply_mtx, matcache, asset_type)
                 mesh_objs += mesh_obj
 
         idx += 1
 
     if single_mesh:
-        mesh_obj = create_mesh(finalmesh, tex_configs, name, matcache)
+        mesh_obj = create_mesh(finalmesh, tex_configs, name, matcache, asset_type)
         mesh_objs = [mesh_obj]
 
     return mesh_objs
 
-def import_model(romdata, matcache, single_mesh=False, modelname=None, filename=None):
+def import_model(romdata, matcache, asset_type, modelname=None, filename=None):
     logger.debug(f'import model {modelname}')
     model = loadmodeldata(romdata, modelname=modelname, filename=filename)
 
@@ -464,7 +495,7 @@ def import_model(romdata, matcache, single_mesh=False, modelname=None, filename=
     props_with_mtx = ['ProofgunZ', 'PgroundgunZ']
     name = modelname if modelname else os.path.basename(filename)
     apply_mtx = name[0] != 'P' or name in props_with_mtx
-    meshes = create_model_meshes(model, name, apply_mtx, single_mesh, matcache)
+    meshes = create_model_meshes(model, name, apply_mtx, asset_type, matcache)
 
     if len(meshes) > 1:
         model_obj = pdu.new_empty_obj(name, link=False)
@@ -559,18 +590,6 @@ def loadmodeldata(romdata, modelname=None, filename=None):
         loadimages_embedded(model)
 
     return model
-
-def clear_materials():
-    imglib = bpy.data.images
-    for img in imglib:
-        imglib.remove(img)
-
-    matlib = bpy.data.materials
-    for mat in matlib:
-        if mat.name.startswith('Mat-') or mat.name.startswith('PD_'):
-            matlib.remove(mat)
-
-from bpy.app.handlers import persistent
 
 @persistent
 def on_update_graph(*args):

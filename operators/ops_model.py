@@ -31,9 +31,9 @@ def load_model(_context, modelname=None, filename=None):
     matcache = { mat.hashed:mat.name for mat in matlib }
 
     if modelname:
-        model_obj, _ = mdi.import_model(romdata, matcache, modelname=modelname)
+        model_obj, _ = mdi.import_model(romdata, matcache, mdi.ASSET_TYPE_MODEL, modelname=modelname)
     elif filename:
-        model_obj, _ = mdi.import_model(romdata, matcache, filename=filename)
+        model_obj, _ = mdi.import_model(romdata, matcache, mdi.ASSET_TYPE_MODEL, filename=filename)
     else:
         raise RuntimeError('load_model() called without modelname and filename params')
 

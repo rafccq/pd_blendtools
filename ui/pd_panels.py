@@ -177,10 +177,69 @@ class PDTOOLS_UL_ListModels(UIList):
 
         return flt_flags, []
 
+def prop_split(layout, data, field, name, factor):
+    split = layout.split(factor=factor)
+    split.label(text=name)
+    split.prop(data, field, text="")
+
+class PDTOOLS_PT_ImportLevelSettings(Panel):
+    bl_label = 'Import Settings'
+    bl_idname = "pdtools.import_level_settings"
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+
+    def draw(self, context):
+        scn = context.scene
+        layout = self.layout
+
+        layout.label(text='Import Settings')
+        pdu.ui_separator(layout)
+
+        box_bg = layout.box()
+        col = box_bg.column()
+        col.label(text='BG Materials:')
+        pdu.ui_separator(col)
+
+        row = col.row()
+        prop_split(row, scn.import_settings, 'bg_envmap', 'Env. Mapped:', 0.45)
+
+        row = col.row()
+        prop_split(row, scn.import_settings, 'bg_translucent', 'Translucent:', 0.45)
+
+        row = col.row()
+        prop_split(row, scn.import_settings, 'bg_other', 'Others:', 0.45)
+
+        box_obj = layout.box()
+        col = box_obj.column()
+        col.label(text='Object Materials:')
+        pdu.ui_separator(col)
+
+        row = col.row()
+        prop_split(row, scn.import_settings, 'obj_envmap', 'Env. Mapped:', 0.45)
+
+        row = col.row()
+        prop_split(row, scn.import_settings, 'obj_translucent', 'Translucent:', 0.45)
+
+        row = col.row()
+        prop_split(row, scn.import_settings, 'obj_other', 'Others:', 0.45)
+
+        warn = False
+        attr = lambda prop: getattr(scn.import_settings, prop)
+        for prop in ['envmap', 'translucent', 'other']:
+            if attr(f'bg_{prop}') != 'simple' or attr(f'obj_{prop}') != 'simple':
+                warn = True
+                break
+
+        if warn:
+            box_info = layout.box()
+            box_info.label(text='F3D Materials take longer to load')
+
+
 classes = [
     PDTOOLS_PT_ImportExport,
     PDTOOLS_PT_Scene,
     PDTOOLS_UL_ListModels,
+    PDTOOLS_PT_ImportLevelSettings,
 ]
 
 register, unregister = bpy.utils.register_classes_factory(classes)

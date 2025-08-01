@@ -1162,6 +1162,35 @@ def on_select_pdtype(self, context):
 class Fast64_Properties(bpy.types.PropertyGroup):
     renderSettings: bpy.props.PointerProperty(type=Fast64RenderSettings_Properties, name="Fast64 Render Settings")
 
+ENUM_LV_IMPORT_MAT = [
+    ('simple', 'Simple', 'Simple Material, innacurate (in Blender) but fast to load', 0),
+    ('f3d', 'F3D (Accurate)', 'F3D Material, more accurate (in Blender) but much slower to load', 1),
+]
+
+class PD_ImportSettings(PropertyGroup):
+    def on_update(self, context):
+        scn = context.scene
+
+        props = [f'{prefix}_{prop}' for prefix in ['bg', 'obj'] for prop in ['envmap', 'translucent', 'other']]
+        self.packed = 0
+        ofs = 0
+        for prop in props:
+            self.packed |= pdu.enum_value(scn.import_settings, prop) << ofs
+            ofs += 1
+
+
+    bg_envmap: EnumProperty(name='bg_envmap', items=ENUM_LV_IMPORT_MAT, default='f3d', update=on_update)
+    bg_translucent: EnumProperty(name='bg_translucent', items=ENUM_LV_IMPORT_MAT, default='f3d', update=on_update)
+    bg_other: EnumProperty(name='bg_other', items=ENUM_LV_IMPORT_MAT, default='simple', update=on_update)
+
+    obj_envmap: EnumProperty(name='obj_envmap', items=ENUM_LV_IMPORT_MAT, default='f3d', update=on_update)
+    obj_translucent: EnumProperty(name='obj_translucent', items=ENUM_LV_IMPORT_MAT, default='f3d', update=on_update)
+    obj_other: EnumProperty(name='obj_other', items=ENUM_LV_IMPORT_MAT, default='simple', update=on_update)
+
+    # each bit represents one setting, following the order above. 0 for simple material and 1 for f3d
+    packed: IntProperty(name='packed', default=0b011011)
+
+
 classes = [
     PDObject,
     PDObject_Model,
@@ -1182,6 +1211,7 @@ classes = [
     PDModelListItem,
     Fast64RenderSettings_Properties,
     Fast64_Properties,
+    PD_ImportSettings,
 ]
 
 def register():
@@ -1239,6 +1269,7 @@ def register():
     Scene.import_src_pads = EnumProperty(items=ITEMS_IMPORT_SRC, name="src_pads", default="ROM")
     Scene.import_src_setup = EnumProperty(items=ITEMS_IMPORT_SRC, name="src_setup", default="ROM")
     Scene.import_src_tiles = EnumProperty(items=ITEMS_IMPORT_SRC, name="src_tiles", default="ROM")
+    Scene.import_settings = bpy.props.PointerProperty(type=PD_ImportSettings, name='Import Settings')
 
     # flags to indicate if each component will be imported or not
     Scene.import_bg = BoolProperty(name='import_bg', default=True, description="Import Background File")

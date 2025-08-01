@@ -216,7 +216,7 @@ class PDTOOLS_OT_ImportLevel(Operator):
             f3dm.update_node_values_of_material(mat, bpy.context)
             # print(f'Mat {i}/{n} {time.time() - t0:2.3f}')
 
-        # print(f'LV_IMPORT done {time.time() - self.t_bgload:2.1f}')
+        print(f'LV_IMPORT done {time.time() - self.t_bgload:2.1f}')
         pdprops.update_scene_vis(None, context)
 
     def modal(self, context, event):
@@ -300,7 +300,10 @@ class PDTOOLS_OT_ImportLevel(Operator):
         return {'RUNNING_MODAL'}
 
     def invoke(self, context, event):
-        return context.window_manager.invoke_props_dialog(self, width=300)
+        if bpy.app.version < (4, 2, 0):
+            return context.window_manager.invoke_props_dialog(self, width=300, title='')
+        else:
+            return context.window_manager.invoke_props_dialog(self, width=300)
 
     def draw_bg(self, context):
         scn = context.scene
@@ -413,6 +416,11 @@ class PDTOOLS_OT_ImportLevel(Operator):
             row.enabled = scn.import_tiles
 
     def draw(self, context):
+        row = self.layout.row().split(factor=0.9)
+        row.label(text='Import Level')
+        row.popover('pdtools.import_level_settings', text='', icon='SETTINGS')
+        pdu.ui_separator(self.layout)
+
         self.draw_bg(context)
 
         pdu.ui_separator(self.layout, type='SPACE')
@@ -423,6 +431,7 @@ class PDTOOLS_OT_ImportLevel(Operator):
 
         pdu.ui_separator(self.layout, type='SPACE')
         self.draw_tiles(context)
+
 
 class PDTOOLS_OT_ExportLevel(Operator):
     bl_idname = "pdtools.export_level"
