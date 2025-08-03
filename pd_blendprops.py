@@ -21,7 +21,7 @@ import nodes.nodeutils as ndu
 from pd_data import pd_padsfile as pdp
 import pd_mtx as mtx
 
-from fast64.render_settings import Fast64RenderSettings_Properties, on_update_render_settings
+from fast64.render_settings import Fast64RenderSettings_Properties
 
 
 PD_OBJTYPE_MODEL        = 0x0100
@@ -1323,7 +1323,6 @@ def register():
     Scene.external_models_dir = StringProperty(name='external_models_dir', description="")
 
     Scene.fast64 = bpy.props.PointerProperty(type=Fast64_Properties, name='Fast64 Properties')
-    bpy.types.Scene.blenderF3DScale = FloatProperty(name='F3D Blender Scale', default=100, update=on_update_render_settings)
     bpy.types.Scene.gameEditorMode = StringProperty(name='gameEditorMode', default='', description='')
 
     bpy.types.WindowManager.progress = bpy.props.FloatProperty()

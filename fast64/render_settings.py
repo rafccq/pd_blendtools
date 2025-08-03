@@ -184,7 +184,7 @@ def update_scene_props_from_render_settings(
     update_scene_props_from_rs_useWorldSpaceLighting(renderSettings)
 
     # TODO use a callback on the scale props to set this value
-    sceneOutputs.inputs["Blender_Game_Scale"].default_value = float(get_blender_to_game_scale(bpy.context))
+    sceneOutputs.inputs["Blender_Game_Scale"].default_value = 100
 
 
 def getSceneOutputs():
