@@ -20,6 +20,7 @@ from pd_import import (
 from pd_export import model_export as mde
 from pd_data import romdata as rom
 from materials import pd_materials as pdm
+from pd_blendtools import pd_blendprops as pdprops
 
 from fast64.f3d import f3d_material as f3dm
 
@@ -49,6 +50,12 @@ def load_model(_context, modelname=None, filename=None):
     stpi.blender_align(model_obj)
     pdu.select_obj(model_obj)
 
+def get_model_obj(bl_obj):
+    while bl_obj:
+        if pdu.pdtype(bl_obj) == pdprops.PD_OBJTYPE_MODEL: return bl_obj
+        bl_obj = bl_obj.parent
+
+    return None
 
 class PDTOOLS_OT_ImportModelFromFile(Operator, ImportHelper):
     bl_idname = "pdtools.import_model_file"
@@ -71,7 +78,7 @@ class PDTOOLS_OT_ImportModelFromFile(Operator, ImportHelper):
 
 class PDTOOLS_OT_ImportModelFromROM(Operator):
     bl_idname = "pdtools.import_model_rom"
-    bl_label = "Import Model From ROM"
+    bl_label = "Import Model"
 
     @classmethod
     def description(cls, context, properties):
@@ -89,8 +96,18 @@ class PDTOOLS_OT_ImportModelFromROM(Operator):
         if len(scn.color_collection) == 0:
             gen_icons(context)
 
-        item = scn.pd_modelfiles[scn.pd_modelfiles_idx]
-        load_model(context, modelname=item.name)
+        if scn.import_src_model == 'ROM':
+            item = scn.pd_modelfiles[scn.pd_modelfiles_idx]
+            load_model(context, modelname=item.name)
+        else:
+            rompath = pda.rompath()
+            rom_exists = bool(rompath)
+            if not rom_exists:
+                print("Can't import model, no ROM loaded")
+                return {'FINISHED'}
+            else:
+                load_model(context, filename=scn.file_model)
+
         return {'FINISHED'}
 
     def invoke(self, context, event):
@@ -99,7 +116,20 @@ class PDTOOLS_OT_ImportModelFromROM(Operator):
     def draw(self, context):
         scn = context.scene
         layout = self.layout
-        layout.template_list('pdtools.list_models', '', scn, 'pd_modelfiles', scn, 'pd_modelfiles_idx', rows=20)
+
+        layout.prop(scn, 'import_src_model', expand=True)
+
+        if scn.import_src_model == 'ROM':
+            layout.template_list('pdtools.list_models', '', scn, 'pd_modelfiles', scn, 'pd_modelfiles_idx', rows=20)
+        else:
+            rompath = pda.rompath()
+            rom_exists = bool(rompath)
+
+            row = layout.row().split(factor=0.9)
+            row.prop(scn, 'file_model', text='')
+            op = row.operator('pdtools.import_select_file', text='...')
+            op.type = 'model'
+            row.enabled = rom_exists
 
 
 class PDTOOLS_OT_SelectModel(Operator):
@@ -151,9 +181,22 @@ class PDTOOLS_OT_ExportModel(Operator, ExportHelper):
 
     filename_ext = ''
 
+    @classmethod
+    def description(cls, context, properties):
+        scn = context.scene
+
+        model_obj = get_model_obj(context.active_object)
+        print(model_obj)
+        ismodel = pdu.pdtype(model_obj) == pdprops.PD_OBJTYPE_MODEL
+
+        if model_obj:
+            return 'Export the model'
+        else:
+            return 'Select a model object to export'
+
     def execute(self, context):
         print(f'Export model: {self.filepath}')
-        model_obj = pdu.get_model_obj(context.object)
+        model_obj = get_model_obj(context.object)
         try:
             mde.export_model(model_obj, self.filepath)
         except RuntimeError as ex:
@@ -164,7 +207,7 @@ class PDTOOLS_OT_ExportModel(Operator, ExportHelper):
         return {'FINISHED'}
 
     def invoke(self, context, _event):
-        obj = pdu.get_model_obj(context.object)
+        obj = get_model_obj(context.object)
         props = obj.pd_model
 
         blend_filepath = context.blend_data.filepath
@@ -202,7 +245,6 @@ class PDTOOLS_OT_SelectVertsUnassignedMtxs(Operator):
 
 classes = [
     PDTOOLS_OT_ImportModelFromROM,
-    PDTOOLS_OT_ImportModelFromFile,
     PDTOOLS_OT_SelectModel,
     PDTOOLS_OT_ExportModel,
     PDTOOLS_OT_AssignMtxToVerts,

@@ -334,14 +334,6 @@ def assign_mtx_to_selected_verts(mtx):
 def index_where(array, condition, default = -1):
     return next((idx for idx, e in enumerate(array) if condition(e)), default)
 
-def get_model_obj(obj):
-    while obj:
-        name = obj.pd_model.name
-        if name and name[0] in ['P', 'C', 'G']: return obj
-        obj = obj.parent
-
-    return None
-
 # Select vertices that don't have a matrix assigned and returns the number of vertices selected
 # It assumes a mesh is selected and edit mode is on
 def select_vtx_unassigned_mtxs():

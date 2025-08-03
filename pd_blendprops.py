@@ -1265,10 +1265,11 @@ def register():
     Scene.rompath = StringProperty(name="rompath", default='')
 
     # import source: ROM or File
-    Scene.import_src_bg = EnumProperty(items=ITEMS_IMPORT_SRC, name="src_bg", default="ROM")
-    Scene.import_src_pads = EnumProperty(items=ITEMS_IMPORT_SRC, name="src_pads", default="ROM")
-    Scene.import_src_setup = EnumProperty(items=ITEMS_IMPORT_SRC, name="src_setup", default="ROM")
-    Scene.import_src_tiles = EnumProperty(items=ITEMS_IMPORT_SRC, name="src_tiles", default="ROM")
+    Scene.import_src_bg = EnumProperty(items=ITEMS_IMPORT_SRC, name="import_src_bg", default="ROM")
+    Scene.import_src_pads = EnumProperty(items=ITEMS_IMPORT_SRC, name="import_src_pads", default="ROM")
+    Scene.import_src_setup = EnumProperty(items=ITEMS_IMPORT_SRC, name="import_src_setup", default="ROM")
+    Scene.import_src_tiles = EnumProperty(items=ITEMS_IMPORT_SRC, name="import_src_tiles", default="ROM")
+    Scene.import_src_model = EnumProperty(items=ITEMS_IMPORT_SRC, name="import_src_model", default="ROM")
     Scene.import_settings = bpy.props.PointerProperty(type=PD_ImportSettings, name='Import Settings')
 
     # flags to indicate if each component will be imported or not
@@ -1288,6 +1289,7 @@ def register():
     Scene.file_pads = StringProperty(name='file_pads')
     Scene.file_setup = StringProperty(name='file_setup')
     Scene.file_tiles = StringProperty(name='file_tiles')
+    Scene.file_model = StringProperty(name='file_model')
 
     # flags to indicate if each component will be exported or not
     Scene.export_bg = BoolProperty(name='export_bg', default=True, description="Export Background File")

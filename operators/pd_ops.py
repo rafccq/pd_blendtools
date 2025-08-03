@@ -184,6 +184,10 @@ class PDTOOLS_OT_ImportSelectFile(Operator, ImportHelper):
             scn.file_setup = self.filepath
         elif self.type == 'tiles':
             scn.file_tiles = self.filepath
+        elif self.type == 'model':
+            scn.file_model = self.filepath
+
+        pdu.redraw_ui()
         return {'FINISHED'}
 
 

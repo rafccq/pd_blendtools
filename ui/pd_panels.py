@@ -9,6 +9,7 @@ from utils import (
 )
 from nodes import nodeutils as ndu
 from operators import pd_ops as pdops
+from operators.ops_model import get_model_obj
 from pd_blendtools import pd_addonprefs as pdp
 from pd_blendtools import addon_updater_ops
 import pd_blendprops as pdprops
@@ -35,15 +36,11 @@ class PDTOOLS_PT_ImportExport(Panel):
         icon = 'NONE' if rompath else 'ERROR'
         row.operator("pdtools.import_model_rom", icon=icon)
 
-        row = self.layout.row()
-        row.operator("pdtools.import_model_file")
-        row.enabled = rom_exists
-
         pdu.ui_separator(self.layout, type='LINE')
 
         obj = context.object
         row = self.layout.row()
-        ismodel = obj is not None and (obj.pd_obj.type & 0xff00) == pdprops.PD_OBJTYPE_MODEL
+        ismodel = get_model_obj(obj) is not None
         row.enabled = rom_exists and ismodel
         row.operator("pdtools.export_model", text = "Export Model")
 

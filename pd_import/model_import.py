@@ -404,7 +404,7 @@ def create_model_mesh(idx, meshdata, tex_configs, apply_mtx, matcache):
 
         name = f'Node{idx:02X}'
         name += ' (xlu)' if gdldata.layer == MeshLayer.XLU else ''
-        mesh_obj = create_mesh(gdldata, tex_configs, name, matcache)
+        mesh_obj = create_mesh(gdldata, tex_configs, name, matcache, ASSET_TYPE_MODEL)
         mesh_obj.pd_model.layer = gdldata.layer
         mesh_obj.pd_model.idx = idx
         mesh_obj.data['matrices'] = list(model_mtxs)
@@ -470,7 +470,7 @@ def create_model_meshes(model, name, apply_mtx, asset_type, matcache):
             if single_mesh:
                 finalmesh = aggregate_mesh(finalmesh, idx, meshdata, apply_mtx)
             else:
-                mesh_obj = create_model_mesh(idx, meshdata, tex_configs, apply_mtx, matcache, asset_type)
+                mesh_obj = create_model_mesh(idx, meshdata, tex_configs, apply_mtx, matcache)
                 mesh_objs += mesh_obj
 
         idx += 1
