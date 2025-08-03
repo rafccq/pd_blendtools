@@ -304,7 +304,7 @@ class PDTOOLS_OT_ImportLevel(Operator):
         return {'RUNNING_MODAL'}
 
     def invoke(self, context, event):
-        if bpy.app.version < (4, 2, 0):
+        if bpy.app.version >= (4, 2, 0):
             return context.window_manager.invoke_props_dialog(self, width=300, title='')
         else:
             return context.window_manager.invoke_props_dialog(self, width=300)
@@ -421,7 +421,12 @@ class PDTOOLS_OT_ImportLevel(Operator):
 
     def draw(self, context):
         row = self.layout.row().split(factor=0.9)
-        row.label(text='Import Level')
+
+        # in earlier Blender versions, the dialog will already have a title
+        # title = 'Import Level' if bpy.app.version >= (4, 2, 0) else 'Import Settings:'
+        title = 'Import Level' if bpy.app.version >= (4, 2, 0) else ''
+        row.label(text=title)
+
         row.popover('pdtools.import_level_settings', text='', icon='SETTINGS')
         pdu.ui_separator(self.layout)
 

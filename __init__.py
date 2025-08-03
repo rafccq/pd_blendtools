@@ -46,7 +46,6 @@ from .pd_addonprefs import PD_AddonPreferences
 from . import pd_addonprefs as pdp
 import pd_blendprops as pdprops
 
-from nodes import pd_shadernodes as pdn
 from operators import pd_ops as pdops
 import operators as ops
 import ui
@@ -61,7 +60,6 @@ import materials as pdm
 import fast64
 
 submodules = [
-    pdn,
     ui,
     ops,
     pdprops,
@@ -99,9 +97,6 @@ def register():
         m.register()
 
     bpy.app.handlers.load_post.append(pd_load_handler)
-
-def unregister_nodes():
-    pdn.unregister()
 
 def unregister():
     for m in reversed(submodules):

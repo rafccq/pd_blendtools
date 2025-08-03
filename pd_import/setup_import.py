@@ -23,7 +23,6 @@ from materials import pd_materials as pdm
 from pd_data import pd_padsfile as pdp
 import template_mesh as tmesh
 import pd_blendprops as pdprops
-from nodes import nodeutils as ndu
 
 OBJ_NAMES = pdprops.OBJ_NAMES
 

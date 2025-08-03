@@ -1,7 +1,6 @@
 from bpy.types import UILayout, PropertyGroup
 from bpy.props import EnumProperty
 
-from nodes.nodeutils import *
 from utils import pd_utils as pdu
 
 from fast64.utility import prop_split

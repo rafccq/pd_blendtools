@@ -5,7 +5,6 @@ from utils import (
     pd_utils as pdu,
     setup_utils as stu,
 )
-from nodes import nodeutils as ndu
 import pd_blendprops as pdprops
 
 
