@@ -1,4 +1,4 @@
-# manifest
+schema_version = "1.0.0"
 id = "pd_blendtools"
 version = "0.0.1"
 name = "Perfect Dark Blender Editor"
