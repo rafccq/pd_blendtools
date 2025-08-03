@@ -63,7 +63,7 @@ def draw_door(props_door, layout, context, multiple):
     pdu.ui_separator(column, type='LINE')
     row = column.row()
     row.prop(props_door, 'door_type', text='Type')
-    sound = ndu.item_from_value(pdprops.DOOR_SOUNDTYPES, props_door.sound_type)
+    sound = pdu.item_from_value(pdprops.DOOR_SOUNDTYPES, props_door.sound_type)
     row.popover(panel="PDTOOLS_PT_SetupDoorSound", text=f'Sound: {sound}')
 
     pdu.ui_separator(column, type='LINE')

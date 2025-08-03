@@ -1,9 +1,7 @@
 from bpy.types import PropertyGroup
 from bpy.props import IntProperty, BoolProperty
 
-from nodes.nodeutils import *
 from utils import pd_utils as pdu
-
 
 COMBINER_ITEMS_A = [
     ('Combined Color', 'Combined Color', 0),
@@ -146,23 +144,23 @@ COMBINER_PARAMWIDTHS = {
 }
 
 class MatSetCombine(PropertyGroup):
-    combiner1_a_color: make_prop('combiner1_a_color', COMBINER_ITEMS, make_id(COMBINER_ITEMS_A[-1][0]))
-    combiner1_b_color: make_prop('combiner1_b_color', COMBINER_ITEMS, make_id(COMBINER_ITEMS_B[-1][0]))
-    combiner1_c_color: make_prop('combiner1_c_color', COMBINER_ITEMS, make_id(COMBINER_ITEMS_C[-1][0]))
-    combiner1_d_color: make_prop('combiner1_d_color', COMBINER_ITEMS, make_id(COMBINER_ITEMS_D[-3][0]))
-    combiner1_a_alpha: make_prop('combiner1_a_alpha', COMBINER_ITEMS, make_id(COMBINER_ITEMS_A_ALPHA[-1][0]))
-    combiner1_b_alpha: make_prop('combiner1_b_alpha', COMBINER_ITEMS, make_id(COMBINER_ITEMS_B_ALPHA[-1][0]))
-    combiner1_c_alpha: make_prop('combiner1_c_alpha', COMBINER_ITEMS, make_id(COMBINER_ITEMS_C_ALPHA[-1][0]))
-    combiner1_d_alpha: make_prop('combiner1_d_alpha', COMBINER_ITEMS, make_id(COMBINER_ITEMS_D_ALPHA[-3][0]))
+    combiner1_a_color: pdu.make_prop('combiner1_a_color', COMBINER_ITEMS, pdu.make_id(COMBINER_ITEMS_A[-1][0]))
+    combiner1_b_color: pdu.make_prop('combiner1_b_color', COMBINER_ITEMS, pdu.make_id(COMBINER_ITEMS_B[-1][0]))
+    combiner1_c_color: pdu.make_prop('combiner1_c_color', COMBINER_ITEMS, pdu.make_id(COMBINER_ITEMS_C[-1][0]))
+    combiner1_d_color: pdu.make_prop('combiner1_d_color', COMBINER_ITEMS, pdu.make_id(COMBINER_ITEMS_D[-3][0]))
+    combiner1_a_alpha: pdu.make_prop('combiner1_a_alpha', COMBINER_ITEMS, pdu.make_id(COMBINER_ITEMS_A_ALPHA[-1][0]))
+    combiner1_b_alpha: pdu.make_prop('combiner1_b_alpha', COMBINER_ITEMS, pdu.make_id(COMBINER_ITEMS_B_ALPHA[-1][0]))
+    combiner1_c_alpha: pdu.make_prop('combiner1_c_alpha', COMBINER_ITEMS, pdu.make_id(COMBINER_ITEMS_C_ALPHA[-1][0]))
+    combiner1_d_alpha: pdu.make_prop('combiner1_d_alpha', COMBINER_ITEMS, pdu.make_id(COMBINER_ITEMS_D_ALPHA[-3][0]))
 
-    combiner2_a_color: make_prop('combiner2_a_color', COMBINER_ITEMS, make_id(COMBINER_ITEMS_A[-1][0]))
-    combiner2_b_color: make_prop('combiner2_b_color', COMBINER_ITEMS, make_id(COMBINER_ITEMS_B[-1][0]))
-    combiner2_c_color: make_prop('combiner2_c_color', COMBINER_ITEMS, make_id(COMBINER_ITEMS_C[-1][0]))
-    combiner2_d_color: make_prop('combiner2_d_color', COMBINER_ITEMS, make_id(COMBINER_ITEMS_D[-3][0]))
-    combiner2_a_alpha: make_prop('combiner2_a_alpha', COMBINER_ITEMS, make_id(COMBINER_ITEMS_A_ALPHA[-1][0]))
-    combiner2_b_alpha: make_prop('combiner2_b_alpha', COMBINER_ITEMS, make_id(COMBINER_ITEMS_B_ALPHA[-1][0]))
-    combiner2_c_alpha: make_prop('combiner2_c_alpha', COMBINER_ITEMS, make_id(COMBINER_ITEMS_C_ALPHA[-1][0]))
-    combiner2_d_alpha: make_prop('combiner2_d_alpha', COMBINER_ITEMS, make_id(COMBINER_ITEMS_D_ALPHA[-3][0]))
+    combiner2_a_color: pdu.make_prop('combiner2_a_color', COMBINER_ITEMS, pdu.make_id(COMBINER_ITEMS_A[-1][0]))
+    combiner2_b_color: pdu.make_prop('combiner2_b_color', COMBINER_ITEMS, pdu.make_id(COMBINER_ITEMS_B[-1][0]))
+    combiner2_c_color: pdu.make_prop('combiner2_c_color', COMBINER_ITEMS, pdu.make_id(COMBINER_ITEMS_C[-1][0]))
+    combiner2_d_color: pdu.make_prop('combiner2_d_color', COMBINER_ITEMS, pdu.make_id(COMBINER_ITEMS_D[-3][0]))
+    combiner2_a_alpha: pdu.make_prop('combiner2_a_alpha', COMBINER_ITEMS, pdu.make_id(COMBINER_ITEMS_A_ALPHA[-1][0]))
+    combiner2_b_alpha: pdu.make_prop('combiner2_b_alpha', COMBINER_ITEMS, pdu.make_id(COMBINER_ITEMS_B_ALPHA[-1][0]))
+    combiner2_c_alpha: pdu.make_prop('combiner2_c_alpha', COMBINER_ITEMS, pdu.make_id(COMBINER_ITEMS_C_ALPHA[-1][0]))
+    combiner2_d_alpha: pdu.make_prop('combiner2_d_alpha', COMBINER_ITEMS, pdu.make_id(COMBINER_ITEMS_D_ALPHA[-3][0]))
 
     num_cycles: IntProperty(name='num_cycles', default=1)
 
@@ -179,8 +177,8 @@ def mat_setcombine_set(combiner, cmd):
 
         items = COMBINER_ITEMS[name]
         ofs += w
-        propval = item_from_value(items, value, -1)
-        setattr(combiner, name, make_id(propval))
+        propval = pdu.item_from_value(items, value, -1)
+        setattr(combiner, name, pdu.make_id(propval))
 
 def mat_setcombine_draw(combiner, layout, context):
     box = layout.box()

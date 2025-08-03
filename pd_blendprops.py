@@ -204,7 +204,7 @@ DOORTYPES = [
     ('Laser',       'Laser Beam/Barricade', 0xb),
 ]
 
-DOORTYPES_VALUES = { ndu.make_id(e[0]): e[2] for e in DOORTYPES }
+DOORTYPES_VALUES = {pdu.make_id(e[0]): e[2] for e in DOORTYPES}
 
 DOOR_SOUNDTYPES = [
     ('00 None',                'None',                 0x00),
@@ -243,7 +243,7 @@ DOOR_SOUNDTYPES = [
     ('21 None',                'None',                 0x21),
 ]
 
-DOOR_SOUNDTYPES_VALUES = { ndu.make_id(e[0]): e[2] for e in DOOR_SOUNDTYPES }
+DOOR_SOUNDTYPES_VALUES = {pdu.make_id(e[0]): e[2] for e in DOOR_SOUNDTYPES}
 
 PAD_FLAGS = [
     ('INTPOS'         , 0x0001),
@@ -639,7 +639,7 @@ class PDObject_Tile(PropertyGroup):
 
     flags: BoolVectorProperty(name='flags', size=len(TILE_FLAGS), update=update_scene_tiles, options={'LIBRARY_EDITABLE'})
     floorcol: FloatVectorProperty(name='floorcol', subtype='COLOR', size=4, min=0, max=1, update=update_scene_tiles, options={'LIBRARY_EDITABLE'})
-    floortype: ndu.make_prop('floortype', {'floortype': TILE_FLOORTYPES}, 'default', update_scene_tiles)
+    floortype: pdu.make_prop('floortype', {'floortype': TILE_FLOORTYPES}, 'default', update_scene_tiles)
     roomnum: IntProperty(name='roomnum', default=0, options={'LIBRARY_EDITABLE'})
     room: PointerProperty(name='room', update=update_scene_tiles, type=bpy.types.Object, poll=check_isroom, options={'LIBRARY_EDITABLE'})
 
@@ -771,8 +771,8 @@ class PDObject_SetupDoor(PropertyGroup):
     def update_doorflags(self, context):
         src = repr(self)
 
-    door_type: ndu.make_prop('door_type', {'door_type': DOORTYPES}, 'sliding', None)
-    sound_type: ndu.make_prop('sound_type', {'sound_type': DOOR_SOUNDTYPES}, '00none', None)
+    door_type: pdu.make_prop('door_type', {'door_type': DOORTYPES}, 'sliding', None)
+    sound_type: pdu.make_prop('sound_type', {'sound_type': DOOR_SOUNDTYPES}, '00none', None)
 
     maxfrac: FloatProperty(name='maxfrac', min=0, default=0, options={'LIBRARY_EDITABLE'})
     perimfrac: FloatProperty(name='perimfrac', min=0, default=0, options={'LIBRARY_EDITABLE'})
@@ -992,9 +992,9 @@ def draw_waypoints():
     if 'waypoints' not in scn or not collection_vis('Waypoints'):
         return
 
-    VIS_SELECTEDSET = ndu.make_id(WAYPOINTS_VISIBILITY[1][0])
-    VIS_ISOLATEDSETS = ndu.make_id(WAYPOINTS_VISIBILITY[2][0])
-    VIS_SELECTEDWP = ndu.make_id(WAYPOINTS_VISIBILITY[3][0])
+    VIS_SELECTEDSET = pdu.make_id(WAYPOINTS_VISIBILITY[1][0])
+    VIS_ISOLATEDSETS = pdu.make_id(WAYPOINTS_VISIBILITY[2][0])
+    VIS_SELECTEDWP = pdu.make_id(WAYPOINTS_VISIBILITY[3][0])
 
     sel_group = bl_obj.pd_waypoint.groupnum if pdu.pdtype(bl_obj) == PD_OBJTYPE_WAYPOINT else -1
     color_sel = (0.6, 0.6, 0.0)
@@ -1241,12 +1241,12 @@ def register():
     Scene.collections_vis = BoolVectorProperty(name='collections_vis', size=n_coll, default=[1]*n_coll, update=update_scene_vis, options={'LIBRARY_EDITABLE'})
     Scene.collections_sel = BoolVectorProperty(name='collections_sel', size=n_coll, default=[1]*n_coll, update=update_scene_sel, options={'LIBRARY_EDITABLE'})
     Scene.pd_tile_hilight = bpy.props.PointerProperty(type=PDObject_Tile)
-    Scene.pd_tile_hilightmode = ndu.make_prop('pd_tile_hilightmode', {'pd_tile_hilightmode': TILE_HIGHLIGHT_MODE}, 'floorcolor', update_scene_tilehighlight)
+    Scene.pd_tile_hilightmode = pdu.make_prop('pd_tile_hilightmode', {'pd_tile_hilightmode': TILE_HIGHLIGHT_MODE}, 'floorcolor', update_scene_tilehighlight)
     Scene.pd_room_goto = bpy.props.PointerProperty(type=bpy.types.Object, update=update_scene_roomgoto, poll=check_isroom)
     Scene.pd_portal = bpy.props.PointerProperty(type=bpy.types.Object, poll=check_isportal)
     Scene.flags_filter = StringProperty(name="Flags Filter", default='', options={'TEXTEDIT_UPDATE'})
     Scene.flags_toggle = BoolProperty(name="Flags UI Style", default=False, description='Show Flags As Toggle/Checkbox')
-    Scene.pd_waypoint_vis = ndu.make_prop('pd_waypoint_vis', {'pd_waypoint_vis': WAYPOINTS_VISIBILITY}, 'allsets', update_scene_wp_vis)
+    Scene.pd_waypoint_vis = pdu.make_prop('pd_waypoint_vis', {'pd_waypoint_vis': WAYPOINTS_VISIBILITY}, 'allsets', update_scene_wp_vis)
     Scene.pd_bspwidth = IntProperty(name="pd_bspwidth", default=1000, min=1, options={'TEXTEDIT_UPDATE'})
     Scene.pd_ailists = CollectionProperty(type=PD_AIList)
 

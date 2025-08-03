@@ -2,7 +2,6 @@ from bpy.props import (
     BoolProperty, EnumProperty, IntProperty
 )
 from bpy.types import UILayout, PropertyGroup
-from nodes.nodeutils import *
 from utils import pd_utils as pdu
 
 from fast64.utility import prop_split
@@ -138,20 +137,20 @@ class MatOtherModeL(PropertyGroup):
     force_bl: BoolProperty(name='force_bl', default=False, description=DESC_LOWER_FORCE_BL)
 
     # cycle independent props
-    cvg_dst: make_prop('cvg_dst', {'cvg_dst': LOWER_RENDERMODECI_CVGDST}, 'clamp')
-    zmode: make_prop('zmode', {'zmode': LOWER_RENDERMODECI_ZMODE}, 'opaque')
+    cvg_dst: pdu.make_prop('cvg_dst', {'cvg_dst': LOWER_RENDERMODECI_CVGDST}, 'clamp')
+    zmode: pdu.make_prop('zmode', {'zmode': LOWER_RENDERMODECI_ZMODE}, 'opaque')
 
     # cycle dependent props cycle 1
-    blend_b1: make_prop('blend_b1', LOWER_RENDERMODECD_ITEMS, make_id(LOWER_RENDERMODECD_BLENDMIX[0][0]))
-    blend_m1: make_prop('blend_m1', LOWER_RENDERMODECD_ITEMS, make_id(LOWER_RENDERMODECD_BLENDCOLOR[0][0]))
-    blend_a1: make_prop('blend_a1', LOWER_RENDERMODECD_ITEMS, make_id(LOWER_RENDERMODECD_BLENDALPHA[0][0]))
-    blend_p1: make_prop('blend_p1', LOWER_RENDERMODECD_ITEMS, make_id(LOWER_RENDERMODECD_BLENDCOLOR[0][0]))
+    blend_b1: pdu.make_prop('blend_b1', LOWER_RENDERMODECD_ITEMS, pdu.make_id(LOWER_RENDERMODECD_BLENDMIX[0][0]))
+    blend_m1: pdu.make_prop('blend_m1', LOWER_RENDERMODECD_ITEMS, pdu.make_id(LOWER_RENDERMODECD_BLENDCOLOR[0][0]))
+    blend_a1: pdu.make_prop('blend_a1', LOWER_RENDERMODECD_ITEMS, pdu.make_id(LOWER_RENDERMODECD_BLENDALPHA[0][0]))
+    blend_p1: pdu.make_prop('blend_p1', LOWER_RENDERMODECD_ITEMS, pdu.make_id(LOWER_RENDERMODECD_BLENDCOLOR[0][0]))
 
     # cycle dependent props cycle 2
-    blend_b2: make_prop('blend_b2', LOWER_RENDERMODECD_ITEMS, make_id(LOWER_RENDERMODECD_BLENDMIX[0][0]))
-    blend_m2: make_prop('blend_m2', LOWER_RENDERMODECD_ITEMS, make_id(LOWER_RENDERMODECD_BLENDCOLOR[0][0]))
-    blend_a2: make_prop('blend_a2', LOWER_RENDERMODECD_ITEMS, make_id(LOWER_RENDERMODECD_BLENDALPHA[0][0]))
-    blend_p2: make_prop('blend_p2', LOWER_RENDERMODECD_ITEMS, make_id(LOWER_RENDERMODECD_BLENDCOLOR[0][0]))
+    blend_b2: pdu.make_prop('blend_b2', LOWER_RENDERMODECD_ITEMS, pdu.make_id(LOWER_RENDERMODECD_BLENDMIX[0][0]))
+    blend_m2: pdu.make_prop('blend_m2', LOWER_RENDERMODECD_ITEMS, pdu.make_id(LOWER_RENDERMODECD_BLENDCOLOR[0][0]))
+    blend_a2: pdu.make_prop('blend_a2', LOWER_RENDERMODECD_ITEMS, pdu.make_id(LOWER_RENDERMODECD_BLENDALPHA[0][0]))
+    blend_p2: pdu.make_prop('blend_p2', LOWER_RENDERMODECD_ITEMS, pdu.make_id(LOWER_RENDERMODECD_BLENDCOLOR[0][0]))
 
     num_cycles: IntProperty(name='num_cycles', default=1)
 
@@ -160,14 +159,14 @@ def mat_othermodeL_set(mat_othermodeL, cmd):
     mode = (cmd & 0xff0000000000) >> 40
     modename = next(filter(lambda e: e[2] == mode, LOWER_MODES))[0]
 
-    mat_othermodeL.mode = make_id(modename)
+    mat_othermodeL.mode = pdu.make_id(modename)
 
     if mode in [MODE_ALPHACMP, MODE_ZSRC]:
         modebits = (cmd & 0xffffffff) >> mode
         items = LOWER_ALPHACOMP if mode == MODE_ALPHACMP else LOWER_ZSOURCE
         propval = next(filter(lambda e: e[2] == modebits, items))[0]
         propname = 'g_mdsft_alpha_compare' if mode == MODE_ALPHACMP else 'g_mdsft_zsrcsel'
-        setattr(mat_othermodeL, propname, make_id(propval))
+        setattr(mat_othermodeL, propname, pdu.make_id(propval))
     else: # RENDERMODE
         mat_othermodeL.set_rendermode = True
         # cycle independent params
@@ -178,12 +177,12 @@ def mat_othermodeL_set(mat_othermodeL, cmd):
         cvg_dst = (modebits & 0x60) >> 5
         propname = 'cvg_dst'
         propid = next(filter(lambda e: e[2] == cvg_dst, LOWER_RENDERMODECI_CVGDST))[0]
-        setattr(mat_othermodeL, propname, make_id(propid))
+        setattr(mat_othermodeL, propname, pdu.make_id(propid))
 
         zmode = (modebits & 0x180) >> 7
         propname = 'zmode'
         propval = next(filter(lambda e: e[2] == zmode, LOWER_RENDERMODECI_ZMODE))[0]
-        setattr(mat_othermodeL, propname, make_id(propval))
+        setattr(mat_othermodeL, propname, pdu.make_id(propval))
 
         # cycle dependent params
         blendparams = (cmd & 0xffff0000) >> 16
@@ -213,7 +212,7 @@ def mat_othermodeL_set(mat_othermodeL, cmd):
         for i, (name, val) in enumerate(zip(names, values)):
             items = allitems[i//2]
             propid = next(filter(lambda e: e[2] == val, items))[0]
-            setattr(mat_othermodeL, name, make_id(propid))
+            setattr(mat_othermodeL, name, pdu.make_id(propid))
 
 def enum_val(item, enum, idx):
     for e in enum:

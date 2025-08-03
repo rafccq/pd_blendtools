@@ -2,9 +2,8 @@ import bpy
 from bpy.props import (
     PointerProperty, BoolProperty
 )
-from bpy.types import SpaceNodeEditor, PropertyGroup
+from bpy.types import PropertyGroup
 
-from nodes.nodeutils import *
 from utils import pd_utils as pdu
 
 from fast64.utility import prop_split, get_material_from_context
@@ -115,8 +114,8 @@ class MatTexLoad(PropertyGroup):
 
     tex0: PointerProperty(name='tex0', type=bpy.types.Image, update=on_update)
     tex1: PointerProperty(name='tex1', type=bpy.types.Image)
-    smode: make_prop('smode', {'smode': TEX_WRAPMODES}, 'wrap', on_update)
-    tmode: make_prop('tmode', {'tmode': TEX_WRAPMODES}, 'wrap', on_update)
+    smode: pdu.make_prop('smode', {'smode': TEX_WRAPMODES}, 'wrap', on_update)
+    tmode: pdu.make_prop('tmode', {'tmode': TEX_WRAPMODES}, 'wrap', on_update)
     lod_flag: BoolProperty(name='lod_flag', default=False, description='Write LOD')
     offset: BoolProperty(name='offset', default=True, description='Offset')
 
@@ -131,8 +130,8 @@ class MatTexLoad(PropertyGroup):
 def mat_texload_set(texload, cmd):
     w0 = (cmd & 0xffffffff00000000) >> 32
 
-    texload.smode = item_from_value(TEX_WRAPMODES, (w0 >> 22) & 0x3)
-    texload.tmode = item_from_value(TEX_WRAPMODES, (w0 >> 20) & 0x3)
+    texload.smode = pdu.item_from_value(TEX_WRAPMODES, (w0 >> 22) & 0x3)
+    texload.tmode = pdu.item_from_value(TEX_WRAPMODES, (w0 >> 20) & 0x3)
     texload.offset = bool((w0 >> 18) & 0x3)
     texload.shift_s = (w0 >> 14) & 0xf
     texload.shift_t = (w0 >> 10) & 0xf

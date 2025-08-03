@@ -7,7 +7,6 @@ from utils import (
     pd_utils as pdu,
     setup_utils as stu,
 )
-from nodes import nodeutils as ndu
 from operators import pd_ops as pdops
 from operators.ops_model import get_model_obj
 from pd_blendtools import pd_addonprefs as pdp

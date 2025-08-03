@@ -7,6 +7,7 @@ import os
 
 import bpy
 import bmesh
+from bpy.props import EnumProperty
 from mathutils import Vector
 from bl_ui.space_toolsystem_common import ToolSelectPanelHelper
 import addon_utils
@@ -591,3 +592,24 @@ def ui_separator(layout, factor=1.0, type='LINE'):
 def get_mode(context):
     ob = context.active_object
     return ob.mode if ob else ''
+
+
+def make_id(name):
+    for c in [' ', '(', ')', '[', ']', '{', '}', '.', '?', '/']:
+        name = name.replace(c, '')
+    return name.lower()
+
+
+def make_prop(name, config, default, callback_update=None) -> EnumProperty:
+    items = config[name]
+    return EnumProperty(
+        items=[(make_id(name), name, desc, '', val) for (name, desc, val) in items],
+        name=name,
+        default=f'{default}',
+        update=callback_update
+    )
+
+
+def item_from_value(items, value, default_idx=0):
+   default = items[default_idx]
+   return next(filter(lambda e: e[2] == value, items), default)[0]

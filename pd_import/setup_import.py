@@ -76,10 +76,10 @@ def init_door(bl_door, prop, prop_base, pad, bbox):
     pdu.flags_unpack(pd_prop.flags3, prop_base['flags3'], [e[1] for e in pdprops.OBJ_FLAGS3])
 
     # door props
-    door_type = ndu.item_from_value(pdprops.DOORTYPES, prop['doortype'])
-    pd_door.door_type = ndu.make_id(door_type)
-    sound_type = ndu.item_from_value(pdprops.DOOR_SOUNDTYPES, prop['soundtype'])
-    pd_door.sound_type = ndu.make_id(sound_type)
+    door_type = pdu.item_from_value(pdprops.DOORTYPES, prop['doortype'])
+    pd_door.door_type = pdu.make_id(door_type)
+    sound_type = pdu.item_from_value(pdprops.DOOR_SOUNDTYPES, prop['soundtype'])
+    pd_door.sound_type = pdu.make_id(sound_type)
 
     pd_door.maxfrac = prop['maxfrac']/65536
     pd_door.perimfrac = prop['perimfrac']/65536
