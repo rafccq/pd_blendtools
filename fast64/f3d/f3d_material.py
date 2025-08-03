@@ -806,6 +806,11 @@ class F3DPanel(Panel):
         prop_input_group = inputGroup.row()
         prop_input_group.prop(material, "tex_scale", text="")
         prop_input_group.enabled = not material.scale_autoprop
+
+        inputGroup = layout.row()
+        prop_input = inputGroup.column()
+        prop_split(prop_input, material, 'tile_index', 'Tile Index')
+        prop_split(prop_input, material, 'max_lods', 'Max LODs')
         return inputGroup
 
     def ui_prim(self, material, layout, setName, setProp, showCheckBox):
@@ -1274,7 +1279,6 @@ class F3DPanel(Panel):
             inputCol.prop(f3dMat, "uv_basis", text="UV Basis")
 
         if useDict["Texture"]:
-            self.ui_large(f3dMat, inputCol)
             self.ui_scale(f3dMat, inputCol)
 
         if useDict["Primitive"] and f3dMat.set_prim:
@@ -1289,8 +1293,6 @@ class F3DPanel(Panel):
             and f3dMat.rdp_settings.is_geo_mode_on("g_lighting")
             and f3dMat.rdp_settings.is_geo_mode_on("g_shade")
         )
-        if useDict["Shade"] and showLightProperty:
-            self.ui_lights(f3dMat, inputCol, "Lighting", False)
 
         if useDict["Key"] and f3dMat.set_key:
             self.ui_chroma(material, inputCol, "Chroma Key Center", "set_key", f3dMat.set_key, False)
@@ -1369,20 +1371,10 @@ class F3DPanel(Panel):
                 inputCol.prop(f3dMat, "uv_basis", text="UV Basis")
 
             if useDict["Texture"]:
-                self.ui_large(f3dMat, inputCol)
                 self.ui_scale(f3dMat, inputCol)
 
             if useDict["Primitive"]:
                 self.ui_prim(material, inputCol, "set_prim", f3dMat.set_prim, True)
-
-            if useDict["Environment"]:
-                self.ui_env(material, inputCol, True)
-
-            if useDict["Shade"] and "Lighting" in sources_in_ucode(bpy.context.scene.f3d_type):
-                self.ui_lights(f3dMat, inputCol, "Lighting", True)
-
-            if useDict["Key"]:
-                self.ui_chroma(material, inputCol, "Chroma Key Center", "set_key", f3dMat.set_key, True)
 
             if useDict["Convert"]:
                 self.ui_convert(f3dMat, inputCol, True)
@@ -1417,7 +1409,6 @@ class F3DPanel(Panel):
 
         f3dMat = material.f3d_mat
         settings = f3dMat.rdp_settings
-        layout.prop(context.scene, "f3d_simple", text="Show Simplified UI")
         layout = layout.box()
         titleCol = layout.column()
         titleCol.box().label(text="F3D Material (Accurate)")
@@ -1431,13 +1422,13 @@ class F3DPanel(Panel):
             box.operator("object.convert_f3d_update")
             return
 
-        presetCol = layout.column()
-        split = presetCol.split(factor=0.33)
-        split.label(text="Preset")
-        row = split.row(align=True)
-        row.menu(MATERIAL_MT_f3d_presets.__name__, text=f3dMat.presetName)
-        row.operator(AddPresetF3D.bl_idname, text="", icon="ADD")
-        row.operator(AddPresetF3D.bl_idname, text="", icon="REMOVE").remove_active = True
+        # presetCol = layout.column()
+        # split = presetCol.split(factor=0.33)
+        # split.label(text="Preset")
+        # row = split.row(align=True)
+        # row.menu(MATERIAL_MT_f3d_presets.__name__, text=f3dMat.presetName)
+        # row.operator(AddPresetF3D.bl_idname, text="", icon="ADD")
+        # row.operator(AddPresetF3D.bl_idname, text="", icon="REMOVE").remove_active = True
 
         if settings.g_mdsft_alpha_compare == "G_AC_THRESHOLD" and settings.g_mdsft_cycletype == "G_CYC_2CYCLE":
             multilineLabel(
@@ -1450,15 +1441,8 @@ class F3DPanel(Panel):
         if context.scene.f3d_simple and f3dMat.presetName != "Custom":
             self.draw_simple(f3dMat, material, layout, context)
         else:
-            presetCol.prop(context.scene, "f3dUserPresetsOnly")
+            # presetCol.prop(context.scene, "f3dUserPresetsOnly")
             self.draw_full(f3dMat, material, layout, context)
-
-        if context.scene.f3d_type == "F3DEX3":
-            self.ui_cel_shading(material, layout)
-        else:
-            r = layout.row()
-            r.enabled = False
-            r.label(text="Use Cel Shading (requires F3DEX3)", icon="TRIA_RIGHT")
 
         layout.operator(RecreateF3DNodes.bl_idname)
 
@@ -4888,11 +4872,6 @@ class F3DRenderSettingsPanel(Panel):
                     pass
 
 
-def draw_f3d_render_settings(self, context):
-    layout: UILayout = self.layout
-    layout.popover(F3DRenderSettingsPanel.bl_idname)
-
-
 mat_classes = (
     UpdateColorManagementPopup,
     UnlinkF3DImage0,
@@ -4920,7 +4899,6 @@ mat_classes = (
     F3DMaterialProperty,
     ReloadDefaultF3DPresets,
     UpdateF3DNodes,
-    F3DRenderSettingsPanel,
     F3DMeshPanel,
 )
 
@@ -4981,7 +4959,7 @@ def mat_register():
     Material.menu_tab = bpy.props.EnumProperty(items=menu_items_enum)
 
     Scene.f3dUserPresetsOnly = bpy.props.BoolProperty(name="User Presets Only")
-    Scene.f3d_simple = bpy.props.BoolProperty(name="Display Simple", default=True)
+    Scene.f3d_simple = bpy.props.BoolProperty(name="Display Simple", default=False)
 
     Object.use_f3d_culling = bpy.props.BoolProperty(
         name="Use Culling", description="F3DEX: Adds culling vertices", default=True
@@ -5000,12 +4978,8 @@ def mat_register():
     Object.f3d_lod_always_render_farthest = bpy.props.BoolProperty(name="Always Render Farthest LOD")
     Object.is_occlusion_planes = bpy.props.BoolProperty(name="Is Occlusion Planes")
 
-    VIEW3D_HT_header.append(draw_f3d_render_settings)
-
 
 def mat_unregister():
-    VIEW3D_HT_header.remove(draw_f3d_render_settings)
-
     del Material.menu_tab
     del Material.f3d_mat
     del Material.is_f3d
