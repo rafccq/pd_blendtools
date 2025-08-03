@@ -3,7 +3,7 @@ bl_info = {
     "author": "Raf Ccq",
     "version": (0, 0, 1),
     "blender": (3, 6, 0),
-    "description": "A tool to help import/edit/export PD models in Blender",
+    "description": "Blender tools for editing Perfect Dark N64 levels and models",
     "location": "View3D > UI panel > PDTools",
     "wiki_url": "https://github.com/rafccq/pd_blendtools",
     "tracker_url": "https://github.com/rafccq/pd_blendtools/issues",

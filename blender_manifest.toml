@@ -1,0 +1,15 @@
+# manifest
+id = "pd_blendtools"
+version = "0.0.1"
+name = "Perfect Dark Blender Editor"
+tagline = "Perfect Dark Blender Editor: Blender tools for editing Perfect Dark N64 levels and models"
+maintainer = "Raf Ccq"
+type = "add-on"
+
+website = "https://github.com/rafccq/pd_blendtools"
+
+tags = [ "Game Engine", "Development", "Import-Export",  "Material" ]
+
+blender_version_min = "4.2.0"
+
+license = [ "SPDX:GPL-3.0-or-later" ]
