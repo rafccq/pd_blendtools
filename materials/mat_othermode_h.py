@@ -78,6 +78,24 @@ UPPER_MODE_WIDTHS = {
     'g_mdsft_pipeline': 1,
 }
 
+UPPER_MODES = {
+    0x4: ('g_mdsft_alpha_dither', f3d_enums.enumAlphaDither),
+    0x6: ('g_mdsft_rgb_dither', f3d_enums.enumColorDither),
+    0x8: ('g_mdsft_combkey', f3d_enums.enumCombKey),
+    0x9: ('g_mdsft_textconv', f3d_enums.enumTextConv),
+    0x0c: ('g_mdsft_text_filt', f3d_enums.enumTextFilt),
+    0x0e: ('g_mdsft_textlut', f3d_enums.enumTextLUT),
+    0x10: ('g_mdsft_textlod', f3d_enums.enumTextLOD),
+    0x11: ('g_mdsft_textdetail', f3d_enums.enumTextDetail),
+    0x13: ('g_mdsft_textpersp', f3d_enums.enumTextPersp),
+    0x14: ('g_mdsft_cycletype', f3d_enums.enumCycleType),
+    0x17: ('g_mdsft_pipeline', f3d_enums.enumPipelineMode),
+}
+
+TEXCONV = { 0b000: 0, 0b101: 1, 0b110: 2, }
+TEXFILT = { 0b00: 0, 0b10: 1, 0b11: 2, }
+TEXLUT = { 0b00: 0, 0b10: 1, 0b11: 2, }
+
 
 class MatOtherModeH(PropertyGroup):
     g_mdsft_alpha_dither: EnumProperty( name="Alpha Dither", items=ENUM_ALPHADITHER, default=NOT_SET[0], description=DESC_ALPHADITHER)

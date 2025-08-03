@@ -22,35 +22,6 @@ TEMPLATE_NAME = 'PD_MaterialTemplate'
 MAT_BLENDFILE_4X = 'pd_materials.blend'
 MAT_BLENDFILE_3X = 'pd_materials_v3_x.blend'
 
-UPPER_MODES = {
-    0x4: ('g_mdsft_alpha_dither', f3d_enums.enumAlphaDither),
-    0x6: ('g_mdsft_rgb_dither', f3d_enums.enumColorDither),
-    0x8: ('g_mdsft_combkey', f3d_enums.enumCombKey),
-    0x9: ('g_mdsft_textconv', f3d_enums.enumTextConv),
-    0x0c: ('g_mdsft_text_filt', f3d_enums.enumTextFilt),
-    0x0e: ('g_mdsft_textlut', f3d_enums.enumTextLUT),
-    0x10: ('g_mdsft_textlod', f3d_enums.enumTextLOD),
-    0x11: ('g_mdsft_textdetail', f3d_enums.enumTextDetail),
-    0x13: ('g_mdsft_textpersp', f3d_enums.enumTextPersp),
-    0x14: ('g_mdsft_cycletype', f3d_enums.enumCycleType),
-    0x17: ('g_mdsft_pipeline', f3d_enums.enumPipelineMode),
-}
-
-TEXCONV = { 0b000: 0, 0b101: 1, 0b110: 2, }
-TEXFILT = { 0b00: 0, 0b10: 1, 0b11: 2, }
-TEXLUT = { 0b00: 0, 0b10: 1, 0b11: 2, }
-
-LOWER_RENDERMODE_FLAGS = {
-    1 << 0: 'aa_en',
-    1 << 1: 'z_cmp',
-    1 << 2: 'z_upd',
-    1 << 3: 'im_rd',
-    1 << 4: 'clr_on_cvg',
-    1 << 9: 'cvg_x_alpha',
-    1 << 10: 'alpha_cvg_sel',
-    1 << 11: 'force_bl',
-}
-
 PORTAL_MAT = 'PD_PortalMat'
 WAYPOINT_MAT = 'PD_WaypointMat'
 COVER_MAT = 'PD_CoverMat'
@@ -333,8 +304,8 @@ def material_settex(mat, cmd):
 
     texnum1 = (cmd >> 4*3) & 0xfff
     if texnum1:
-        texname1 = f'{texnum2:04X}.png'
-        tex0.tex = imglib[texname0]
+        texname1 = f'{texnum1:04X}.png'
+        mat.tex1.tex = imglib[texname1]
 
     w0 = (cmd & 0xffffffff00000000) >> 32
     smode = bool((w0 >> 22) & 0x3)
@@ -398,9 +369,6 @@ def material_create_f3d(bl_obj, matsetup, name):
         op = (cmd & 0xff000000_00000000) >> 56
         if op == G_SETGEOMETRYMODE:
             material_geomode(matf3d, cmd, True)
-        elif op == G_CLEARGEOMETRYMODE:
-            # material_geomode(matf3d, cmd, False) #TODO
-            pass
         elif op == G_SetOtherMode_H:
             material_othermodeH(matf3d, cmd)
         elif op == G_SetOtherMode_L:
@@ -409,6 +377,8 @@ def material_create_f3d(bl_obj, matsetup, name):
             material_setcombine(matf3d, cmd)
         elif op == G_PDTEX:
             material_settex(matf3d, cmd)
+        elif op == G_TEXTURE:
+            mat_texconfig_set(matf3d, cmd)
         elif op == G_SETTIMG:
             material_settimg(matf3d, cmd)
 
@@ -449,67 +419,12 @@ def tex_has_alpha(fmt, depth):
 
     return False
 
-def tex_smode_(smode):
-    modemap = { 0: 'REPEAT', 1: 'EXTEND', 2: 'MIRROR' }
-    return modemap[smode]
-
 def tex_smode(cmd_texload):
     w0 = (cmd_texload & 0xffffffff00000000) >> 32
     smode = (w0 >> 22) & 3
 
     modemap = { 0: 'REPEAT', 1: 'EXTEND', 2: 'MIRROR' }
     return modemap[smode]
-
-def mat_name(tex, smode, geom_mode):
-    smode = f'_{smode:02X}' if smode else ''
-    geom_mode = f'_{geom_mode:08X}' if geom_mode else ''
-    return f'Mat_{tex:04X}{smode}{geom_mode}'
-
-def material_setup_nodes(nodetree, matsetup):
-    cmds = matsetup.cmdlist()
-    if not cmds: return
-
-    space = 20
-    node_prev = nodetree.nodes['pdmaterial']
-    for cmd in cmds:
-        op = (cmd & 0xff000000_00000000) >> 56
-        if op == G_SETGEOMETRYMODE:
-            new_node = nodetree.nodes.new('pd.nodes.setgeometrymode')
-        elif op == G_CLEARGEOMETRYMODE:
-            new_node = nodetree.nodes.new('pd.nodes.cleargeometrymode')
-        elif op == G_SetOtherMode_L:
-            new_node = nodetree.nodes.new('pd.nodes.setothermodeL')
-        elif op == G_SetOtherMode_H:
-            new_node = nodetree.nodes.new('pd.nodes.setothermodeH')
-        elif op == G_TEXTURE:
-            new_node = nodetree.nodes.new('pd.nodes.textureconfig')
-        elif op == G_SETTIMG:
-            new_node = nodetree.nodes.new('pd.nodes.settimg')
-        elif op == G_PDTEX:
-            new_node = nodetree.nodes.new('pd.nodes.textureload')
-        elif op == G_SETCOMBINE:
-            new_node = nodetree.nodes.new('pd.nodes.setcombine')
-        else:
-            # TODO logger
-            print(f'WARNING unsupported material cmd: {op:02X}')
-            continue
-
-        cmdstr = f'{cmd:08X}'
-        new_node.set_cmd(cmdstr)
-
-        frame = nodetree.nodes['pdframe']
-        new_node.parent = frame
-
-        # w = node_prev.min_width if node_prev.min_width else 150
-        new_node.location = node_prev.location
-        new_node.location.x += node_prev.width + space
-        # w = new_node.min_width if new_node.min_width else 150
-        new_node.width = new_node.min_width if new_node.min_width else 150
-
-        nodetree.links.new(new_node.inputs['prev'], node_prev.outputs['next'])
-        new_node.post_init()
-
-        node_prev = new_node
 
 def material_new(matsetup, use_alpha, name):
     if name in bpy.data.materials:
@@ -534,7 +449,6 @@ def material_new(matsetup, use_alpha, name):
     if use_alpha:
         mat.node_tree.links.new(node_bsdf.inputs['Alpha'], node_tex.outputs['Alpha'])
 
-    # material_setup_nodes(mat.node_tree, matsetup)
     material_setup_props(mat, matsetup)
 
     if bpy.app.version < (4, 0, 0):
@@ -609,82 +523,23 @@ def material_from_template(name, preset):
 
     return mat
 
-def material_get_setup(mat):
-    node_setup = None
-    for node in mat.node_tree.nodes:
-        if node.bl_idname == 'pd.nodes.materialsetup':
-            node_setup = node
-            break
-    return node_setup
-
 def material_get_teximage(mat):
-    for node in mat.node_tree.nodes:
-        if node.bl_idname == 'ShaderNodeTexImage':
-            return node.image
+    if mat.is_pd:
+        return mat.pd_mat.texload.tex0
+    elif mat.is_f3d:
+        return mat.f3d_mat.tex0.tex
+
+    print(f'WARNING: material_get_teximage() invalid material: {mat.name}')
     return None
 
 def material_has_lighting(mat):
-    node = material_get_setup(mat)
+    if mat.is_pd:
+        return mat.pd_mat.geomode.g_lighting
+    elif mat.is_f3d:
+        return mat.f3d_mat.rdp_settings.g_lighting
 
-    has_lighting = False
-    while node:
-        if len(node.outputs[0].links) == 0: break
-
-        node = node.outputs[0].links[0].to_node
-        if node.bl_idname == 'pd.nodes.setgeometrymode':  # TMP TODO add const
-            has_lighting = node['g_lighting']
-
-    return bool(has_lighting)
-
-def material_has_geo(mat):
-    node = material_get_setup(mat)
-
-    # TMP TODO add const
-    geo_nodes = ['pd.nodes.setgeometrymode', 'pd.nodes.cleargeometrymode']
-    while node:
-        if len(node.outputs[0].links) == 0: break
-
-        node = node.outputs[0].links[0].to_node
-        if node.bl_idname in geo_nodes:
-            return True
-
+    print(f'WARNING: material_has_lighting() invalid material: {mat.name}')
     return False
-
-def material_lastnode(mat):
-    node = material_get_setup(mat)
-    while node:
-        if len(node.outputs[0].links) == 0: break
-        node = node.outputs[0].links[0].to_node
-
-    return node
-
-def material_cmds(mat):
-    geobits = 0
-    node = material_get_setup(mat)
-    cmds = []
-    while node:
-        if len(node.outputs[0].links) == 0: break
-
-        node = node.outputs[0].links[0].to_node
-        # print(f'   {node.bl_label:<14} {node.get_cmd()}')
-
-        if node.bl_idname == 'pd.nodes.setgeometrymode':
-            cmd = int(node.get_cmd(), 16) & 0xffffffff
-            geobits |= cmd
-
-        if node.bl_idname == 'pd.nodes.cleargeometrymode':
-            cmd = int(node.get_cmd(), 16) & 0xffffffff
-            geobits &= ~cmd
-
-        cmds.append(node.get_cmd())
-
-    return cmds, geobits
-
-def _material_export(mat, prevmat):
-    if mat.is_f3d:
-        return material_export_f3d(mat, prevmat)
-    elif mat.is_pd:
-        return material_export_pd(mat, prevmat)
 
 def get_texload(mat):
     if mat.is_pd: return mat.pd_mat.texload
@@ -711,10 +566,6 @@ def issue_clear_geomode(cmds, mat):
 def material_export(mat, prevmat):
     cmds = []
 
-    cleared_geo = False
-    if prevmat:
-        cleared_geo = issue_clear_geomode(cmds, prevmat)
-
     mat_prop = lambda mat0, mat1, prop_pd, prop_f3d: [mat_attr(m, prop_pd, prop_f3d) for m in [mat0, mat1]]
 
     cmds += export_othermodeH(*mat_prop(mat, prevmat, prop_pd='othermodeH', prop_f3d='rdp_settings'))
@@ -734,6 +585,10 @@ def material_export(mat, prevmat):
     cmd_texload = export_texload(mat, prevmat)
     if cmd_texload:
         cmds.append(cmd_texload)
+
+    cleared_geo = False
+    if prevmat:
+        cleared_geo = issue_clear_geomode(cmds, prevmat)
 
     prev = None if cleared_geo else prevmat # force geom cmd if geo was cleared
     cmd_geo = export_geo(*mat_prop(mat, prev, prop_pd='geomode', prop_f3d='rdp_settings'))
@@ -774,12 +629,12 @@ def combiner_params(mat):
         params = {name: pdu.enum_value(combiner, name) for name in COMBINER_PARAMWIDTHS.keys()}
     elif mat.is_f3d:
         matf3d = mat.f3d_mat
-        if not matf3d.combiner1.set_combiner: return {}
+        if not matf3d.set_combiner: return {}
 
         for name in COMBINER_PARAMWIDTHS.keys():
             combiner = matf3d.combiner1 if '1' in name else matf3d.combiner2
             src = name[len('combinerX_')].upper()
-            alpha = '_alpha' if alpha in name else ''
+            alpha = '_alpha' if 'alpha' in name else ''
             params[name] = pdu.enum_value(combiner, f'{src}{alpha}')
 
     return params
@@ -807,7 +662,7 @@ def export_othermodeL(othermodeL, prev_othermodeL):
             modebits = propval << ofs
             n = 2 if mode == MODE_ALPHACMP else 1
 
-            cmd = (0xB900 << 8 * 6) | (mode << 8*5) | (n << 8 * 4) | modebits
+            cmd = (0xb900 << 8 * 6) | (mode << 8*5) | (n << 8 * 4) | modebits
             cmds.append(cmd)
 
     # export alphacompare and zsource modes

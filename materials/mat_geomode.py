@@ -76,5 +76,5 @@ def geo_command(geo):
     for flag, bits in GEO_FLAGS.items():
         mode_bits |= bits if getattr(geo, flag) else 0
 
-    return (0xb7 << 8*7) | mode_bits
+    return (0xb7 << 8*7) | mode_bits if mode_bits != 0 else 0
 

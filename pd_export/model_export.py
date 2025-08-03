@@ -12,10 +12,10 @@ from materials import pd_materials as pdm
 
 
 def update_log():
-    logu.log_config(logger, log.LOG_FILE_EXPORT)
+    logu.log_config(logger, logu.LOG_FILE_EXPORT)
 
 
-logger = log.log_get(__name__)
+logger = logu.log_get(__name__)
 update_log()
 
 
@@ -39,7 +39,7 @@ def uv_to_bytes(uv, texsize):
 def vtx_data(mesh, bm):
     layers = bm.loops.layers
 
-    uv_layer = layers.uv.active
+    uv_layer = layers.uv["UVMap"]
     layer_col = layers.color["Col"]
     has_mtx = 'matrices' in layers.color
     layer_mtx = layers.color["matrices"] if has_mtx else None

@@ -102,6 +102,17 @@ LOWER_MODES = [
     ('rendermode',            'Render Mode',        MODE_RENDERMODE),
 ]
 
+LOWER_RENDERMODE_FLAGS = {
+    1 << 0: 'aa_en',
+    1 << 1: 'z_cmp',
+    1 << 2: 'z_upd',
+    1 << 3: 'im_rd',
+    1 << 4: 'clr_on_cvg',
+    1 << 9: 'cvg_x_alpha',
+    1 << 10: 'alpha_cvg_sel',
+    1 << 11: 'force_bl',
+}
+
 DESC_LOWER_AA_EN         = 'AA_EN description'
 DESC_LOWER_Z_CMP         = 'Z_CMP description'
 DESC_LOWER_Z_UPD         = 'Z_UPD description'

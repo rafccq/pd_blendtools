@@ -3528,14 +3528,14 @@ class RDPSettings(PropertyGroup):
     g_mdsft_alpha_compare: bpy.props.EnumProperty(
         name="Alpha Compare",
         items=enumAlphaCompare,
-        default="G_AC_NONE",
+        default=NOT_SET[0],
         update=update_node_values_with_preset,
         description=DESC_ALPHACMP
     )
     g_mdsft_zsrcsel: bpy.props.EnumProperty(
         name="Z Source Selection",
         items=enumDepthSource,
-        default="G_ZS_PIXEL",
+        default=NOT_SET[0],
         update=update_node_values_with_preset,
         description=DESC_DEPTHSRC
     )
