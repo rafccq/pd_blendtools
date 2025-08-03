@@ -147,6 +147,14 @@ def create_mesh(mesh, tex_configs, name, matcache, asset_type):
         if not pdm.mat_find_by_hash(bl_obj, mathash):
             bl_obj.data.materials.append(mat)
 
+        if use_alpha and mat.is_f3d:
+            matf3d = mat.f3d_mat
+            matf3d.rdp_settings.rendermode_preset_cycle_1 = 'G_RM_ZB_XLU_SURF'
+            f3dm.update_blend_method(mat, bpy.context)
+            f3dm.set_output_node_groups(mat)
+            f3dm.update_node_values_of_material(mat, bpy.context)
+
+
         mat_idx = bl_obj.data.materials.find(mat.name)
         face.material_index = mat_idx
 

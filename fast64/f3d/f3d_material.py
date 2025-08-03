@@ -382,7 +382,7 @@ def get_output_method(material: bpy.types.Material) -> str:
     if settings.force_bl and (
         is_blender_equation_equal( settings, 1, "G_BL_CLR_IN", "G_BL_A_IN", "G_BL_CLR_MEM", "G_BL_1MA" ) or
         is_blender_equation_equal( settings, 2, "G_BL_CLR_IN", "G_BL_A_IN", "G_BL_CLR_MEM", "G_BL_1MA" )
-    ):
+    ) or 'XLU' in settings.rendermode_preset_cycle_1:
         return "XLU"
     return "OPA"
 
@@ -3759,7 +3759,7 @@ class RDPSettings(PropertyGroup):
             two_cycle = self.g_mdsft_cycletype == "G_CYC_2CYCLE"
             if self.rendermode_advanced_enabled:
                 blender_data = []
-                for i in range(2 if two_cycle else 1):
+                for i in range(2):
                     num = i + 1
                     color_attrs, alpha_attrs = (f"blend_p{num}", f"blend_m{num}"), (f"blend_a{num}", f"blend_b{num}")
                     blender_data.append(
@@ -3799,7 +3799,7 @@ class RDPSettings(PropertyGroup):
         self.attributes_from_dict(flags, self.rendermode_flag_attributes)
         color_attrs = ("blend_p", "blend_m")
         alpha_attrs = ("blend_a", "blend_b")
-        for i, cycle in enumerate(blender * 2 if len(blender) == 1 else blender):
+        for i, cycle in range(2):
             num = str(i + 1)
             color_attrs, alpha_attrs = (f"blend_p{num}", f"blend_m{num}"), (f"blend_a{num}", f"blend_b{num}")
             self[color_attrs[0]], self[color_attrs[1]] = cycle.get(
