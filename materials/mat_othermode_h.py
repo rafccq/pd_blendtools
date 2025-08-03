@@ -46,7 +46,7 @@ ENUM_UPPER_MODES = [
     ('g_mdsft_textdetail',    'Texture Detail',            0x11),
     ('g_mdsft_textpersp',     'Texture Persp. Correction', 0x13),
     ('g_mdsft_cycletype',     'Cycle Type',                0x14),
-    ('g_mdsft_pipelinemode',  'Pipeline Mode',             0x17),
+    ('g_mdsft_pipeline',  'Pipeline Mode',             0x17),
 ]
 
 UPPER_ITEMS = {
@@ -61,7 +61,7 @@ UPPER_ITEMS = {
     'g_mdsft_textdetail':    ENUM_TEXDETAIL,
     'g_mdsft_textpersp':     ENUM_TEXPERSP,
     'g_mdsft_cycletype':     ENUM_CYCLETYPE,
-    'g_mdsft_pipelinemode':  ENUM_PIPELINE,
+    'g_mdsft_pipeline':  ENUM_PIPELINE,
 }
 
 UPPER_MODE_WIDTHS = {
@@ -75,7 +75,7 @@ UPPER_MODE_WIDTHS = {
     'g_mdsft_textdetail': 2,
     'g_mdsft_textpersp': 1,
     'g_mdsft_cycletype': 2,
-    'g_mdsft_pipelinemode': 1,
+    'g_mdsft_pipeline': 1,
 }
 
 
@@ -90,7 +90,7 @@ class MatOtherModeH(PropertyGroup):
     g_mdsft_textdetail: EnumProperty(name="Texture Detail", items=ENUM_TEXDETAIL, default=NOT_SET[0], description=DESC_TEXDETAIL)
     g_mdsft_textpersp: EnumProperty(name="Texture Persp Corr", items=ENUM_TEXPERSP, default=NOT_SET[0], description=DESC_TEXPERSP)
     g_mdsft_cycletype: EnumProperty(name="Cycle Type", items=ENUM_CYCLETYPE, default=NOT_SET[0], description=DESC_CYCLETYPE)
-    g_mdsft_pipelinemode: EnumProperty(name="Pipeline Mode", items=ENUM_PIPELINE, default=NOT_SET[0], description=DESC_PIPELINE)
+    g_mdsft_pipeline: EnumProperty(name="Pipeline Mode", items=ENUM_PIPELINE, default=NOT_SET[0], description=DESC_PIPELINE)
 
 
 def mat_othermodeH_set(mat_othermodeH, cmd):
@@ -117,4 +117,4 @@ def mat_othermodeH_draw(mat_othermodeH, layout, context):
     prop_split(col, mat_othermodeH, 'g_mdsft_textdetail',    'Texture Detail')
     prop_split(col, mat_othermodeH, 'g_mdsft_textpersp', 'Texture Persp. Correction')
     prop_split(col, mat_othermodeH, 'g_mdsft_cycletype',    'Cycle Type')
-    prop_split(col, mat_othermodeH, 'g_mdsft_pipelinemode', 'Pipeline Mode')
+    prop_split(col, mat_othermodeH, 'g_mdsft_pipeline', 'Pipeline Mode')

@@ -33,7 +33,7 @@ UPPER_MODES = {
     0x11: ('g_mdsft_textdetail', f3d_enums.enumTextDetail),
     0x13: ('g_mdsft_textpersp', f3d_enums.enumTextPersp),
     0x14: ('g_mdsft_cycletype', f3d_enums.enumCycleType),
-    0x17: ('g_mdsft_pipelinemode', f3d_enums.enumPipelineMode),
+    0x17: ('g_mdsft_pipeline', f3d_enums.enumPipelineMode),
 }
 
 TEXCONV = { 0b000: 0, 0b101: 1, 0b110: 2, }
@@ -699,8 +699,21 @@ def mat_attr(mat, attr_pd, attr_f3d):
     print(f'WARNING: trying to export invalid material: {mat.name}')
     return None
 
+def issue_clear_geomode(cmds, mat):
+    geo = mat_attr(mat, 'geomode', 'rdp_settings')
+    geocmd = geo_command(geo)
+    if geocmd & 0x00060000:
+        cmds.append(0xB600000000060000)
+        return True
+
+    return False
+
 def material_export(mat, prevmat):
     cmds = []
+
+    cleared_geo = False
+    if prevmat:
+        cleared_geo = issue_clear_geomode(cmds, prevmat)
 
     mat_prop = lambda mat0, mat1, prop_pd, prop_f3d: [mat_attr(m, prop_pd, prop_f3d) for m in [mat0, mat1]]
 
@@ -711,15 +724,19 @@ def material_export(mat, prevmat):
     if cmd_combiner:
         cmds.append(cmd_combiner)
 
-    cmd_texconfig = export_texconfig(*mat_prop(mat, prevmat, prop_pd='texconfig', prop_f3d='tex0'))
+    # tex config is at the material level for f3d materials
+    tc = lambda m: None if not m else m.pd_mat.texconfig if m.is_pd else m.f3d_mat
+
+    cmd_texconfig = export_texconfig(tc(mat), tc(prevmat))
     if cmd_texconfig:
         cmds.append(cmd_texconfig)
 
-    cmd_texload = export_texload(*mat_prop(mat, prevmat, prop_pd='texload', prop_f3d='tex0'))
+    cmd_texload = export_texload(mat, prevmat)
     if cmd_texload:
         cmds.append(cmd_texload)
 
-    cmd_geo = export_geo(*mat_prop(mat, prevmat, prop_pd='geomode', prop_f3d='rdp_settings'))
+    prev = None if cleared_geo else prevmat # force geom cmd if geo was cleared
+    cmd_geo = export_geo(*mat_prop(mat, prev, prop_pd='geomode', prop_f3d='rdp_settings'))
     if cmd_geo:
         cmds.append(cmd_geo)
 
@@ -735,23 +752,17 @@ def export_geo(geo, prev_geo):
 
     return cmd if cmd != prevcmd else 0
 
-def export_texload(texload, prev_texload):
-    cmd = texload_command(texload)
-    prevcmd = texload_command(prev_texload) if prev_texload else 0
+def export_texload(mat, prevmat):
+    export_func = lambda m: texload_command(m.pd_mat.texload) if m.is_pd else texload_command_f3d(m.f3d_mat)
+
+    cmd = export_func(mat)
+    prevcmd = export_func(prevmat) if prevmat else 0
     return cmd if cmd != prevcmd else 0
 
-def get_texscale(texconfig):
-    s = texconfig.tex_scale[0]
-    t = texconfig.tex_scale[1]
-
-    s = int(texconfig.tex_scale[0] * 2 ** 16) if s != 1.0 else 0xFFFF
-    t = int(texconfig.tex_scale[1] * 2 ** 16) if t != 1.0 else 0xFFFF
-    return s, t
-
 def export_texconfig(texconfig, prev_texconfig):
-    s, t = texconfig.get_texscale()
-    b = texconfig.tile_index | (texconfig.max_lods << 3)
-    return (0xbb00 << 8*6) | (b << 8*5) | (1 << 8*4) | (s << 8*2) | t
+    cmd = mat_texconfig_cmd(texconfig)
+    prevcmd = mat_texconfig_cmd(prev_texconfig)
+    return cmd if cmd != prevcmd else 0
 
 def combiner_params(mat):
     params = {}
@@ -775,8 +786,9 @@ def combiner_params(mat):
 
 def export_combiner(mat, prev_mat):
     combiner = mat.pd_mat.combiner if mat.is_pd else mat.f3d_mat.combiner1
+    set_combiner = combiner.set_combiner if mat.is_pd else mat.f3d_mat.set_combiner
 
-    if not combiner.set_combiner: return 0
+    if not set_combiner: return 0
 
     getcmd = lambda m: combiner_command(combiner_params(m))
     cmd = getcmd(mat)

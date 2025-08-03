@@ -25,7 +25,7 @@ class MatTexConfig(PropertyGroup):
     bl_label = "TextureConfig"
     bl_icon = 'TEXTURE'
 
-    autoscale: BoolProperty(name='Auto Scale', default=False)
+    scale_autoprop: BoolProperty(name='Auto Scale', default=False)
 
     def get_texscale(self):
         s=self.tex_scale[0]
@@ -48,12 +48,13 @@ class MatTexConfig(PropertyGroup):
     max_lods: bpy.props.IntProperty(name='max_lods', default=0, min=0, max=7)
 
 def mat_texconfig_set(texconfig, cmd):
-    s = (cmd & 0xffff00) >> 8
-    t = (cmd & 0xffff000) >> 12
+    s = (cmd & 0xffff0000) >> 16
+    t = (cmd & 0x0000ffff)
 
     if s == 0xffff or t == 0xffff:
-        texconfig.autoscale = True
+        texconfig.scale_autoprop = True
     else:
+        texconfig.scale_autoprop = False
         texconfig.tex_scale[0] = s / 2 ** 16
         texconfig.tex_scale[1] = t / 2 ** 16
 
@@ -64,20 +65,31 @@ def mat_texconfig_set(texconfig, cmd):
 
 def mat_texconfig_draw(texconfig, layout, context):
     col = layout.column()
-    col.prop(texconfig, 'autoscale', text='Auto Scale')
+    col.prop(texconfig, 'scale_autoprop', text='Auto Scale')
 
     row = col.row()
     row.prop(texconfig, 'tex_scale', text='')
 
-    row.enabled = not texconfig.autoscale
+    row.enabled = not texconfig.scale_autoprop
 
     prop_split(col, texconfig, 'tile_index', 'Tile Index')
     prop_split(col, texconfig, 'max_lods', 'Max LODs')
 
-def get_cmd(self):
-    s, t = self.get_texscale()
-    if self.autoscale: s = t = 0xFFFF
-    return f'{self.cmd[:8]}{s:04X}{t:04X}'
+def get_texscale(texconfig):
+    s = texconfig.tex_scale[0]
+    t = texconfig.tex_scale[1]
+
+    s = int(texconfig.tex_scale[0] * 2 ** 16) if s != 1.0 else 0xffff
+    t = int(texconfig.tex_scale[1] * 2 ** 16) if t != 1.0 else 0xffff
+    return s, t
+
+def mat_texconfig_cmd(texconfig):
+    if not texconfig: return 0
+
+    s, t = get_texscale(texconfig)
+    b = texconfig.tile_index | (texconfig.max_lods << 3)
+    return (0xbb00 << 8*6) | (b << 8*5) | (1 << 8*4) | (s << 8*2) | t
+
 
 TEX_WRAPMODES = [
     ('wrap', 'Wrap', 0),
@@ -201,3 +213,26 @@ def texload_command(texload):
          (shifts << 14) | (shiftt << 10) | (texload.lod_flag << 9) | texload.subcmd
 
     return (w0 << 8*4) | (minlv << 4*6) | (tex1 << 4*3) | (tex0 & 0xfff)
+
+def f3d_wrapmode(texprop):
+    if texprop.mirror: return TEX_WRAPMODES[2][2]
+    if texprop.clamp: return TEX_WRAPMODES[1][2]
+    return TEX_WRAPMODES[0][2]
+
+def texload_command_f3d(f3dmat):
+    tex0 = int(f3dmat.tex0.tex.name.replace('.png', ''), 16)
+    teximg1 = f3dmat.tex1.tex
+    tex1 = int(teximg1.name.replace('.png', ''), 16) if teximg1 else 0
+
+    smode = f3d_wrapmode(f3dmat.tex0.S)
+    tmode = f3d_wrapmode(f3dmat.tex0.T)
+    offset = 2 if f3dmat.tex0.offset else 0
+    shifts = f3dmat.tex0.shift_s
+    shiftt = f3dmat.tex0.shift_t
+    minlv = 0xf8 if tex1 else 0 # min level fixed at F8 for now (TODO check)
+
+    w0 = (0xc0 << 24) | (smode << 22) | (tmode << 20) | (offset << 18) | \
+         (shifts << 14) | (shiftt << 10) | (f3dmat.tex0.lod_flag << 9) | f3dmat.tex0.subcmd
+
+    return (w0 << 8*4) | (minlv << 4*6) | (tex1 << 4*3) | (tex0 & 0xfff)
+

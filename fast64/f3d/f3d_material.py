@@ -4365,6 +4365,10 @@ class F3DMaterialProperty(PropertyGroup):
     tex0: bpy.props.PointerProperty(type=TextureProperty, name="tex0")
     tex1: bpy.props.PointerProperty(type=TextureProperty, name="tex1")
 
+    tile_index: bpy.props.IntProperty(name='tile_index', default=0, min=0, max=7)
+    max_lods: bpy.props.IntProperty(name='max_lods', default=0, min=0, max=7)
+
+
     # Should Set?
 
     set_prim: bpy.props.BoolProperty(
