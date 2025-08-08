@@ -2,7 +2,6 @@ import bpy
 from bpy.types import Operator, WorkSpaceTool
 import bmesh
 import gpu
-from bpy.props import EnumProperty, FloatProperty, FloatVectorProperty
 from bl_ui import space_toolsystem_common
 from gpu_extras.batch import batch_for_shader
 
@@ -109,49 +108,84 @@ class PDTOOLS_OT_RoomCreateBlock(Operator):
     bl_description = "Create a new block in this room"
     bl_options = {'REGISTER', 'INTERNAL'}
 
-    layer: EnumProperty(name="layer", description="Room Layer", items=pdprops.BLOCK_LAYER)
-    blocktype: EnumProperty(name='blocktype', default=BLOCKTYPES[0][0], items=BLOCKTYPES, options={'LIBRARY_EDITABLE'})
+    layer: bpy.props.EnumProperty(name="layer", description="Room Layer", items=pdprops.ENUM_BLOCK_LAYERS)
+    blocktype: bpy.props.EnumProperty(name='blocktype', default=BLOCKTYPES[0][0], items=BLOCKTYPES)
+    blocklinking: bpy.props.StringProperty(name='blocklinking') # sibling/child
 
     def invoke(self, context, event):
-        bl_room = context.active_object
-
-        if pdu.pdtype(bl_room) == pdprops.PD_OBJTYPE_ROOM:
-            wm = context.window_manager
-            return wm.invoke_props_dialog(self, width=150)
-
-        return self.execute(context)
+        return context.window_manager.invoke_props_dialog(self, width=150)
 
     def draw(self, context):
         bl_room = context.active_object
 
-        if pdu.pdtype(bl_room) != pdprops.PD_OBJTYPE_ROOM:
-            return
-
         layout = self.layout
         col = layout.column()
         col.prop(self, 'layer', text='Layer')
+        col.enabled = pdu.pdtype(bl_room) == pdprops.PD_OBJTYPE_ROOM
+        col = layout.column()
         col.prop(self, 'blocktype', text='Type')
 
     def execute(self, context):
+        bl_obj = context.active_object
+        is_room = pdu.pdtype(bl_obj) == pdprops.PD_OBJTYPE_ROOM
+        bl_room = bgu.parent_room(bl_obj) if not is_room else bl_obj
+        bl_lastblock = None
+        if is_room or self.blocklinking == 'child':
+            # the root is the selected object itself
+            bl_root = bl_obj
+            bl_lastblock = bgu.room_last_block(bl_root, self.layer)
+        else:
+            bl_root = bl_obj.parent
+
+        # create the block
+        bl_newblock = bgu.room_create_block(bl_room, bl_root, self.layer, self.blocktype)
+
+        if self.blocklinking.lower() == 'sibling':
+            nextsaved = bl_obj.pd_room.next
+            bl_obj.pd_room.next = bl_newblock
+            bl_newblock.pd_room.next = nextsaved
+        else:
+            if bl_lastblock:
+                bl_lastblock.pd_room.next = bl_newblock
+            elif is_room and self.layer == pdprops.BLOCK_LAYER_XLU:
+                # we only need to handle xlu, because rooms will always have opa blocks
+                bl_room.pd_room.first_xlu = bl_newblock
+
+        pdu.select_obj(bl_newblock)
+
+        return {'FINISHED'}
+
+
+class PDTOOLS_OT_RoomBlockDelete(Operator):
+    bl_idname = "pdtools.op_room_block_delete"
+    bl_label = "Delete Block"
+    bl_description = "Delete the block and its children"
+    bl_options = {'REGISTER', 'INTERNAL', 'UNDO'}
+
+    def draw(self, context):
         bl_room = context.active_object
 
-        blocks = [b for b in bl_room.children]
-        for block in blocks: blocks += [b for b in block.children]
-        blocknum = 1 + max([block.pd_room.blocknum for block in blocks], default=0)
+        layout = self.layout
+        layout.label(text='Are you sure?', icon='ERROR')
 
-        pd_room = bl_room.pd_room
-        roomnum = pd_room.roomnum
-        layer = self.layer
-        name = bgu.blockname(roomnum, blocknum, self.blocktype, layer)
+    def invoke(self, context, event):
+        wm = context.window_manager
+        return wm.invoke_props_dialog(self, title='This block and its children will be deleted', cancel_default=True)
 
-        bl_roomblock = bpy.data.objects.new(name, None)
-        bl_roomblock.parent = bl_room
-        bl_roomblock.pd_room.parent_enum = bl_room.name
+    def execute(self, context):
+        bl_roomblock = context.active_object
 
-        pdu.add_to_collection(bl_roomblock, 'Rooms')
-        bgu.roomblock_set_props(bl_roomblock, roomnum, pd_room.room, blocknum, layer, self.blocktype)
+        bl_prevblock = bgu.room_prev_block(bl_roomblock)
 
-        pdu.select_obj(bl_roomblock)
+        if bl_prevblock:
+            bl_prevblock.pd_room.next = bl_roomblock.pd_room.next
+
+        room = bl_roomblock.pd_room.room
+        if room.pd_room.first_xlu == bl_roomblock:
+            room.pd_room.first_xlu = bl_roomblock.pd_room.next
+
+        bpy.data.objects.remove(bl_roomblock)
+
         return {'FINISHED'}
 
 
@@ -166,8 +200,8 @@ class PDTOOLS_OT_RoomCreate(Operator):
     bl_description = "Create a new room"
     bl_options = {'REGISTER', 'INTERNAL'}
 
-    pos: FloatVectorProperty(name='bsp_pos', default=(0,0,0), subtype='XYZ', options={'LIBRARY_EDITABLE'})
-    pos_src: EnumProperty(name="Position", items=ENUM_ROOMPOS, default=ENUM_ROOMPOS[0][0], description='Position')
+    pos: bpy.props.FloatVectorProperty(name='bsp_pos', default=(0,0,0), subtype='XYZ')
+    pos_src: bpy.props.EnumProperty(name="Position", items=ENUM_ROOMPOS, default=ENUM_ROOMPOS[0][0], description='Position')
 
     def invoke(self, context, event):
         return context.window_manager.invoke_props_dialog(self, width=160)
@@ -216,19 +250,19 @@ class PDTOOLS_OT_PortalFromEdge(Operator):
         default='vertical',
     )
 
-    elevation: FloatProperty(name='Elevation', default=0, min=-180, max=180,
+    elevation: bpy.props.FloatProperty(name='Elevation', default=0, min=-180, max=180,
                              description='Rotation From The Edge Towards The Up Direction',
                              update=ws_update_geometry)
 
-    pitch: FloatProperty(name='Pitch', default=0, min=-180, max=180,
+    pitch: bpy.props.FloatProperty(name='Pitch', default=0, min=-180, max=180,
                          # description='' ,
                          description='Rotation Around The Edge Axis',
                          update=ws_update_geometry)
 
-    width: FloatProperty(name='width', default=10, min=1, max=10000,
+    width: bpy.props.FloatProperty(name='width', default=10, min=1, max=10000,
                          update=ws_update_geometry)
 
-    height: FloatProperty(name='height', default=10, min=1, max=10000,
+    height: bpy.props.FloatProperty(name='height', default=10, min=1, max=10000,
                           update = ws_update_geometry)
 
     def execute(self, context):
@@ -418,6 +452,7 @@ classes = [
     PDTOOLS_OT_RoomCreatePortalBetween,
     PDTOOLS_OT_RoomSplitByPortal,
     PDTOOLS_OT_RoomSelectAllBlocks,
+    PDTOOLS_OT_RoomBlockDelete,
     PDTOOLS_OT_RoomSelectRoom,
     PDTOOLS_OT_RoomCreateBlock,
     PDTOOLS_OT_RoomCreate,

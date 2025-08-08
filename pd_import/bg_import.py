@@ -18,6 +18,11 @@ from pd_data import romdata as rom
 import pd_blendprops as pdprops
 
 
+BLOCK_BSP = pdprops.BLOCKTYPE_BSP
+BLOCK_DL = pdprops.BLOCKTYPE_DL
+LAYER_OPA = pdprops.BLOCK_LAYER_OPA
+LAYER_XLU = pdprops.BLOCK_LAYER_XLU
+
 def bg_import(romdata, roomnum, duration):
     bgdata, tex_configs = bg_load(romdata)
 
@@ -148,7 +153,7 @@ def get_vec3(pos):
     z = pdu.f32(pos['z'])
     return x, y, z
 
-def bg_create_roomblockDL(room, block, bl_room, rootobj, tex_configs, layer, idx, matcache):
+def bg_create_roomblockDL(room, block, bl_room, bl_rootobj, tex_configs, layer, idx, matcache):
     gfxdata = room['gfxdata']
     roomid = room['id']
     roomnum = room['roomnum']
@@ -177,20 +182,22 @@ def bg_create_roomblockDL(room, block, bl_room, rootobj, tex_configs, layer, idx
 
     gdldata, _, _ = mdi.gdl_read_data(meshdata, idx, False)
 
-    name = bgu.blockname(roomnum, idx, 'Display List', layer)
+    name = bgu.blockname(roomnum, idx, BLOCK_DL, layer)
     bl_roomblock = mdi.create_mesh(gdldata, tex_configs, name, matcache, mdi.ASSET_TYPE_BG)
     bl_roomblock['addr'] = f'{block.addr:08X}'
     bl_roomblock.name = name
-    bl_roomblock.parent = rootobj
+    bl_roomblock.parent = bl_rootobj
     bl_roomblock.color = (0,0,0,1)
     pdu.add_to_collection(bl_roomblock, 'Rooms')
-    bgu.roomblock_set_props(bl_roomblock, roomnum, bl_room, idx, layer, 'Display List')
+    bgu.roomblock_set_props(bl_roomblock, bl_rootobj, roomnum, bl_room, idx, layer, BLOCK_DL)
+
+    return bl_roomblock
 
     # for mat in bl_roomblock.data.materials:
     #     if mat['has_envmap']:
     #         pdm.mat_show_vtxcolors(mat)
 
-def bg_create_roomblocks(room, rootaddr, bl_room, rootobj, tex_configs, layer, idx):
+def bg_create_roomblocks(room, rootaddr, bl_room, bl_rootobj, tex_configs, layer, idx):
     if rootaddr == 0: return idx
 
     roomblocks = room['roomblocks']
@@ -202,24 +209,39 @@ def bg_create_roomblocks(room, rootaddr, bl_room, rootobj, tex_configs, layer, i
     matlib = bpy.data.materials
     matcache = { mat.hashed:mat.name for mat in matlib }
 
+    prev = None
+    bl_newblock = None
     block = rootblock
     while block:
         blocktype = block['type']
         if blocktype == ROOMBLOCKTYPE_LEAF:
-            bg_create_roomblockDL(room, block, bl_room, rootobj, tex_configs, layer, idx, matcache)
+            bl_newblock = bg_create_roomblockDL(room, block, bl_room, bl_rootobj, tex_configs, layer, idx, matcache)
             block = next_block(block['next'])
         elif blocktype == ROOMBLOCKTYPE_PARENT:
             name = bgu.blockname(roomnum, idx, 'BSP', layer)
-            bl_rootblock = pdu.new_obj(name, rootobj, link=False, dsize=0.0001)
-            bl_rootblock['addr'] = f'{block.addr:08X}'
+            bl_bspblock = pdu.new_obj(name, bl_rootobj, link=False, dsize=0.0001)
+            bl_bspblock['addr'] = f'{block.addr:08X}'
             bsp_pos = pdu.read_coord(block['coord_0'])
             bsp_normal = pdu.read_coord(block['coord_1'])
-            pdu.add_to_collection(bl_rootblock, 'Rooms')
-            bgu.roomblock_set_props(bl_rootblock, roomnum, bl_room, idx, layer, pdprops.BLOCKTYPE_BSP, bsp_pos, bsp_normal)
+            pdu.add_to_collection(bl_bspblock, 'Rooms')
+            bgu.roomblock_set_props(bl_bspblock, bl_rootobj, roomnum, bl_room, idx, layer, BLOCK_BSP, bsp_pos, bsp_normal)
 
-            idx = bg_create_roomblocks(room, block['gdl|child'], bl_room, bl_rootblock, tex_configs, layer, idx + 1)
+            idx = bg_create_roomblocks(room, block['gdl|child'], bl_room, bl_bspblock, tex_configs, layer, idx + 1)
             block = next_block(block['next'])
+            bl_newblock = bl_bspblock
 
+        if prev:
+            prev.pd_room.next = bl_newblock
+
+        # update room pointers to first opa and xlu blocks
+        blocklayer = bl_newblock.pd_room.layer
+        pd_room = bl_room.pd_room
+        if not pd_room.first_opa and blocklayer == LAYER_OPA and bl_rootobj == bl_room:
+            pd_room.first_opa = bl_newblock
+        if not pd_room.first_xlu and blocklayer == LAYER_XLU and bl_rootobj == bl_room:
+            pd_room.first_xlu = bl_newblock
+
+        prev = bl_newblock
         idx += 1
 
     return idx

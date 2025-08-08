@@ -32,7 +32,8 @@ class PDTOOLS_PT_Room(Panel):
         if isroom:
             box.label(text=f'{name} {num:02X}', icon='OBJECT_DATA')
             row = box.row()
-            row.operator('pdtools.op_room_create_block', text=f'Create Block')
+            op = row.operator('pdtools.op_room_create_block', text=f'Create Block')
+            op.blocklinking = 'child'
         else:
             row = box.row()
             row.alignment = 'LEFT'
@@ -48,7 +49,30 @@ class PDTOOLS_PT_Room(Panel):
             row.enabled = False
             box.prop(pd_room, 'parent_enum', text='Parent')
 
+            row = box.row()
+            row.prop(pd_room, 'next', text='Next')
+            row.enabled = False
+
+            op = box.operator('pdtools.op_room_create_block', text=f'Create Sibling Block')
+            op.blocklinking = 'sibling'
+            op.layer = pd_room.layer
+
+            room = pd_room.room.pd_room
+            can_delete = room.first_opa.pd_room != pd_room
+            if pd_room.blocktype == pdprops.BLOCKTYPE_DL:
+                row = box.row()
+                op = row.operator('pdtools.op_room_block_delete', text=f'Delete Block')
+                row.enabled = can_delete
+
             if pd_room.blocktype == pdprops.BLOCKTYPE_BSP:
+                op = box.operator('pdtools.op_room_create_block', text=f'Create Child Block')
+                op.blocklinking = 'child'
+                op.layer = pd_room.layer
+
+                row = box.row()
+                row.operator('pdtools.op_room_block_delete', text=f'Delete Block')
+                row.enabled = can_delete
+
                 pdu.ui_separator(box, type='LINE')
                 box.label(text='BSP Position:')
                 box.prop(pd_room, 'bsp_pos', text='')
@@ -60,8 +84,6 @@ class PDTOOLS_PT_Room(Panel):
                     row.prop(pd_room, 'bsp_normal', index = idx, text=t)
                 row = box.row()
                 row.prop(scn, 'pd_bspwidth', text='Width (View Only)')
-                pdu.ui_separator(box, type='LINE')
-                box.operator('pdtools.op_room_create_block', text=f'Create Block')
 
 
 class PDTOOLS_PT_Portal(Panel):

@@ -166,6 +166,47 @@ def new_room_from_selection(context):
     # bpy.context.view_layer.objects.active = bl_roomblock_new
     # bpy.ops.object.mode_set(mode='EDIT')
 
+def room_next_blocknum(bl_room):
+    blocks = [b for b in bl_room.children]
+    for block in blocks: blocks += [b for b in block.children]
+    return 1 + max([block.pd_room.blocknum for block in blocks], default=0)
+
+def room_last_block(bl_room, layer):
+    for child in bl_room.children:
+        pd_room = child.pd_room
+        if pd_room.next is None and pd_room.layer == layer:
+            return child
+
+    return None
+
+def room_prev_block(bl_roomblock):
+    siblings = bl_roomblock.parent.children
+    for block in siblings:
+        if block.pd_room.next == bl_roomblock:
+            return block
+
+    return None
+
+def room_create_block(bl_room, bl_parent, layer, blocktype):
+    blocknum = room_next_blocknum(bl_room)
+
+    pd_room = bl_room.pd_room
+    roomnum = pd_room.roomnum
+    layer = layer
+    name = blockname(roomnum, blocknum, blocktype, layer)
+
+    mesh = None
+    if blocktype == pdprops.BLOCKTYPE_DL:
+        mesh = plane_mesh('mesh_data', 100, 'UVMap', ['Col', 'Alpha'])
+
+    bl_roomblock = bpy.data.objects.new(name, mesh)
+    bl_roomblock.parent = bl_parent
+    bl_roomblock.pd_room.parent_enum = bl_parent.name
+    pdu.add_to_collection(bl_roomblock, 'Rooms')
+
+    roomblock_set_props(bl_roomblock, bl_parent, roomnum, pd_room.room, blocknum, layer, blocktype)
+    return bl_roomblock
+
 # repositions the mesh to its median point, and make the verts relative to it
 def center_mesh(bl_obj):
     verts = bl_obj.data.vertices
@@ -437,7 +478,7 @@ def blockname(roomnum, blockidx, blocktype, layer):
     bsp = ' (BSP)' if blocktype == 'BSP' else ''
     return f'block {blockidx} ({layer}){bsp} R{roomnum:02X}'
 
-def roomblock_set_props(bl_roomblock, roomnum, bl_room, blocknum, layer, blocktype, bsp_pos=None, bsp_norm=None):
+def roomblock_set_props(bl_roomblock, bl_rootobj, roomnum, bl_room, blocknum, layer, blocktype, bsp_pos=None, bsp_norm=None):
     bl_roomblock.pd_obj.name = f'block {blocknum}'
     bl_roomblock.pd_obj.type = pdprops.PD_OBJTYPE_ROOMBLOCK
 
@@ -455,6 +496,9 @@ def roomblock_set_props(bl_roomblock, roomnum, bl_room, blocknum, layer, blockty
         R = mtx.rot_blender()
         bl_roomblock.pd_room.bsp_pos = R @ Vector(bsp_pos)
         bl_roomblock.pd_room.bsp_normal = R @ Vector(bsp_norm)
+
+    if bl_rootobj and bl_rootobj.pd_room.child is None:
+        bl_rootobj.pd_room.child = bl_roomblock
 
 def roomblock_changelayer(bl_roomblock, layer):
     bl_roomblock.pd_room.layer = layer
@@ -481,3 +525,33 @@ def get_bbox(verts):
     for v in verts:
         bbox.update(v)
     return bbox
+
+def plane_mesh(name, size, layer_uv=None, layer_colors=None):
+    s = size/2
+    verts = [
+        (-s, 0, -s),
+        (-s, 0,  s),
+        ( s, 0,  s),
+        ( s, 0, -s),
+    ]
+    faces = [(0, 1, 3), (1, 2, 3)]
+
+    mesh = bpy.data.meshes.new(name)
+    mesh.from_pydata(verts, [], faces)
+
+    if layer_uv or layer_colors:
+        bm = bmesh.new()
+        bm.from_mesh(mesh)
+
+        if layer_uv:
+            bm.loops.layers.uv.new(layer_uv)
+
+        cols = layer_colors if layer_colors else [] # to avoid iterating over None
+        for col in cols:
+            bm.loops.layers.color.new(col)
+
+        bm.to_mesh(mesh)
+        bm.free()
+
+    return mesh
+

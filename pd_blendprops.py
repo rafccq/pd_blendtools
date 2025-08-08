@@ -80,9 +80,12 @@ PD_COLLECTIONS = [
     'Cover Pads',
 ]
 
-BLOCK_LAYER = [
-    ('opa', 'Primary',   'Primary Layer', 0),
-    ('xlu', 'Secondary', 'Secondary Layer (Translucent)', 1),
+BLOCK_LAYER_OPA = 'opa'
+BLOCK_LAYER_XLU = 'xlu'
+
+ENUM_BLOCK_LAYERS = [
+    (BLOCK_LAYER_OPA, 'Primary',   'Primary Layer', 0),
+    (BLOCK_LAYER_XLU, 'Secondary', 'Secondary Layer (Translucent)', 1),
 ]
 
 BLOCKTYPE_DL = 'Display List'
@@ -585,16 +588,25 @@ class PDObject_RoomBlock(PropertyGroup):
         if pdu.pdtype(bl_parent) == PD_OBJTYPE_ROOMBLOCK:
             bgu.roomblock_changelayer(bl_block, layer)
 
-    roomnum: IntProperty(name='roomnum', default=0, options={'LIBRARY_EDITABLE'})
+    roomnum: IntProperty(name='roomnum', default=0)
+    first_opa: PointerProperty(name='first_opa', type=Object)
+    first_xlu: PointerProperty(name='first_xlu', type=Object)
 
-    blocknum: IntProperty(name='blocknum', default=0, options={'LIBRARY_EDITABLE'})
-    layer: EnumProperty(name="layer", description="Room Layer", items=BLOCK_LAYER)
-    blocktype: StringProperty(name='blocktype', default='', options={'LIBRARY_EDITABLE'})
-    bsp_pos: FloatVectorProperty(name='bsp_pos', default=(0,0,0), subtype='XYZ', options={'LIBRARY_EDITABLE'})
-    bsp_normal: FloatVectorProperty(name='bsp_normal', default=(1,0,0), subtype='DIRECTION', options={'LIBRARY_EDITABLE'})
-    # parent: PointerProperty(name='parent', type=Object, options={'LIBRARY_EDITABLE'})
+    blocknum: IntProperty(name='blocknum', default=0)
+    layer: EnumProperty(items=ENUM_BLOCK_LAYERS, name="layer", description="Room Layer")
+    blocktype: StringProperty(name='blocktype', default='')
+    bsp_pos: FloatVectorProperty(name='bsp_pos', default=(0,0,0), subtype='XYZ')
+    bsp_normal: FloatVectorProperty(name='bsp_normal', default=(1,0,0), subtype='DIRECTION')
+
     parent_enum: EnumProperty(name="parent_enum", description="Parent Block", items=get_blockparent_items, update=update_parent)
-    room: PointerProperty(name='room', type=Object, options={'LIBRARY_EDITABLE'})
+    room: PointerProperty(name='room', type=Object)
+
+    parent: PointerProperty(name='parent', type=Object)
+    child: PointerProperty(name='child', type=Object)
+    next: PointerProperty(name='next', type=Object)
+
+    # used internally only
+    addr: IntProperty(name='addr', default=0, options={'HIDDEN'})
 
 
 class PDObject_RoomLight(PropertyGroup):
@@ -984,7 +996,12 @@ def draw_waypoints():
     bl_obj = bpy.context.active_object
 
     if collection_vis('Rooms'):
-        bspdrawn = draw_bsp(bl_obj)
+        bspdrawn = False
+        selected_objects = bpy.context.selected_objects
+        for obj in selected_objects:
+            if draw_bsp(obj):
+                bspdrawn = True
+
         if bspdrawn: return
 
     scn = bpy.context.scene

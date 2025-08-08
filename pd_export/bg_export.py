@@ -106,33 +106,30 @@ def export_portalvertices(rd, dataout, portalvertices):
     add_padding(dataout, 8)
 
 def get_roomblocks(bl_room):
-    layer_sort = lambda node: sorted(list(node.children), key = lambda e: e.pd_room.layer)
-
     blocks = []
-    children = layer_sort(bl_room)
-    stack = deque([c for c in reversed(children)])
 
-    def set_links(nodes, parent):
-        if len(nodes) == 0: return
+    def traverse(block):
+        if not block: return
 
-        layer = lambda idx: nodes[idx].pd_room.layer
-        for i in range(0, len(nodes)):
-            nodes[i]['prev'] = nodes[i-1].name if i > 0 and layer(i) == layer(i-1) else ''
-            nodes[i]['parent'] = ''
+        stack = [block]
+        while len(stack):
+            current = stack.pop()
+            blocks.append(current)
 
-        nodes[0]['parent'] = parent
+            pd_roomblock = current.pd_room
+            next = pd_roomblock.next
+            if next:
+                next['prev'] = current.name
+                stack.append(next)
 
-    set_links(children, '')
+            child = pd_roomblock.child
+            if child:
+                child['parent'] = current.name
+                stack.append(child)
 
-    while len(stack):
-        current = stack.pop()
-
-        blocks.append(current)
-        children = list(current.children)
-        for c in reversed(children):
-            stack.append(c)
-
-        set_links(children, current.name)
+    pd_room = bl_room.pd_room
+    traverse(pd_room.first_opa)
+    traverse(pd_room.first_xlu)
 
     return blocks
 
@@ -210,11 +207,11 @@ def export_roomgfxdata(rd, bl_room, ofs_room):
 
         rd.write_block(dataout, block)
 
-        if bl_block['prev']:
+        if 'prev' in bl_block:
             prev = blockmap[bl_block['prev']]
             prev.update(dataout, 'next', ofs_block)
 
-        if bl_block['parent']:
+        if 'parent' in bl_block:
             parent = blockmap[bl_block['parent']]
             parent.update(dataout, 'gdl|child', ofs_block)
 
