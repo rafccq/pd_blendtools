@@ -1,7 +1,7 @@
 bl_info = {
     "name": "Perfect Dark Blender Editor",
     "author": "Raf Ccq",
-    "version": (0, 0, 1),
+    "version": (0, 0, 2),
     "blender": (3, 6, 0),
     "description": "Blender tools for editing Perfect Dark N64 levels and models",
     "location": "View3D > UI panel > PDTools",
