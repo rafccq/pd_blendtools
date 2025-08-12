@@ -46,13 +46,11 @@ def export_rooms(rd, dataout):
     rooms.append(endmarker)
 
     rd.write_block(dataout, dummyroom)
-    add_padding(dataout, 8)
 
     return start, rooms
 
 def export_lights(rd, dataout):
     start = len(dataout)
-    add_padding(dataout, 8)
     return 0
 
 def export_bgcmds(rd, dataout):
@@ -103,10 +101,16 @@ def export_portalvertices(rd, dataout, portalvertices):
 
         rd.write_block(dataout, data)
 
-    add_padding(dataout, 8)
+    endmarker = DataBlock.New('portalvertices')
+    rd.write_block(dataout, endmarker)
 
 def get_roomblocks(bl_room):
     blocks = []
+
+    children = pdu.get_children(bl_room)
+    for child in children:
+        child['prev'] = ''
+        child['parent'] = ''
 
     def traverse(block):
         if not block: return
@@ -168,7 +172,7 @@ def export_roomGDL(roomblocks):
             colordata += batch.color_bytes()
 
         nverts = len(block.data.vertices)
-        gdlbytes = mde.mesh_to_gdl(mesh, 0, nverts, 0xe, 0xd, env_enabled=True)
+        gdlbytes = mde.mesh_to_gdl(mesh, 0, nverts, 0xe, 0xd)
         gfxdata.append((vtxdata, colordata, gdlbytes))
 
     return gfxdata, textures, bbox
@@ -207,11 +211,11 @@ def export_roomgfxdata(rd, bl_room, ofs_room):
 
         rd.write_block(dataout, block)
 
-        if 'prev' in bl_block:
+        if bl_block['prev']:
             prev = blockmap[bl_block['prev']]
             prev.update(dataout, 'next', ofs_block)
 
-        if 'parent' in bl_block:
+        if bl_block['parent']:
             parent = blockmap[bl_block['parent']]
             parent.update(dataout, 'gdl|child', ofs_block)
 
@@ -285,8 +289,8 @@ def export_section1(out_gfxdatalens, out_bboxes, out_textures):
     # export subsections and save the offsets
     ofs_rooms, rooms = export_rooms(rd, primarydata)
     ofs_lights = export_lights(rd, primarydata)
-    ofs_cmds = export_bgcmds(rd, primarydata)
     ofs_portals = export_portals(rd, primarydata)
+    ofs_cmds = export_bgcmds(rd, primarydata)
 
     # update header
     headers = [('rooms', ofs_rooms), ('portals', ofs_portals),
@@ -305,7 +309,6 @@ def export_section1(out_gfxdatalens, out_bboxes, out_textures):
     idx = 1
     for bl_room in coll.objects:
         if bl_room.pd_obj.type != pdprops.PD_OBJTYPE_ROOM: continue
-
         roomgfxdata, textures, bbox = export_roomgfxdata(rd, bl_room, ofs_room)
         comp = pdu.compress(roomgfxdata)
         complen = pdu.align(len(comp), 4)
@@ -377,7 +380,7 @@ def export_section3(gfxdatalens, bboxes, lights_per_room):
 
     #### gfxdatalen
     for gfxdatalen in gfxdatalens:
-        rd.write(dataout, gfxdatalen//0x10, 'u16')
+        rd.write(dataout, int(gfxdatalen*2)//0x10, 'u16')
 
     #### lights/room
     for numlights in lights_per_room:
