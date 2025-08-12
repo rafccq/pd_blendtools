@@ -116,7 +116,7 @@ class PDTOOLS_OT_RoomCreateBlock(Operator):
         return context.window_manager.invoke_props_dialog(self, width=150)
 
     def draw(self, context):
-        bl_room = context.active_object
+        bl_room = context.object
 
         layout = self.layout
         col = layout.column()
@@ -126,7 +126,7 @@ class PDTOOLS_OT_RoomCreateBlock(Operator):
         col.prop(self, 'blocktype', text='Type')
 
     def execute(self, context):
-        bl_obj = context.active_object
+        bl_obj = context.object
         is_room = pdu.pdtype(bl_obj) == pdprops.PD_OBJTYPE_ROOM
         bl_room = bgu.parent_room(bl_obj) if not is_room else bl_obj
         bl_lastblock = None
@@ -138,10 +138,10 @@ class PDTOOLS_OT_RoomCreateBlock(Operator):
             bl_root = bl_obj.parent
 
         # create the block
+        nextsaved = bl_obj.pd_room.next
         bl_newblock = bgu.room_create_block(bl_room, bl_root, self.layer, self.blocktype)
 
         if self.blocklinking.lower() == 'sibling':
-            nextsaved = bl_obj.pd_room.next
             bl_obj.pd_room.next = bl_newblock
             bl_newblock.pd_room.next = nextsaved
         else:
@@ -183,6 +183,10 @@ class PDTOOLS_OT_RoomBlockDelete(Operator):
         room = bl_roomblock.pd_room.room
         if room.pd_room.first_xlu == bl_roomblock:
             room.pd_room.first_xlu = bl_roomblock.pd_room.next
+
+        parent = bl_roomblock.parent.pd_room
+        if parent.child == bl_roomblock:
+            parent.child = bl_roomblock.pd_room.next
 
         bpy.data.objects.remove(bl_roomblock)
 
