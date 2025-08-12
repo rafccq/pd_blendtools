@@ -67,18 +67,11 @@ def bg_load(romdata):
 
     pdbg = PD_BGFile(bgdata)
 
-    print('nrooms', len(pdbg.rooms))
-    print('load images')
-
     if scn.level_external_tex:
-        mdi.loadimages_external(scn.external_tex_dir)
-
-    # for texnum in sorted(pdbg.textures):
-    #     print(f'tex: {texnum: 04X}')
+        mdi.loadimages_external(scn.external_tex_dir, pdbg.textures)
 
     mdi.loadimages(romdata, pdbg.textures)
 
-    print('done')
     tex_configs = {}
     for texnum in pdbg.textures:
         img = bpy.data.images[f'{texnum:04X}.png']

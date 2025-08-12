@@ -566,13 +566,15 @@ def loadimage(texdata, tex_path, texnum):
         'depth': teximg.depth,
     }
 
-def loadimages_external(path):
+def loadimages_external(path, texlist):
     tex_path = pdu.tex_path()
 
     for filename in glob.iglob(f'{path}/*.bin'):
+        basename = os.path.basename(filename).split('.')[0]
+        texnum = int(basename, 16)
+        if texnum not in texlist: continue
+
         texdata = pdu.read_file(filename, autodecomp=False)
-        filename = os.path.basename(filename).split('.')[0]
-        texnum = int(filename, 16)
         loadimage(texdata, tex_path, texnum)
 
 def loadimages(romdata, texnums):
