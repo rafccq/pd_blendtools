@@ -339,7 +339,7 @@ def build_meshmap(obj):
 
     return meshmap
 
-def mesh_to_gdl(mesh, vtx_start, nverts, segment_vtx, segment_col, env_enabled=False):
+def mesh_to_gdl(mesh, vtx_start, nverts, segment_vtx, segment_col):
     # print(f'meshes: {meshes} {len(meshes)}')
     if not mesh: return None
 
@@ -351,17 +351,16 @@ def mesh_to_gdl(mesh, vtx_start, nverts, segment_vtx, segment_col, env_enabled=F
         batch.vtx_start = vtx_start
         batch.color_start = color_start
 
-    gdlbytes += create_gdl(mesh, segment_vtx, segment_col, env_enabled)
+    gdlbytes += create_gdl(mesh, segment_vtx, segment_col)
     gdlbytes += pdm.cmd_G_END()
 
     return gdlbytes
 
-def create_gdl(mesh: ExportMeshData, segment_vtx, segment_col, env_enabled=False):
+def create_gdl(mesh: ExportMeshData, segment_vtx, segment_col):
     gdlbytes = bytearray()
     materials = mesh.meshdata.materials
 
     geobits = 0
-    env_emitted = False
     prevmat_idx = -1
     for idx, batch in enumerate(mesh.batches):
         if batch.mat < 0: continue
@@ -370,18 +369,16 @@ def create_gdl(mesh: ExportMeshData, segment_vtx, segment_col, env_enabled=False
         if batch.mat != prevmat_idx:
             mat = materials[batch.mat]
             prevmat = materials[prevmat_idx] if prevmat_idx >= 0 else None
-            mat_cmds = pdm.material_export(mat, prevmat)
-            mat_geobits = pdm.geo_command(pdm.mat_attr(mat, 'geomode', 'rdp_settings')) & 0xffffffff
 
+            mat_cmds = pdm.material_export(mat, prevmat)
+
+            mat_geobits = pdm.geo_command(pdm.mat_attr(mat, 'geomode', 'rdp_settings')) & 0xffffffff
             geobits |= mat_geobits
+
             for cmd in mat_cmds:
                 gdlbytes += cmd.to_bytes(8, 'big')
 
         prevmat_idx = batch.mat
-
-        if env_enabled and not env_emitted:
-            gdlbytes += pdm.cmd_G_SETENVCOLOR(0xff)
-            env_emitted = True
 
         colstart, colofs = batch.color_start, batch.color_offset
         gdlbytes += pdm.cmd_G_COL(len(batch.colors), colstart + colofs, segment_col)

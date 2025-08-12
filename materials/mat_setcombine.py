@@ -185,7 +185,11 @@ def mat_setcombine_draw(combiner, layout, context):
 
     draw_combiner(combiner, box, 1)
 
-    if combiner.num_cycles == 2:
+    mat = context.material
+    settings = mat.f3d_mat if mat.is_f3d else mat.pd_mat.othermodeH
+    twocycles = settings.g_mdsft_cycletype == 'G_CYC_2CYCLE'
+
+    if twocycles:
         pdu.ui_separator(box, type='LINE')
         draw_combiner(combiner, box, 2)
 

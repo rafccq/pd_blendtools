@@ -225,9 +225,9 @@ def mat_othermodeL_draw(othermodeL, layout, context):
     prop_split(col, othermodeL, "g_mdsft_alpha_compare", "Alpha Compare")
     prop_split(col, othermodeL, "g_mdsft_zsrcsel", "Z Source Selection")
 
-    draw_rendermode(col, othermodeL)
+    draw_rendermode(col, othermodeL, context)
 
-def draw_rendermode(col, othermodeL):
+def draw_rendermode(col, othermodeL, context):
     prop_split(col, othermodeL, 'aa_en'         ,'Antialiasing'),
     prop_split(col, othermodeL, 'z_cmp'         ,'Z Testing'),
     prop_split(col, othermodeL, 'z_upd'         ,'Z Writing'),
@@ -244,9 +244,15 @@ def draw_rendermode(col, othermodeL):
     header = 'Blender (Color = (P * A + M * B) / (A + B)'
     draw_blender(othermodeL, 1, header, col)
 
-    if othermodeL.num_cycles == 2:
+    mat = context.material
+    settings = mat.f3d_mat if mat.is_f3d else mat.pd_mat.othermodeH
+    twocycles = settings.g_mdsft_cycletype == 'G_CYC_2CYCLE'
+    if twocycles:
         pdu.ui_separator(col, type='AUTO')
         draw_blender(othermodeL, 2, 'Cycle 2', col)
+
+    cmd = othermodeL_rendermode_cmd(othermodeL)
+    col.label(text=f'Command: {cmd&0xffffffff:08X}')
 
 def draw_blender(othermodeL, cycle, header, layout):
     ui_box = layout.box()

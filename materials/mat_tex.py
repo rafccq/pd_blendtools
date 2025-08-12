@@ -159,8 +159,8 @@ def mat_settimg_set(texload, cmd):
     texload.tex_set = True
 
 def mat_texload_draw(texload, idx, layout, context):
-    layout = layout.column()
-    layout.enabled = texload.tex_set
+    col = layout.column()
+    col.enabled = texload.tex_set
 
     layout.template_ID(
         texload, f'tex{idx}', new="image.new", open="image.open", unlink=f"pdtools.tex{idx}_unlink"
@@ -190,6 +190,14 @@ def mat_tex_draw(pd_mat, layout, context):
         col.prop(texload, 'menu1', text='Texture 1 Properties', icon='TRIA_DOWN' if texload.menu1 else 'TRIA_RIGHT')
         if texload.menu1:
             mat_texload_draw(texload, 1, col, context)
+
+    pdu.ui_separator(col, type='SPACE')
+    box = col.box()
+    row_cb = box.row()
+    row_cb.prop(pd_mat, 'has_env_color', text='Environment Color')
+    col_env = row_cb.column()
+    col_env.prop(pd_mat, 'env_color', text='')
+    col_env.enabled = pd_mat.has_env_color
 
     texconfig = pd_mat.texconfig
     pdu.ui_separator(col, type='SPACE')

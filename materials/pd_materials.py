@@ -26,7 +26,7 @@ PORTAL_MAT = 'PD_PortalMat'
 WAYPOINT_MAT = 'PD_WaypointMat'
 COVER_MAT = 'PD_CoverMat'
 
-class PDMaterialSetup:
+class PDMaterialCommands:
     def __init__(self):
         self.texload = 0
         self.texconfig = 0
@@ -36,6 +36,7 @@ class PDMaterialSetup:
         self.geomset = 0
         self.geomclear = 0
         self.setcombine = 0
+        self.envcolor = 0
         self.texnum = -1
 
         self.applied = 0
@@ -65,6 +66,8 @@ class PDMaterialSetup:
         elif op == G_SETTIMG:
             self.settimg = cmdint
             self.texnum = cmdint & 0xffffffff
+        elif op == G_SETENVCOLOR:
+            self.envcolor = cmdint
 
     def has_envmap(self):
         geo = self.geomset & ~self.geomclear
@@ -112,6 +115,7 @@ class PDMaterialSetup:
         addcmd(allcmds, self.setcombine)
         addcmd(allcmds, self.geomset)
         addcmd(allcmds, self.geomclear)
+        addcmd(allcmds, self.envcolor)
 
         return allcmds
 
@@ -129,17 +133,17 @@ class PDMaterialSetup:
         return translucent
 
     def copy(self):
-        mat = PDMaterialSetup()
+        mat = PDMaterialCommands()
         mat.texnum = self.texnum
         mat.texload = self.texload
         mat.texconfig = self.texconfig
-        mat.othermodeL = self.othermodeL
-        for mode, cmd in self.othermodeH.items():
-            mat.othermodeH[mode] = cmd
+        mat.othermodeL = self.othermodeL.copy()
+        mat.othermodeH = self.othermodeH.copy()
 
         mat.setcombine = self.setcombine
         mat.geomset = self.geomset
         mat.geomclear = self.geomclear
+        mat.envcolor = self.envcolor
 
         return mat
 
@@ -153,6 +157,11 @@ class PDMaterialProperty(PropertyGroup):
     othermodeH: PointerProperty(name='othermodeH', type=MatOtherModeH)
     texconfig: PointerProperty(name='texconfig', type=MatTexConfig)
     texload: PointerProperty(name='texload', type=MatTexLoad)
+
+    has_env_color: bpy.props.BoolProperty(name='has_env_color', default=False)
+    env_color: bpy.props.FloatVectorProperty( name='env_color',
+        subtype='COLOR', size=4, min=0, max=1, default=(1, 1, 1, 1),
+    )
 
 
 class PDMaterialPanel(Panel):
@@ -359,6 +368,23 @@ def material_settimg(mat, cmd):
     tex0.tex = imglib[texname]
     tex0.tex_set = True
 
+def hex2rbga(hexcol):
+    conv = lambda e: e/255.0
+    r = (hexcol & 0xff000000) >> 24
+    g = (hexcol & 0xff0000) >> 16
+    b = (hexcol & 0xff00) >> 8
+    a = hexcol & 0xff
+    return (conv(r), conv(g), conv(b), conv(a))
+
+def rgba2hex(col):
+    conv = lambda e: round(e*255)
+    return (conv(col[0]) << 24) | (conv(col[1]) << 16) | (conv(col[2]) << 8) | conv(col[3])
+
+def material_setenvcolor(mat, cmd):
+    col = cmd & 0xffffffff
+    mat.env_color = hex2rbga(col)
+    mat.has_env_color = True
+
 def material_create_f3d(bl_obj, matsetup, name):
     mat = createF3DMat(bl_obj)
     mat.name = name
@@ -381,6 +407,8 @@ def material_create_f3d(bl_obj, matsetup, name):
             mat_texconfig_set(matf3d, cmd)
         elif op == G_SETTIMG:
             material_settimg(matf3d, cmd)
+        elif op == G_SETENVCOLOR:
+            material_setenvcolor(matf3d, cmd)
 
     return mat
 
@@ -483,6 +511,9 @@ def material_setup_props(mat, matsetup):
     if matsetup.settimg:
         mat_settimg_set(pd_mat.texload, matsetup.settimg)
 
+    if matsetup.envcolor:
+        material_setenvcolor(pd_mat, matsetup.envcolor)
+
 def mat_show_vtxcolors(mat):
     node_bsdf = mat.node_tree.nodes['p_bsdf']
     node_vtxcolor = mat.node_tree.nodes['vtxcolor']
@@ -554,15 +585,6 @@ def mat_attr(mat, attr_pd, attr_f3d):
     print(f'WARNING: trying to export invalid material: {mat.name}')
     return None
 
-def issue_clear_geomode(cmds, mat):
-    geo = mat_attr(mat, 'geomode', 'rdp_settings')
-    geocmd = geo_command(geo)
-    if geocmd & 0x00060000:
-        cmds.append(0xB600000000060000)
-        return True
-
-    return False
-
 def material_export(mat, prevmat):
     cmds = []
 
@@ -586,14 +608,18 @@ def material_export(mat, prevmat):
     if cmd_texload:
         cmds.append(cmd_texload)
 
-    cleared_geo = False
-    if prevmat:
-        cleared_geo = issue_clear_geomode(cmds, prevmat)
+    cmd_geoclear = export_geoclear(*mat_prop(mat, prevmat, prop_pd='geomode', prop_f3d='rdp_settings'))
+    if cmd_geoclear:
+        cmds.append(cmd_geoclear)
 
-    prev = None if cleared_geo else prevmat # force geom cmd if geo was cleared
-    cmd_geo = export_geo(*mat_prop(mat, prev, prop_pd='geomode', prop_f3d='rdp_settings'))
+    cmd_geo = export_geo(*mat_prop(mat, prevmat, prop_pd='geomode', prop_f3d='rdp_settings'))
     if cmd_geo:
         cmds.append(cmd_geo)
+
+    choosemat = lambda m: None if not m else m.pd_mat if m.is_pd else m.f3d_mat
+    cmd_envcolor = export_envcolor(choosemat(mat), choosemat(prevmat))
+    if cmd_envcolor:
+        cmds.append(cmd_envcolor)
 
     return cmds
 
@@ -605,6 +631,24 @@ def export_geo(geo, prev_geo):
     cmd = geo_command(geo)
     prevcmd = geo_command(prev_geo) if prev_geo else 0
 
+    return cmd if cmd != prevcmd else 0
+
+def export_geoclear(geo, prev_geo):
+    if not prev_geo: return 0
+
+    cmd = geo_command(geo)
+    prevcmd = geo_command(prev_geo)
+    diff = (~cmd & prevcmd) & 0xffffffff
+
+    return (0xb6 << 56) | diff if diff else 0
+
+def envcolor_cmd(mat):
+    if not mat or not mat.has_env_color: return 0
+    return (0xfb << 56) | rgba2hex(mat.env_color)
+
+def export_envcolor(mat, prevmat):
+    cmd = envcolor_cmd(mat)
+    prevcmd = envcolor_cmd(prevmat)
     return cmd if cmd != prevcmd else 0
 
 def export_texload(mat, prevmat):

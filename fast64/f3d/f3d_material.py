@@ -1376,6 +1376,9 @@ class F3DPanel(Panel):
             if useDict["Primitive"]:
                 self.ui_prim(material, inputCol, "set_prim", f3dMat.set_prim, True)
 
+            if useDict["Environment"]:
+                self.ui_env(material, inputCol, True)
+
             if useDict["Convert"]:
                 self.ui_convert(f3dMat, inputCol, True)
 
@@ -4406,6 +4409,7 @@ class F3DMaterialProperty(PropertyGroup):
         default=(1, 1, 1, 1),
         update=get_color_input_update_callback("prim_color", "Prim"),
     )
+    has_env_color: bpy.props.BoolProperty(name='has_env_color', default=False)
     env_color: bpy.props.FloatVectorProperty(
         name="Environment Color",
         subtype="COLOR",

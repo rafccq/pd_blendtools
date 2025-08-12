@@ -46,6 +46,7 @@ PDMeshData = namedtuple('PDMeshData',
                         'opagdl xlugdl ptr_vtx ptr_col vtxdata coldata matrices')
 
 def create_mesh(mesh, tex_configs, name, matcache, asset_type):
+    update_log()
     mesh_data = bpy.data.meshes.new('mesh_data')
 
     verts = mesh.verts
@@ -125,6 +126,7 @@ def create_mesh(mesh, tex_configs, name, matcache, asset_type):
         n_mats = len(bl_obj.data.materials)
         matname = f'{name}_Mat{n_mats}_{matsetup.texnum:04X}'
         mathash = matsetup.hash()
+        logger.debug(f'    {matname}')
 
         use_alpha = False
         if tc:
@@ -297,6 +299,7 @@ class VtxBufferEntry:
         self.hasnormal = hasnormal
 
 def gdl_read_data(pdmeshdata, idx, apply_mtx, layer=MeshLayer.OPA):
+    update_log()
     ptr_vtx = pdmeshdata.ptr_vtx
     ptr_col = pdmeshdata.ptr_col
     vtxdata = pdmeshdata.vtxdata
@@ -320,15 +323,15 @@ def gdl_read_data(pdmeshdata, idx, apply_mtx, layer=MeshLayer.OPA):
 
     trinum = 0
 
-    mat_setup = pdm.PDMaterialSetup()
+    mat_setup = pdm.PDMaterialCommands()
     gdlnum = 0
     nverts = 0
 
     # these commands change the material setup
     MAT_CMDS = [
         G_SetOtherMode_L, G_SetOtherMode_H, G_SETCOMBINE,
-        G_SETGEOMETRYMODE, G_CLEARGEOMETRYMODE,
-        G_SETTIMG, G_TEXTURE, G_PDTEX
+        G_SETGEOMETRYMODE, G_CLEARGEOMETRYMODE, G_SETENVCOLOR,
+        G_SETTIMG, G_TEXTURE, G_PDTEX,
     ]
 
     while True:
