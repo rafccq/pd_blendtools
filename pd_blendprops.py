@@ -551,42 +551,79 @@ class PDObject_Model(PropertyGroup):
     layer: IntProperty(name='layer', default=0, options={'LIBRARY_EDITABLE'})
 
 
-blockparent_items = []
+def check_parent(_scene, bl_newparent):
+    if pdu.pdtype(bl_newparent) not in [PD_OBJTYPE_ROOM, PD_OBJTYPE_ROOMBLOCK]:
+        return False
 
-def get_blockparent_items(scene, context):
-    bl_roomblock = context.active_object
-    if not bl_roomblock: return []
+    selected = bpy.context.active_object
+    sel_roomblock = selected.pd_room
+    pd_roomblock = bl_newparent.pd_room
 
-    pd_room = bl_roomblock.pd_room
-    bl_room = pd_room.room
+    if pdu.pdtype(bl_newparent) == PD_OBJTYPE_ROOMBLOCK and pd_roomblock.blocktype != BLOCKTYPE_BSP:
+        return False
 
-    blockparent_items.clear()
-    name = bl_room.name
-    blockparent_items.append((name, name, name))
+    if sel_roomblock.room != pd_roomblock.room:
+        return False
 
-    bsp_blocks = lambda parent: [b for b in parent.children if b.pd_room.blocktype == BLOCKTYPE_BSP]
+    if bl_newparent == selected.parent:
+        return False
 
-    blocks = bsp_blocks(bl_room)
-    for block in blocks: blocks += bsp_blocks(block)
+    children = pdu.get_children(selected)
+    if bl_newparent in children:
+        return False
 
-    for block in blocks:
-        e = block.name
-        blockparent_items.append((e, e, e))
-
-    return blockparent_items
-
+    return True
 
 # both room and roomblock objects will use this class
 class PDObject_RoomBlock(PropertyGroup):
-    def update_parent(self, _context):
-        bl_block = self.id_data
-        name = self.parent_enum
-        bl_parent = bpy.data.objects[name]
-        layer = bl_parent.pd_room.layer
-        bl_block.parent = bl_parent
+    def update_parent(self, context):
+        scn = context.scene
+        if scn.level_loading: return
 
-        if pdu.pdtype(bl_parent) == PD_OBJTYPE_ROOMBLOCK:
-            bgu.roomblock_changelayer(bl_block, layer)
+        bl_block = self.id_data
+
+        bl_next = bl_block.pd_room.next
+        old_parent = bl_block.parent.pd_room
+        bl_newparent = self.parent
+        pd_room = bl_newparent.pd_room
+
+        toplevel = pdu.pdtype(bl_newparent) == PD_OBJTYPE_ROOM
+
+        # update the 'next' pointer of the block that pointed to this
+        prev = bgu.room_prev_block(bl_block)
+        if prev:
+            print('PREV', prev.name)
+            prev.pd_room.next = bl_next
+
+        # if this block was the 'child' of the previous parent, update it
+        if old_parent.child == bl_block:
+            old_parent.child = bl_next
+
+        # previous parent is a room
+        if old_parent.first_opa == bl_block:
+            old_parent.first_opa = bl_next
+        elif old_parent.first_xlu == bl_block:
+            old_parent.first_xlu = bl_next
+
+        parentlayer = bl_newparent.pd_room.layer
+        last = bgu.room_last_block(bl_newparent, self.layer if toplevel else parentlayer)
+        if last:
+            last.pd_room.next = bl_block
+
+        bl_block.parent = bl_newparent
+        bl_block.pd_room.next = None
+
+        if not toplevel:
+            bgu.roomblock_changelayer(bl_block, parentlayer)
+            if pd_room.child is None:
+                pd_room.child = bl_block
+        else:
+            layer = self.layer
+            if layer == BLOCK_LAYER_OPA and pd_room.first_opa is None:
+                pd_room.first_opa = bl_block
+            elif layer == BLOCK_LAYER_XLU and pd_room.first_xlu is None:
+                pd_room.first_xlu = bl_block
+
 
     roomnum: IntProperty(name='roomnum', default=0)
     first_opa: PointerProperty(name='first_opa', type=Object)
@@ -598,10 +635,9 @@ class PDObject_RoomBlock(PropertyGroup):
     bsp_pos: FloatVectorProperty(name='bsp_pos', default=(0,0,0), subtype='XYZ')
     bsp_normal: FloatVectorProperty(name='bsp_normal', default=(1,0,0), subtype='DIRECTION')
 
-    parent_enum: EnumProperty(name="parent_enum", description="Parent Block", items=get_blockparent_items, update=update_parent)
     room: PointerProperty(name='room', type=Object)
 
-    parent: PointerProperty(name='parent', type=Object)
+    parent: PointerProperty(name='parent', type=Object, poll=check_parent, update=update_parent)
     child: PointerProperty(name='child', type=Object)
     next: PointerProperty(name='next', type=Object)
 

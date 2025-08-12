@@ -47,7 +47,7 @@ class PDTOOLS_PT_Room(Panel):
             row = box.row()
             row.prop(pd_room, 'layer', text='Layer')
             row.enabled = False
-            box.prop(pd_room, 'parent_enum', text='Parent')
+            box.prop(pd_room, 'parent', text='Parent')
 
             row = box.row()
             row.prop(pd_room, 'next', text='Next')

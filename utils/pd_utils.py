@@ -613,3 +613,14 @@ def make_prop(name, config, default, callback_update=None) -> EnumProperty:
 def item_from_value(items, value, default_idx=0):
    default = items[default_idx]
    return next(filter(lambda e: e[2] == value, items), default)[0]
+
+def get_children(bl_obj):
+    src = [bl_obj]
+    children = []
+    while len(src):
+        current = src.pop()
+        for child in current.children:
+            children.append(child)
+            src.append(child)
+
+    return children

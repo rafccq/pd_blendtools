@@ -201,7 +201,7 @@ def room_create_block(bl_room, bl_parent, layer, blocktype):
 
     bl_roomblock = bpy.data.objects.new(name, mesh)
     bl_roomblock.parent = bl_parent
-    bl_roomblock.pd_room.parent_enum = bl_parent.name
+    bl_roomblock.pd_room.parent = bl_parent
     pdu.add_to_collection(bl_roomblock, 'Rooms')
 
     roomblock_set_props(bl_roomblock, bl_parent, roomnum, pd_room.room, blocknum, layer, blocktype)
@@ -490,7 +490,7 @@ def roomblock_set_props(bl_roomblock, bl_rootobj, roomnum, bl_room, blocknum, la
 
     # we need to set the block as active so the function get_blockparent_items can grab it
     bpy.context.view_layer.objects.active = bl_roomblock
-    bl_roomblock.pd_room.parent_enum = bl_roomblock.parent.name
+    bl_roomblock.pd_room.parent = bl_roomblock.parent
 
     if bsp_pos:
         R = mtx.rot_blender()
@@ -501,12 +501,17 @@ def roomblock_set_props(bl_roomblock, bl_rootobj, roomnum, bl_room, blocknum, la
         bl_rootobj.pd_room.child = bl_roomblock
 
 def roomblock_changelayer(bl_roomblock, layer):
+    if bl_roomblock.pd_room.layer == layer:
+        return
+
     bl_roomblock.pd_room.layer = layer
 
-    blocks = [b for b in bl_roomblock.children]
-    for block in blocks: blocks += [b for b in block.children]
+    children = pdu.get_children(bl_roomblock)
 
-    for block in blocks: block.pd_room.layer = layer
+    opp_layer = layer == 'xlu' if pdprops.BLOCK_LAYER_OPA else 'opa'
+    for block in children:
+        block.pd_room.layer = layer
+        block.name.replace(opp_layer, layer)
 
 # returns a list of the vertices in this mesh, in world space
 def verts_world(bl_obj, M = Matrix.Identity(4), conv = lambda e: e):
