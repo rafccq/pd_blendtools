@@ -55,9 +55,20 @@ def export_lights(rd, dataout):
 
 def export_bgcmds(rd, dataout):
     start = len(dataout)
-    cmd = DataBlock.New('bgcmd')
-    cmd['len'] = 1
-    rd.write_block(dataout, cmd)
+
+    scn = bpy.context.scene
+
+    for cmd in scn.pd_bgcmds:
+        data = DataBlock.New('bgcmd')
+        data['type'] = cmd['type']
+        data['len'] = cmd['len']
+        data['param'] = cmd['param']
+        rd.write_block(dataout, data)
+
+    endmarker = DataBlock.New('bgcmd')
+    endmarker['len'] = 1
+    rd.write_block(dataout, endmarker)
+
     return start
 
 def export_portals(rd, dataout):

@@ -47,6 +47,7 @@ def bg_import(romdata, roomnum, duration):
     # when done loading the rooms, load the portals
     if roomnum == end:
         bg_loadportals(bgdata, range(1, nrooms))
+        bg_loadcmds(bgdata)
         done = True
 
     return done, roomnum
@@ -78,6 +79,15 @@ def bg_load(romdata):
         tex_configs[texnum] = img['texinfo']
 
     return pdbg, tex_configs
+
+def bg_loadcmds(bgdata):
+    scn = bpy.context.scene
+    
+    for cmd in bgdata.bgcmds:
+        item = scn.pd_bgcmds.add()
+        item.type = cmd['type']
+        item.len = cmd['len']
+        item.param = cmd['param']
 
 def loadportals(roomrange):
     blend_dir = os.path.dirname(bpy.data.filepath)

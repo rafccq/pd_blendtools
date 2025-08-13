@@ -924,6 +924,11 @@ class PD_AIList(PropertyGroup):
     addr: IntProperty(name='addr')
     bytes: StringProperty(name='bytes', subtype='BYTE_STRING')
 
+class PD_BGCmd(PropertyGroup):
+    type: IntProperty(name='type')
+    len: IntProperty(name='len')
+    param: IntProperty(name='param')
+
 class PDModelListItem(PropertyGroup):
     name: StringProperty(name='name')
     alias: StringProperty(name='alias')
@@ -1260,6 +1265,7 @@ classes = [
     PDObject_SetupWaypoint,
     PDObject_SetupIntro,
     PD_AIList,
+    PD_BGCmd,
     PDModelListItem,
     Fast64RenderSettings_Properties,
     Fast64_Properties,
@@ -1301,6 +1307,7 @@ def register():
     Scene.pd_waypoint_vis = pdu.make_prop('pd_waypoint_vis', {'pd_waypoint_vis': WAYPOINTS_VISIBILITY}, 'allsets', update_scene_wp_vis)
     Scene.pd_bspwidth = IntProperty(name="pd_bspwidth", default=1000, min=1, options={'TEXTEDIT_UPDATE'})
     Scene.pd_ailists = CollectionProperty(type=PD_AIList)
+    Scene.pd_bgcmds = CollectionProperty(type=PD_BGCmd)
 
     # object creation
     Scene.weapon_num = EnumProperty(items=WEAPONS_NUMS_ITEMS, name="weapon_num", default=WEAPONS_NUMS[0])
