@@ -40,15 +40,12 @@ class Bbox:
         elif p.z > self.zmax: self.zmax = p.z
 
 def obj_get_child_meshes(obj):
-    children = [c for c in obj.children]
-
     meshes = []
-    while children:
-        child = children.pop(0)
-        children += [c for c in child.children]
 
-        if child.data:
-            meshes.append(child.data)
+    children = pdu.get_children(obj)
+    for child in children:
+        if child.type != 'MESH': continue
+        meshes.append(child.data)
 
     return meshes
 
@@ -61,12 +58,28 @@ def closest_face(pos, mesh, M):
 
     return mindist
 
+def closest_vert(pos, mesh, M):
+    mindist = 2 ** 32
+    for vert in mesh.vertices:
+        c = M @ vert.co
+        dist = (c - pos).length
+        if dist < mindist: mindist = dist
+
+    return mindist
+
 def portal_find_rooms(bl_portal):
-    c = pdu.verts_median(bl_portal.data.vertices)
-    rooms = bpy.context.scene['rooms'].values()
+    '''
+    Finds the 2 rooms with the closest vertex to the portal.
+    TODO: this method is still not ideal though. Would be better if we
+    compare the distances from vertices to a ray starting at the portal
+    center and along its normal
+    '''
+    portal_pos = bl_portal.location
+    rooms = bpy.data.collections['Rooms'].objects
     rooms_dist = []
     for bl_room in rooms:
-        dist = (c - bl_room.location).length
+        if pdu.pdtype(bl_room) != pdprops.PD_OBJTYPE_ROOM: continue
+        dist = (portal_pos - bl_room.location).length
         rooms_dist.append((bl_room, dist))
 
     rooms_dist.sort(key=lambda e: e[1])
@@ -78,7 +91,7 @@ def portal_find_rooms(bl_portal):
         meshes = obj_get_child_meshes(room)
         mindist = 2 ** 32
         for mesh in meshes:
-            dist = closest_face(c, mesh, room.matrix_world)
+            dist = closest_vert(portal_pos, mesh, room.matrix_world)
             if dist < mindist: mindist = dist
         closests.append((room, mindist))
 
@@ -95,8 +108,8 @@ def portal_find_rooms(bl_portal):
     res = closests[0][0], closests[1][0]
 
     room1pos = closests[0][0].location
-    d = room1pos - c
     normal = bl_portal.data.polygons[0].normal
+    d = room1pos - portal_pos
 
     # first room is always the one behind the portal
     if normal.dot(d) > 0:

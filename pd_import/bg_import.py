@@ -82,7 +82,7 @@ def bg_load(romdata):
 
 def bg_loadcmds(bgdata):
     scn = bpy.context.scene
-    
+
     for cmd in bgdata.bgcmds:
         item = scn.pd_bgcmds.add()
         item.type = cmd['type']
