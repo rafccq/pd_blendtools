@@ -385,13 +385,13 @@ def material_setenvcolor(mat, cmd):
     mat.env_color = hex2rbga(col)
     mat.has_env_color = True
 
-def material_create_f3d(bl_obj, matsetup, name):
+def material_create_f3d(bl_obj, matcmds, name):
     mat = createF3DMat(bl_obj)
     mat.name = name
 
     matf3d = mat.f3d_mat
     matf3d.set_combiner = False
-    for cmd in matsetup.cmdlist():
+    for cmd in matcmds.cmdlist():
         op = (cmd & 0xff000000_00000000) >> 56
         if op == G_SETGEOMETRYMODE:
             material_geomode(matf3d, cmd, True)
@@ -454,11 +454,11 @@ def tex_smode(cmd_texload):
     modemap = { 0: 'REPEAT', 1: 'EXTEND', 2: 'MIRROR' }
     return modemap[smode]
 
-def material_new(matsetup, use_alpha, name):
+def material_new(matcmds, use_alpha, name):
     if name in bpy.data.materials:
         return bpy.data.materials[name]
 
-    has_envmap = matsetup.has_envmap()
+    has_envmap = matcmds.has_envmap()
     preset = 'ENV_MAPPING' if has_envmap else 'DIFFUSE'
     mat = material_from_template(name, preset)
     mat.is_pd = True
@@ -468,16 +468,16 @@ def material_new(matsetup, use_alpha, name):
     node_vtxcolor = mat.node_tree.nodes['vtxcolor']
     node_vtxcolor.layer_name = 'Col'
 
-    texnum = matsetup.texnum & 0xffff
+    texnum = matcmds.texnum & 0xffff
     img = f'{texnum:04X}.png'
     imglib = bpy.data.images
     node_tex.image = imglib[img]
-    node_tex.extension = tex_smode(matsetup.texload)
+    node_tex.extension = tex_smode(matcmds.texload)
 
     if use_alpha:
         mat.node_tree.links.new(node_bsdf.inputs['Alpha'], node_tex.outputs['Alpha'])
 
-    material_setup_props(mat, matsetup)
+    material_setup_props(mat, matcmds)
 
     if bpy.app.version < (4, 0, 0):
         if use_alpha and not material_has_lighting(mat):
@@ -490,29 +490,29 @@ def material_new(matsetup, use_alpha, name):
 
     return mat
 
-def material_setup_props(mat, matsetup):
+def material_setup_props(mat, matcmds):
     pd_mat = mat.pd_mat
 
-    matgeo_set(pd_mat.geomode, matsetup.geomset)
-    # matgeoclear_set(pd_mat.geoclear, matsetup.geomclear)
+    matgeo_set(pd_mat.geomode, matcmds.geomset)
+    # matgeoclear_set(pd_mat.geoclear, matcmds.geomclear)
 
-    for cmd in matsetup.othermodeL.values():
+    for cmd in matcmds.othermodeL.values():
         mat_othermodeL_set(pd_mat.othermodeL, cmd)
 
-    for cmd in matsetup.othermodeH.values():
+    for cmd in matcmds.othermodeH.values():
         mat_othermodeH_set(pd_mat.othermodeH, cmd)
 
-    mat_setcombine_set(pd_mat.combiner, matsetup.setcombine)
-    mat_texconfig_set(pd_mat.texconfig, matsetup.texconfig)
+    mat_setcombine_set(pd_mat.combiner, matcmds.setcombine)
+    mat_texconfig_set(pd_mat.texconfig, matcmds.texconfig)
 
-    if matsetup.texload:
-        mat_texload_set(pd_mat.texload, matsetup.texload)
+    if matcmds.texload:
+        mat_texload_set(pd_mat.texload, matcmds.texload)
 
-    if matsetup.settimg:
-        mat_settimg_set(pd_mat.texload, matsetup.settimg)
+    if matcmds.settimg:
+        mat_settimg_set(pd_mat.texload, matcmds.settimg)
 
-    if matsetup.envcolor:
-        material_setenvcolor(pd_mat, matsetup.envcolor)
+    if matcmds.envcolor:
+        material_setenvcolor(pd_mat, matcmds.envcolor)
 
 def mat_show_vtxcolors(mat):
     node_bsdf = mat.node_tree.nodes['p_bsdf']
