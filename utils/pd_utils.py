@@ -451,6 +451,36 @@ def points_median(points):
     center /= len(points)
     return center
 
+def center_of_mass(bm):
+    bm.faces.ensure_lookup_table()
+    center = Vector((0,0,0))
+    areasum = 0
+    for idx, f in enumerate(bm.faces):
+        a = f.calc_area()
+        center += f.calc_center_median() * a
+        areasum += a
+
+    return center / areasum
+
+
+def new_sphere(radius=1, collname=None, select=False):
+    mesh = bpy.data.meshes.new('Sphere')
+    sphere = bpy.data.objects.new("Sphere", mesh)
+
+    if collname:
+        coll = bpy.data.collections[collname]
+        coll.objects.link(sphere)
+
+    if select:
+        bpy.context.view_layer.objects.active = sphere
+        sphere.select_set(True)
+
+    bm = bmesh.new()
+    bmesh.ops.create_uvsphere(bm, u_segments=32, v_segments=16, radius=radius)
+    bm.to_mesh(mesh)
+    bm.free()
+
+    return sphere
 
 def pdtype(bl_obj):
     return bl_obj.pd_obj.type & 0xff00 if bl_obj else 0
@@ -624,3 +654,7 @@ def get_children(bl_obj):
             src.append(child)
 
     return children
+
+def filename(name):
+    if '.' not in name: return name
+    return ''.join(name.split('.')[:-1])

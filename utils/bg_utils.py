@@ -151,7 +151,7 @@ def new_room_with_block(bl_roomblock, layer, context):
     scn['rooms'][str(roomnum)] = bl_room
     return bl_room
 
-def new_room_from_selection(context):
+def new_room_from_faces(context):
     # must be in edit mode
     bl_roomblocksrc = context.edit_object
     bl_roomsrc = parent_room(bl_roomblocksrc)
@@ -183,6 +183,66 @@ def room_next_blocknum(bl_room):
     blocks = [b for b in bl_room.children]
     for block in blocks: blocks += [b for b in block.children]
     return 1 + max([block.pd_room.blocknum for block in blocks], default=0)
+
+def room_nextnum():
+    if 'Rooms' not in bpy.data.collections: return 1
+
+    num = 0
+    coll = bpy.data.collections['Rooms']
+    for bl_obj in coll.objects:
+        if bl_obj.pd_obj.type != pdprops.PD_OBJTYPE_ROOM: continue
+        if bl_obj.pd_room.roomnum > num:
+            num = bl_obj.pd_room.roomnum
+
+    return num + 1
+
+def new_color_attr(mesh, name, atype, domain, fill_value):
+    attr = mesh.color_attributes.new(name, atype, domain)
+    for i in range(len(attr.data)):
+        attr.data[i].color = fill_value
+
+def set_mesh_attrs(mesh):
+    # remove color attributes except the first, if any
+    attrs = mesh.color_attributes
+    while len(attrs) > 1:
+        attrs.remove(attrs[1])
+
+    # create a new color attribute, or rename the existing
+    if len(attrs) == 0:
+        new_color_attr(mesh, 'Col', 'BYTE_COLOR', 'CORNER', (1, 1, 1, 1))
+    else:
+        attrs[0].name = 'Col'
+
+    new_color_attr(mesh, 'Alpha', 'BYTE_COLOR', 'CORNER', (1, 1, 1, 1))
+
+    # add a new UV layer if none or rename the existing
+    uvs = mesh.uv_layers
+    if len(uvs) == 0:
+        mesh.uv_layers.new(name='UVMap')
+    else:
+        uvs[0].name = 'UVMap'
+
+def room_from_obj(bl_obj, layer = 'opa'):
+    scn = bpy.context.scene
+    if 'rooms' not in scn:
+        scn['rooms'] = {}
+
+    pos = bl_obj.matrix_world.translation
+    roomnum = room_nextnum()
+    bl_room = new_room(roomnum, pos)
+
+    # remove the object from the collection its currently in
+    for collection in bl_obj.users_collection:
+        collection.objects.unlink(bl_obj)
+
+    set_mesh_attrs(bl_obj.data)
+
+    pdu.add_to_collection(bl_obj, 'Rooms')
+
+    bl_obj.parent = bl_room
+    bl_obj.name = blockname(roomnum, 0, pdprops.BLOCKTYPE_DL, layer)
+    roomblock_set_props(bl_obj, bl_room, roomnum, bl_room, 0, layer, pdprops.BLOCKTYPE_DL)
+    pdm.mat_convert_all_in(bl_obj)
 
 def room_last_block(bl_room, layer):
     for child in bl_room.children:
@@ -526,13 +586,13 @@ def roomblock_changelayer(bl_roomblock, layer):
         block.pd_room.layer = layer
         block.name.replace(opp_layer, layer)
 
-# returns a list of the vertices in this mesh, in world space
+# returns a list of the vertices in this mesh in world space
 def verts_world(bl_obj, M = Matrix.Identity(4), conv = lambda e: e):
-    pos = bl_obj.matrix_world.translation
     verts = []
 
+    M = M @ bl_obj.matrix_world
     for v in bl_obj.data.vertices:
-        vt = M @ (pos + v.co)
+        vt = M @ v.co
         vt.x, vt.y, vt.z = conv(vt.x), conv(vt.y), conv(vt.z)
         verts.append(vt)
 
