@@ -183,7 +183,7 @@ def bg_create_roomblockDL(room, block, bl_room, bl_rootobj, tex_configs, layer, 
         None
     )
 
-    gdldata, _, _ = mdi.gdl_read_data(meshdata, idx, False)
+    gdldata, _, _ = mdi.gdl_read_data(meshdata, False)
 
     name = bgu.blockname(roomnum, idx, BLOCK_DL, layer)
     bl_roomblock = mdi.create_mesh(gdldata, tex_configs, name, matcache, mdi.ASSET_TYPE_BG)

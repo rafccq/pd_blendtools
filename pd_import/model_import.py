@@ -298,7 +298,7 @@ class VtxBufferEntry:
         self.meshes_loaded = []
         self.hasnormal = hasnormal
 
-def gdl_read_data(pdmeshdata, idx, apply_mtx, layer=MeshLayer.OPA):
+def gdl_read_data(pdmeshdata, apply_mtx, layer=MeshLayer.OPA):
     update_log()
     ptr_vtx = pdmeshdata.ptr_vtx
     ptr_col = pdmeshdata.ptr_col
@@ -407,7 +407,7 @@ def gdl_read_data(pdmeshdata, idx, apply_mtx, layer=MeshLayer.OPA):
     return mesh_opa, mesh_xlu, model_mtxs
 
 def create_model_mesh(idx, meshdata, tex_configs, apply_mtx, matcache):
-    *gdldatas, model_mtxs = gdl_read_data(meshdata, idx, apply_mtx)
+    *gdldatas, model_mtxs = gdl_read_data(meshdata, apply_mtx)
     n_submeshes = len(gdldatas)
     mesh_objs = []
     for sub_idx, gdldata in enumerate(gdldatas):
@@ -430,7 +430,7 @@ def mesh_merge(mesh_dst, mesh_src):
         mesh_dst.add_tri(tri, mesh_src.tri2tex[idx_tri])
 
 def aggregate_mesh(finalmesh, idx, meshdata, apply_mtx):
-    mesh_opa, mesh_xlu, _ = gdl_read_data(meshdata, idx, apply_mtx)
+    mesh_opa, mesh_xlu, _ = gdl_read_data(meshdata, apply_mtx)
 
     if finalmesh:
         mesh_merge(finalmesh, mesh_opa)
