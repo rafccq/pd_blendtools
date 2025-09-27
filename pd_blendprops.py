@@ -583,7 +583,7 @@ class PDObject_RoomBlock(PropertyGroup):
         bl_block = self.id_data
 
         bl_next = bl_block.pd_room.next
-        old_parent = bl_block.parent.pd_room
+        old_parent = bl_block.parent.pd_room if bl_block.parent else None
         bl_newparent = self.parent
         pd_room = bl_newparent.pd_room
 
@@ -595,15 +595,16 @@ class PDObject_RoomBlock(PropertyGroup):
             print('PREV', prev.name)
             prev.pd_room.next = bl_next
 
-        # if this block was the 'child' of the previous parent, update it
-        if old_parent.child == bl_block:
-            old_parent.child = bl_next
+        if old_parent:
+            # if this block was the 'child' of the previous parent, update it
+            if old_parent.child == bl_block:
+                old_parent.child = bl_next
 
-        # previous parent is a room
-        if old_parent.first_opa == bl_block:
-            old_parent.first_opa = bl_next
-        elif old_parent.first_xlu == bl_block:
-            old_parent.first_xlu = bl_next
+            # previous parent is a room
+            if old_parent.first_opa == bl_block:
+                old_parent.first_opa = bl_next
+            elif old_parent.first_xlu == bl_block:
+                old_parent.first_xlu = bl_next
 
         parentlayer = bl_newparent.pd_room.layer
         last = bgu.room_last_block(bl_newparent, self.layer if toplevel else parentlayer)
