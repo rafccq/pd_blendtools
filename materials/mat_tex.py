@@ -204,42 +204,42 @@ def mat_tex_draw(pd_mat, layout, context):
     box = col.box()
     mat_texconfig_draw(texconfig, box, context)
 
-def texload_command(texload):
-    tex0 = int(texload.tex0.name.replace('.png', ''), 16)
-    teximg1 = texload.tex1
-    tex1 = int(teximg1.name.replace('.png', ''), 16) if teximg1 else 0
+def get_texnums(mat):
+    if not(mat.is_pd or mat.is_f3d): return 0, 0
 
-    smode = pdu.enum_value(texload, 'smode')
-    tmode = pdu.enum_value(texload, 'tmode')
-    offset = 2 if texload.offset else 0
-    shifts = texload.shift_s
-    shiftt = texload.shift_t
-    minlv = 0xf8 if tex1 else 0 # min level fixed at F8 for now (TODO check)
+    if mat.is_pd:
+        texload = mat.pd_mat.texload
+        texlist = [texload.tex0, texload.tex1]
+    else:
+        f3dmat = mat.f3d_mat
+        texlist = [f3dmat.tex0.tex, f3dmat.tex1.tex]
 
-    w0 = (0xc0 << 24) | (smode << 22) | (tmode << 20) | (offset << 18) | \
-         (shifts << 14) | (shiftt << 10) | (texload.lod_flag << 9) | texload.subcmd
+    scn = bpy.context.scene
+    lookup = lambda idx: scn['map_texids'][texlist[idx].name] if scn.remap_texids else int(pdu.filename(texlist[idx].name), 16)
+    id = lambda idx: lookup(idx) if texlist[idx] else 0
 
-    return (w0 << 8*4) | (minlv << 4*6) | (tex1 << 4*3) | (tex0 & 0xfff)
+    return id(0), id(1)
 
 def f3d_wrapmode(texprop):
     if texprop.mirror: return TEX_WRAPMODES[2][2]
     if texprop.clamp: return TEX_WRAPMODES[1][2]
     return TEX_WRAPMODES[0][2]
 
-def texload_command_f3d(f3dmat):
-    tex0 = int(f3dmat.tex0.tex.name.replace('.png', ''), 16)
-    teximg1 = f3dmat.tex1.tex
-    tex1 = int(teximg1.name.replace('.png', ''), 16) if teximg1 else 0
+def texload_command(mat):
+    texload = mat.pd_mat.texload
+    f3dmat = mat.f3d_mat
+    ispd = mat.is_pd
 
-    smode = f3d_wrapmode(f3dmat.tex0.S)
-    tmode = f3d_wrapmode(f3dmat.tex0.T)
-    offset = 2 if f3dmat.tex0.offset else 0
-    shifts = f3dmat.tex0.shift_s
-    shiftt = f3dmat.tex0.shift_t
+    tex0, tex1 = get_texnums(mat)
+
+    smode = pdu.enum_value(texload, 'smode') if ispd else f3d_wrapmode(f3dmat.tex0.S)
+    tmode = pdu.enum_value(texload, 'tmode') if ispd else f3d_wrapmode(f3dmat.tex0.T)
+    offset = int(texload.offset) * 2 if ispd else int(f3dmat.tex0.offset) * 2
+    shifts = texload.shift_s if ispd else f3dmat.tex0.shift_s
+    shiftt = texload.shift_t if ispd else f3dmat.tex0.shift_t
     minlv = 0xf8 if tex1 else 0 # min level fixed at F8 for now (TODO check)
 
     w0 = (0xc0 << 24) | (smode << 22) | (tmode << 20) | (offset << 18) | \
-         (shifts << 14) | (shiftt << 10) | (f3dmat.tex0.lod_flag << 9) | f3dmat.tex0.subcmd
+         (shifts << 14) | (shiftt << 10) | (texload.lod_flag << 9) | texload.subcmd
 
     return (w0 << 8*4) | (minlv << 4*6) | (tex1 << 4*3) | (tex0 & 0xfff)
-

@@ -652,10 +652,8 @@ def export_envcolor(mat, prevmat):
     return cmd if cmd != prevcmd else 0
 
 def export_texload(mat, prevmat):
-    export_func = lambda m: texload_command(m.pd_mat.texload) if m.is_pd else texload_command_f3d(m.f3d_mat)
-
-    cmd = export_func(mat)
-    prevcmd = export_func(prevmat) if prevmat else 0
+    cmd = texload_command(mat)
+    prevcmd = texload_command(prevmat) if prevmat else 0
     return cmd if cmd != prevcmd else 0
 
 def export_texconfig(texconfig, prev_texconfig):
