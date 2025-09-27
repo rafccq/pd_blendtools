@@ -1,4 +1,5 @@
 import hashlib
+import shutil
 
 import bpy
 from bpy.types import PointerProperty, Panel
@@ -37,7 +38,7 @@ class PDMaterialCommands:
         self.geomclear = 0
         self.setcombine = 0
         self.envcolor = 0
-        self.texnum = -1
+        self.texnum = 0
 
         self.applied = 0
 
@@ -90,7 +91,7 @@ class PDMaterialCommands:
         return mat_id
 
     def has_texture(self):
-        return self.texnum >= 0
+        return self.texnum > 0
 
     def hash(self):
         allbytes = bytearray()
@@ -468,10 +469,14 @@ def material_new(matcmds, use_alpha, name):
     node_vtxcolor = mat.node_tree.nodes['vtxcolor']
     node_vtxcolor.layer_name = 'Col'
 
-    texnum = matcmds.texnum & 0xffff
-    img = f'{texnum:04X}.png'
     imglib = bpy.data.images
-    node_tex.image = imglib[img]
+
+    if matcmds.texnum:
+        texnum = matcmds.texnum & 0xffff
+        node_tex.image = imglib[f'{texnum:04X}.png']
+    elif matcmds.texname:
+        node_tex.image = imglib[matcmds.texname]
+
     node_tex.extension = tex_smode(matcmds.texload)
 
     if use_alpha:
@@ -485,8 +490,6 @@ def material_new(matcmds, use_alpha, name):
 
         # to avoid transparency issues in earlier versions
         mat.show_transparent_back = False
-
-    mat['has_envmap'] = has_envmap
 
     return mat
 
@@ -771,3 +774,134 @@ def waypoint_material():
 
 def cover_material():
     return create_basic_material(COVER_MAT, (0.8, 0.0, 0.0, 1.0), 1.0)
+
+def mat_node_by_type(mat, nodetype):
+    nodes = mat.node_tree.nodes
+    for node in nodes:
+        if type(node) == nodetype: return node
+
+    return None
+
+def mat_get_img(mat):
+    nodeimg = mat_node_by_type(mat, bpy.types.ShaderNodeTexImage)
+    return nodeimg.image if nodeimg else None
+
+def mat_has_alpha(mat):
+    node_bsdf = mat_node_by_type(mat, bpy.types.ShaderNodeBsdfPrincipled)
+    if not node_bsdf:
+        print(f'WARNING: material has no BSDF node: {mat.name}')
+        return False
+
+    in_alpha = node_bsdf.inputs['Alpha'].links
+    return len(in_alpha) > 0
+
+def mat_convert_to_pd(mat, name, idx, matmap):
+    node_img = mat_node_by_type(mat, bpy.types.ShaderNodeTexImage)
+    if not node_img:
+        print(f'WARNING: mat_convert_to_pd() material has no image node: {mat.name}') # TODO report
+        return None
+
+    img = node_img.image
+    if img.name in matmap:
+        return matmap[img.name]
+
+    # setup a material with default commands
+    matcmds = PDMaterialCommands()
+    matcmds.add_cmd(0xfc26a0041f1093ff.to_bytes(8, 'big')) # combiner
+    matcmds.add_cmd(0xba000c0200002000.to_bytes(8, 'big')) # othermodeH
+    matcmds.add_cmd(0xba00100100010000.to_bytes(8, 'big')) # othermodeH
+    matcmds.add_cmd(0xba00110200000000.to_bytes(8, 'big')) # othermodeH
+    matcmds.add_cmd(0xba00140200100000.to_bytes(8, 'big')) # othermodeH
+    matcmds.add_cmd(0xb900031d0c182078.to_bytes(8, 'big')) # othermodeL
+    matcmds.add_cmd(0xb700000000002000.to_bytes(8, 'big')) # geomode
+    matcmds.add_cmd(0xbb000001ffffffff.to_bytes(8, 'big')) # texture
+    matcmds.add_cmd(0xc008000200000000.to_bytes(8, 'big')) # texload
+    matcmds.add_cmd(0xfb000000000000ff.to_bytes(8, 'big')) # envcolor
+
+    hasalpha = mat_has_alpha(mat)
+
+    matcmds.texname = img.name
+
+    matname = f'{name}_Mat{idx}_{img.name}'
+    mat = material_new(matcmds, hasalpha, matname)
+
+    # we need to set this manually since we're not using texnum here
+    imglib = bpy.data.images
+    texload = mat.pd_mat.texload
+    texload.tex0 = imglib[img.name]
+    texload.tex_set = True
+
+    return mat
+
+def mat_create_img_map():
+    '''
+    Creates a map {imgname -> material} for all materials in the library
+    '''
+    matmap = {}
+    for mat in bpy.data.materials:
+        if not (mat.is_pd or mat.is_f3d): continue
+
+        nodeimg = mat_node_by_type(mat, bpy.types.ShaderNodeTexImage)
+        if not nodeimg: continue
+        matmap[nodeimg.image.name] = mat
+
+    return matmap
+
+def mat_convert_all_in(bl_obj):
+    matmap = mat_create_img_map()
+    for slot in bl_obj.material_slots:
+        mat = slot.material
+        idx = slot.slot_index
+        newmat = mat_convert_to_pd(mat, bl_obj.name, idx, matmap)
+        bl_obj.material_slots[idx].material = newmat
+
+def mat_purge_unused():
+    for mat in bpy.data.materials:
+        if not mat.users:
+            bpy.data.materials.remove(mat)
+
+def get_tex(mat):
+    if not (mat.is_pd or mat.is_f3d): return None
+
+    if mat.is_pd:
+        texload = mat.pd_mat.texload
+        return texload.tex0, texload.tex1
+    else:
+        f3dmat = mat.f3d_mat
+        return f3dmat.tex0.tex, f3dmat.tex1.tex
+
+def create_texid_map(start_id):
+    '''
+    Creates a map {texname -> texid}
+    This function is called before export, to map the material texture names to an ID
+    '''
+    tex_ids = {}
+    for mat in bpy.data.materials:
+        if not (mat.is_pd or mat.is_f3d): continue
+
+        tex0, tex1 = get_tex(mat)
+        if tex0 and tex0.name not in tex_ids:
+            tex_ids[tex0.name] = start_id
+            start_id += 1
+
+        if tex1 and tex1.name not in tex_ids:
+            tex_ids[tex1.name] = start_id
+            start_id += 1
+
+    scn = bpy.context.scene
+    scn['map_texids'] = tex_ids
+
+def export_tex(path):
+    '''
+    Save the texture images to the export folder, naming them according to the ID
+    '''
+
+    imglib = bpy.data.images
+
+    scn = bpy.context.scene
+    tex_ids = scn['map_texids']
+    for name, id in tex_ids.items():
+        img = imglib[name]
+        ext = img.name.split('.')[-1]
+        imgpath = bpy.path.abspath(img.filepath)
+        shutil.copy(imgpath, f'{path}/{id:04x}.{ext}')
