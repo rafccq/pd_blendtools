@@ -193,6 +193,10 @@ def mat_setcombine_draw(combiner, layout, context):
         pdu.ui_separator(box, type='LINE')
         draw_combiner(combiner, box, 2)
 
+    row = layout.row()
+    cmd = combiner_command(combiner)
+    row.label(text=f'Command: {cmd:016X}')
+
 def draw_combiner(combiner, layout, cycle):
     if combiner.num_cycles == 2:
         layout.label(text=f'Cycle {cycle}')

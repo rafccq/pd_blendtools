@@ -66,6 +66,10 @@ def matgeo_draw(geomode, layout, _context):
     c.prop(geomode, 'g_zbuffer')
     c.prop(geomode, 'g_shade')
 
+    pdu.ui_separator(col, 1.0, 'SPACE')
+    cmd = geo_command(geomode)
+    col.label(text=f'Command: {cmd&0xffffffff:08X}')
+
 def matgeo_set(geomode, cmd):
     for flag, bits in GEO_FLAGS.items():
         setattr(geomode, flag, bool(cmd & bits))
