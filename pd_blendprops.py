@@ -1376,6 +1376,9 @@ def register():
     Scene.level_external_tex = BoolProperty(name='level_external_tex', default=False, description="")
     Scene.external_tex_dir = StringProperty(name='external_tex_dir', description="")
 
+    Scene.remap_texids = BoolProperty(name='remap_texids', default=True, description="")
+    Scene.texid_start = IntProperty(name='texid_start', default=3600, description="")
+
     Scene.level_loading = BoolProperty(name='level_loading', default=False)
 
     # external models

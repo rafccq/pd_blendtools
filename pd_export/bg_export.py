@@ -153,6 +153,8 @@ def export_roomGDL(roomblocks):
     textures = set()
     bbox = bgu.Bbox()
 
+    mde.update_log()
+
     for block in roomblocks:
         pd_roomblock = block.pd_room
         mesh = mde.ExportMeshData(block.name, pd_roomblock.layer, block.data)
@@ -315,6 +317,10 @@ def export_section1(out_gfxdatalens, out_bboxes, out_textures):
     #### patch all gfx data
     gfxdata = bytearray()
 
+    scn = bpy.context.scene
+    if scn.remap_texids:
+        pdm.create_texid_map(scn.texid_start)
+
     ofs_room = primsize + 0x0f000000
     coll = bpy.data.collections['Rooms']
     idx = 1
@@ -366,10 +372,10 @@ def export_section2(textures):
     dataout = bytearray()
     rd = ByteStream(dataout)
 
+    scn = bpy.context.scene
     for tex in textures:
         name = tex.name
-        name = name[:name.index('.')]
-        texnum = int(f'{name}', 16)
+        texnum = scn['map_texids'][name] if scn.remap_texids else int(pdu.filename(name), 16)
         rd.write(dataout, texnum, 's16')
 
     return pack_section(dataout, mask=0x7fff)
