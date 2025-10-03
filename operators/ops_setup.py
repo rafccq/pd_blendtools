@@ -598,6 +598,8 @@ class PDTOOLS_OT_SetupObjectCreate(Operator):
                 self.created_objs.append(bl_obj)
 
     def next_pad(self, coll_name, type):
+        if coll_name not in bpy.data.collections: return 0
+
         pad = -1
         coll = bpy.data.collections[coll_name].objects
         for obj in coll:
