@@ -1,5 +1,6 @@
 import hashlib
 import shutil
+import os.path as osp
 
 import bpy
 from bpy.types import PointerProperty, Panel
@@ -902,6 +903,8 @@ def export_tex(path):
     tex_ids = scn['map_texids']
     for name, id in tex_ids.items():
         img = imglib[name]
-        ext = img.name.split('.')[-1]
+
+        filename = osp.basename(img.filepath)
+        ext = filename.split('.')[-1]
         imgpath = bpy.path.abspath(img.filepath)
         shutil.copy(imgpath, f'{path}/{id:04x}.{ext}')
