@@ -19,7 +19,6 @@ logger = logu.log_get(__name__)
 update_log()
 
 
-
 # col is a tuple (r,g,b,a) with each element in the range [0:1]
 def color_to_bytes(col):
     return [ci.to_bytes(1, 'big') for ci in col]
@@ -523,9 +522,10 @@ def print_batches(mesh, tri_batches, matrices=None):
         for v, vdata in enumerate(batch.vtxdata):
             mtx = matrices[batch.vtxmtxs[v]] if batch.vtxmtxs and matrices else (0,0,0)
             p = vdata[0]
+            uv = vdata[2]
             x, y, z = p[0] - mtx[0], p[1] - mtx[1], p[2] - mtx[2]
             txtmtx = f'(MTX {batch.vtxmtxs[v]:02X})' if batch.vtxmtxs else ''
-            logger.debug(f'v {v:<3} {x:>8.3f} {y:>8.3f} {z:>8.3f} {txtmtx}')
+            logger.debug(f'v {v:<3} {x:>8.3f} {y:>8.3f} {z:>8.3f} {txtmtx} {uv[0]:>8.3f} {uv[1]:>8.3f} ')
 
         for tri in batch.tris:
             vidxs = [k[0] for k in batch.vtxmap.keys()]
