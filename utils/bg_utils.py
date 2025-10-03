@@ -222,28 +222,6 @@ def set_mesh_attrs(mesh):
     else:
         uvs[0].name = 'UVMap'
 
-def room_from_obj(bl_obj, layer = 'opa'):
-    scn = bpy.context.scene
-    if 'rooms' not in scn:
-        scn['rooms'] = {}
-
-    pos = bl_obj.matrix_world.translation
-    roomnum = room_nextnum()
-    bl_room = new_room(roomnum, pos)
-
-    # remove the object from the collection its currently in
-    for collection in bl_obj.users_collection:
-        collection.objects.unlink(bl_obj)
-
-    set_mesh_attrs(bl_obj.data)
-
-    pdu.add_to_collection(bl_obj, 'Rooms')
-
-    bl_obj.parent = bl_room
-    bl_obj.name = blockname(roomnum, 0, pdprops.BLOCKTYPE_DL, layer)
-    roomblock_set_props(bl_obj, bl_room, roomnum, bl_room, 0, layer, pdprops.BLOCKTYPE_DL)
-    pdm.mat_convert_all_in(bl_obj)
-
 def room_last_block(bl_room, layer):
     for child in bl_room.children:
         pd_room = child.pd_room
@@ -632,4 +610,5 @@ def plane_mesh(name, size, layer_uv=None, layer_colors=None):
         bm.free()
 
     return mesh
+
 

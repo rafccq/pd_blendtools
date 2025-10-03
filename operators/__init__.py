@@ -1,7 +1,7 @@
 import bpy.types
 from bpy.utils import register_submodule_factory
 
-from .ops_bg import PDTOOLS_OT_PortalFromFace
+from .ops_bg import PDTOOLS_OT_PortalFromFace, PDTOOLS_OT_RoomBlockCreateFromSelection
 from .ops_tiles import PDTOOLS_OT_TilesFromFaces
 
 
@@ -22,12 +22,15 @@ def pd_editmode_menu(self, _context):
     self.layout.separator(factor=1.0)
     self.layout.operator(PDTOOLS_OT_PortalFromFace.bl_idname)
     self.layout.operator(PDTOOLS_OT_TilesFromFaces.bl_idname)
+    self.layout.operator(PDTOOLS_OT_RoomBlockCreateFromSelection.bl_idname)
 
 def pd_editmode_ctxmenu(self, _context):
     if bpy.context.tool_settings.mesh_select_mode[2]:
         self.layout.separator(factor=1.0)
         self.layout.operator(PDTOOLS_OT_PortalFromFace.bl_idname)
         self.layout.operator(PDTOOLS_OT_TilesFromFaces.bl_idname)
+        self.layout.operator_context = 'INVOKE_DEFAULT'
+        self.layout.operator(PDTOOLS_OT_RoomBlockCreateFromSelection.bl_idname)
 
 def register():
     register_mod()

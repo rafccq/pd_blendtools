@@ -148,6 +148,8 @@ class PDTOOLS_PT_RoomTools(Panel):
         row.operator('pdtools.op_room_create', text='Create Room')
         row.enabled = pdu.get_mode(context) in ['', 'OBJECT']
 
+        row.operator('pdtools.room_create_from_obj', text='Create Room From Obj')
+
 
 classes = [
     PDTOOLS_PT_Portal,

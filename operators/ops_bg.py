@@ -8,6 +8,7 @@ from gpu_extras.batch import batch_for_shader
 from utils import bg_utils as bgu
 from pd_data.pd_padsfile import *
 import pd_blendprops as pdprops
+import materials.pd_materials as pdm
 
 
 class PDTOOLS_OT_PortalFindRooms(Operator):
@@ -67,6 +68,116 @@ class PDTOOLS_OT_RoomSplitByPortal(Operator):
 
     def invoke(self, context, event):
         return self.execute(context)
+
+class PDTOOLS_OT_RoomCreateFromObject(Operator):
+    bl_idname = "pdtools.room_create_from_obj"
+    bl_label = "Create From Object"
+    # bl_options = {'REGISTER', 'INTERNAL'}
+
+    @classmethod
+    def poll(cls, ctx):
+        ctx_obj = ctx.object
+        obj = ctx.active_object
+
+        if not ctx_obj or not obj:
+            return
+
+        objtype = pdu.pdtype(obj)
+        typeok = objtype not in [pdprops.PD_OBJTYPE_ROOM, pdprops.PD_OBJTYPE_ROOMBLOCK]
+        return ctx_obj.type == 'MESH' and typeok
+
+    def room_from_obj(self, bl_obj, layer='opa'):
+        scn = bpy.context.scene
+        if 'rooms' not in scn:
+            scn['rooms'] = {}
+
+        pos = bl_obj.matrix_world.translation
+        roomnum = bgu.room_nextnum()
+        bl_room = bgu.new_room(roomnum, pos)
+
+        # remove the object from the collection it is currently in
+        for collection in bl_obj.users_collection:
+            collection.objects.unlink(bl_obj)
+
+        bgu.set_mesh_attrs(bl_obj.data)
+
+        pdu.add_to_collection(bl_obj, 'Rooms')
+
+        bl_obj.parent = bl_room
+        bl_obj.name = bgu.blockname(roomnum, 0, pdprops.BLOCKTYPE_DL, layer)
+        bgu.roomblock_set_props(bl_obj, bl_room, roomnum, bl_room, 0, layer, pdprops.BLOCKTYPE_DL)
+        pdm.mat_convert_all_in(bl_obj)
+
+    def execute(self, context):
+        bl_obj = context.active_object
+        self.room_from_obj(bl_obj)
+        return {'FINISHED'}
+
+
+ENUM_LAYERS = [
+    ('opa', 'Primary (opaque)', 'Primary (opaque)'),
+    ('xlu', 'Secondary (translucent)', 'Secondary (translucent)')
+]
+
+class PDTOOLS_OT_RoomBlockCreateFromSelection(Operator):
+    bl_idname = "pdtools.roomblock_create_from_selection"
+    bl_label = "PD: Roomblock From Faces"
+    bl_description = "Move selected faces to a new roomblock"
+    bl_options = {'REGISTER'}
+
+    layer: bpy.props.EnumProperty(name='layer', default=ENUM_LAYERS[0][0], items=ENUM_LAYERS)
+
+    @classmethod
+    def poll(cls, ctx):
+        if ctx.object.mode != 'EDIT' or not ctx.tool_settings.mesh_select_mode[2]:
+            return False
+
+        return pdu.pdtype(ctx.active_object) == pdprops.PD_OBJTYPE_ROOMBLOCK
+
+    def separate_selection(self):
+        selected = {obj.name for obj in bpy.context.selected_objects}
+
+        bpy.ops.mesh.separate(type='SELECTED')
+
+        newobj = None
+        for obj in bpy.context.selected_objects:
+            if obj and obj.name not in selected:
+                newobj = obj
+
+        return newobj
+
+    def invoke(self, context, event):
+        return context.window_manager.invoke_props_dialog(self, width=200)
+
+    def execute(self, ctx):
+        bl_obj = ctx.active_object
+        pd_room = bl_obj.pd_room
+        bl_room = pd_room.room
+
+        blocknum = bgu.room_next_blocknum(bl_room)
+        roomnum = pd_room.roomnum
+
+        layer = self.layer
+        lastblock = bgu.room_last_block(bl_room, layer)
+        blocktype = pdprops.BLOCKTYPE_DL
+        bl_parent = lastblock.parent if lastblock else bl_obj.parent
+
+        bl_newblock = self.separate_selection()
+
+        bl_newblock.name = bgu.blockname(roomnum, blocknum, blocktype, layer)
+        bgu.roomblock_set_props(bl_newblock, bl_parent, roomnum, pd_room.room, blocknum, layer, blocktype)
+
+        if lastblock:
+            lastblock.pd_room.next = bl_newblock
+        elif layer == 'xlu':
+            pd_room.first_xlu = bl_newblock
+        return {'FINISHED'}
+
+    def draw(self, context):
+        scn = context.scene
+        layout = self.layout
+
+        layout.prop(self, 'layer', text='Layer')
 
 
 class PDTOOLS_OT_RoomSelectAllBlocks(Operator):
@@ -160,7 +271,7 @@ class PDTOOLS_OT_RoomBlockDelete(Operator):
     bl_idname = "pdtools.op_room_block_delete"
     bl_label = "Delete Block"
     bl_description = "Delete the block and its children"
-    bl_options = {'REGISTER', 'INTERNAL', 'UNDO'}
+    bl_options = {'REGISTER', 'INTERNAL'}
 
     def draw(self, context):
         bl_room = context.active_object
@@ -391,6 +502,7 @@ class PD_WSTOOL_PortalFromEdge(WorkSpaceTool):
 
             bm.free()
             return 0
+
     @classmethod
     def draw_callback_px(cls):
         if cls._shader:
@@ -460,6 +572,8 @@ classes = [
     PDTOOLS_OT_RoomSelectRoom,
     PDTOOLS_OT_RoomCreateBlock,
     PDTOOLS_OT_RoomCreate,
+    PDTOOLS_OT_RoomCreateFromObject,
+    PDTOOLS_OT_RoomBlockCreateFromSelection,
     PDTOOLS_OT_PortalFromEdge,
     PDTOOLS_OT_PortalFromFace,
 ]
