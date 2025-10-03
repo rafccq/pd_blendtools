@@ -50,16 +50,40 @@ def export(filename, compress):
     ofs_intro = len(dataout)
     export_intro(bs, dataout)
 
+    ofs_paths = export_paths(bs, dataout)
     ofs_ailists = export_ailists(bs, dataout)
 
     header.update(dataout, 'props', ofs_props)
     header.update(dataout, 'intro', ofs_intro)
     header.update(dataout, 'ailists', ofs_ailists)
+    header.update(dataout, 'paths', ofs_paths)
 
     if compress:
         dataout = pdu.compress(dataout)
 
     pdu.write_file(filename, dataout)
+
+def export_paths(bs, dataout):
+    # TODO: paths not implemented yet
+    start = len(dataout)
+    bs.write(dataout, 0, 's32') # end marker
+    return start
+
+def add_list1000(bs, dataout):
+    list1000_addr = len(dataout)
+
+    list1000 = [0x01, 0x85, 0x01, 0x45, 0x01, 0x46, 0x00,
+                0x05, 0xfd, 0x00, 0x00, 0x00, 0x04, 0x00]
+
+    frame = bytes(list1000)
+    block = DataBlock('', 0, frame)
+    bs.write_block_raw(dataout, block)
+    add_padding(dataout, 4)
+
+    ailist_1000 = DataBlock.New('ailist')
+    ailist_1000['list'] = list1000_addr
+    ailist_1000['id'] = 0x1000
+    bs.write_block(dataout, ailist_1000)
 
 def export_ailists(bs, dataout):
     scn = bpy.context.scene
@@ -73,6 +97,10 @@ def export_ailists(bs, dataout):
         bs.write_block_raw(dataout, block)
         add_padding(dataout, 4)
 
+    # the game will crash if there isn't at least one ailist
+    if len(ailists) == 0:
+        add_list1000(bs, dataout)
+
     ofs_ailists = len(dataout)
 
     # next, write the ailists structs (addrs and ids)
@@ -80,8 +108,9 @@ def export_ailists(bs, dataout):
         bs.write(dataout, li.addr, 'u32')
         bs.write(dataout, li.id, 'u32')
 
-    # end marker for ailists
-    bs.write(dataout, 0, 'u32')
+    # write the end marker
+    end = DataBlock.New('ailist')
+    bs.write_block(dataout, end)
     return ofs_ailists
 
 def export_objects(rd, dataout):
