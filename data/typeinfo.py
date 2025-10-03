@@ -28,8 +28,16 @@ class TypeInfo:
             cls.register(name, decl)
 
     @classmethod
+    def clear_cache(cls):
+        cls.sizeof.cache_clear()
+        cls.offsetof.cache_clear()
+        cls._struct_size.cache_clear()
+
+    @classmethod
     def register(cls, name, declaration, add_padding=True, varmap=None):
         if varmap:
+            cls.clear_cache()
+
             # replace variables in the declaration. Example: 'u8 val[N]' -> 'u8 val[5]'
             # where _vars = {'N': 5}
             decl = declaration.copy()

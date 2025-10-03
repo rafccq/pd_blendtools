@@ -41,36 +41,40 @@ def export_tile(bl_tile, R_inv, floortypes):
     tileverts = bl_tile.data.vertices
     numvtx = len(tileverts)
 
+    TypeInfo.sizeof.cache_clear()
+    TypeInfo.offsetof.cache_clear()
+    TypeInfo._struct_size.cache_clear()
+
     TypeInfo.register('geotilei', decl_geotilei, False, varmap={'N': numvtx})
 
-    tile = DataBlock.New('geotilei')
-    tileheader = tile['header']
+    tiledata = DataBlock.New('geotilei')
+    tileheader = tiledata['header']
     tileheader['type'] = GEOTYPE_TILE_I
     tileheader['numvertices'] = numvtx
     tileheader['flags'] = pdu.flags_pack(pd_tile.flags, pdprops.TILE_FLAGS_VALUES)
 
-    tile['floortype'] = floortypes[pd_tile.floortype]
+    tiledata['floortype'] = floortypes[pd_tile.floortype]
 
     verts = bgu.verts_world(bl_tile, R_inv, round)
 
     conv = lambda e: (round(e.x), round(e.y), round(e.z))
-    tv = tile['vertices']
+    tv = tiledata['vertices']
     vidx = 0
     for v in verts:
         tv[vidx + 0], tv[vidx + 1], tv[vidx + 2] = conv(v)
         vidx += 3
 
     bbox = tile_bbox(verts)
-    tile['xmin'] = bbox[0]
-    tile['ymin'] = bbox[1]
-    tile['zmin'] = bbox[2]
-    tile['xmax'] = bbox[3]
-    tile['ymax'] = bbox[4]
-    tile['zmax'] = bbox[5]
+    tiledata['xmin'] = bbox[0]
+    tiledata['ymin'] = bbox[1]
+    tiledata['zmin'] = bbox[2]
+    tiledata['xmax'] = bbox[3]
+    tiledata['ymax'] = bbox[4]
+    tiledata['zmax'] = bbox[5]
 
-    tile['floorcol'] = colRGBA_to_444(pd_tile.floorcol)
+    tiledata['floorcol'] = colRGBA_to_444(pd_tile.floorcol)
 
-    return tile
+    return tiledata
 
 def export(filename, compress):
     numrooms = get_numrooms()
@@ -91,34 +95,34 @@ def export(filename, compress):
         rooms_ofs.append(room)
 
     rooms_ofs[0].update(dataout, 'ofs', len(dataout))
-    rooms_ofs[1].update(dataout, 'ofs', len(dataout))
+
+    # build the tile map (roomnum -> [tiles])
+    tilemap = {}
+    coll = bpy.data.collections['Tiles']
+    for tile in coll.objects:
+        if pdu.pdtype(tile) != pdprops.PD_OBJTYPE_TILE: continue
+        bl_room = tile.pd_tile.room
+        pd_room = bl_room.pd_room
+        if pd_room.roomnum in tilemap:
+            tilemap[pd_room.roomnum].append(tile)
+        else:
+            tilemap[pd_room.roomnum] = [tile]
 
     floortypes = {e[0].lower(): e[2] for e in pdprops.TILE_FLOORTYPES}
-
-    # retrieve the scene tiles and sort them by room
-    coll = bpy.data.collections['Tiles']
-    tiles = [tile for tile in coll.objects if tile.pd_obj.type == pdprops.PD_OBJTYPE_TILE]
-    tiles.sort(key = lambda tile: tile.pd_tile.roomnum) # TODO assign roomnum to rooms created by the user
-
     R_inv = mtx.rot_blender_inv()
-    roomidx = 1
-    prev_room = tiles[0].pd_tile.room
 
-    for bl_tile in tiles:
-        pd_tile = bl_tile.pd_tile
-        room = pd_tile.room
-        # print(f'  {bl_tile} [{roomidx}] OFS {len(dataout):04X} r {room}')
+    for roomnum in range(1, numrooms + 1):
+        rooms_ofs[roomnum].update(dataout, 'ofs', len(dataout))
+        print('  >> room', roomnum)
+        if roomnum not in tilemap: continue
 
-        if room != prev_room:
-            roomidx += 1
-            rooms_ofs[roomidx].update(dataout, 'ofs', len(dataout))
+        # write the tiles vertices
+        tiles = tilemap[roomnum]
+        for bl_tile in tiles:
+            tiledata = export_tile(bl_tile, R_inv, floortypes)
+            rd.write_block(dataout, tiledata, reread_arraysize=True)
 
-        prev_room = room
-
-        tile = export_tile(bl_tile, R_inv, floortypes)
-        rd.write_block(dataout, tile)
-
-    rooms_ofs[roomidx+1].update(dataout, 'ofs', len(dataout))
+    rooms_ofs[roomnum+1].update(dataout, 'ofs', len(dataout))
 
     if compress:
         dataout = pdu.compress(dataout)

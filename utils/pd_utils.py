@@ -15,7 +15,6 @@ import addon_utils
 from pd_blendtools import bl_info
 from ui import mtxpalette as mtxp
 
-
 def decompress(buffer):
     if buffer[0:2] == b'\x11\x73':
         return zlib.decompress(buffer[5:], wbits=-15)

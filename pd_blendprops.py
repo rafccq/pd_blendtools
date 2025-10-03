@@ -1273,6 +1273,10 @@ classes = [
     PD_ImportSettings,
 ]
 
+def create_collections():
+    for name in PD_COLLECTIONS:
+        pdu.new_collection(name)
+
 def register():
     global vp_drawhandler
 
