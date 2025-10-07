@@ -5,6 +5,7 @@ import bmesh
 from utils import bg_utils as bgu
 from pd_data.pd_padsfile import *
 from pd_import import tiles_import as tlimp
+import pd_blendprops as pdprops
 
 
 class PDTOOLS_OT_TileApplyProps(Operator):
@@ -44,6 +45,9 @@ class PDTOOLS_OT_TilesFromFaces(Operator):
         tiles = []
         for face in faces_sel:
             bl_tile = bgu.tile_from_face(f'Tile_{num}', bl_obj, face)
+            if pdu.pdtype(bl_obj) == pdprops.PD_OBJTYPE_ROOMBLOCK:
+                bl_tile.pd_tile.room = bl_obj.pd_room.room
+
             tiles.append(bl_tile)
             num += 1
 

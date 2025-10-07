@@ -104,6 +104,7 @@ class PDTOOLS_OT_RoomCreateFromObject(Operator):
         pdu.add_to_collection(bl_obj, 'Rooms')
 
         bl_obj.parent = bl_room
+        bl_obj.location = (0, 0, 0)
         bl_obj.name = bgu.blockname(roomnum, 0, pdprops.BLOCKTYPE_DL, layer)
         bgu.roomblock_set_props(bl_obj, bl_room, roomnum, bl_room, 0, layer, pdprops.BLOCKTYPE_DL)
         pdm.mat_convert_all_in(bl_obj)
