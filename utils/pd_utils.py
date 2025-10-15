@@ -436,9 +436,11 @@ def ini_file(filename):
 
 def add_to_collection(obj, col_name='', coll = None):
     collection = new_collection(col_name) if not coll else coll
-    collection.objects.link(obj)
-    for child in obj.children:
-        collection.objects.link(child)
+    objs = collection.objects
+    if obj.name not in objs:
+        objs.link(obj)
+        for child in obj.children:
+            objs.link(child)
 
 def verts_median(verts):
     return points_median([v.co for v in verts])
@@ -657,3 +659,13 @@ def get_children(bl_obj):
 def filename(name):
     if '.' not in name: return name
     return ''.join(name.split('.')[:-1])
+
+def all_objects_in_collection(name):
+    stack = [bpy.data.collections[name]]
+    objs = []
+    while len(stack):
+        coll = stack.pop(0)
+        stack += [c for c in coll.children]
+        objs += [o for o in coll.objects]
+
+    return objs
