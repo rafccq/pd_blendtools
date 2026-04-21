@@ -180,11 +180,19 @@ class PDTOOLS_OT_SetupWaypointCreate(Operator):
         wm = context.window_manager
         return wm.invoke_props_dialog(self, width=150)
 
-    def draw(self, _context):
+    def draw(self, context):
+        scn = context.scene
+
         layout = self.layout
         layout.prop(self, 'group_enum', text='')
+        if self.group_enum == pdprops.NEWGROUP:
+            layout.prop(scn, 'wp_group_room', text='Room')
 
     def execute(self, context):
+        scn = context.scene
+        if 'waypoints' not in scn:
+            scn['waypoints'] = {}
+
         groupname = self.group_enum
         if groupname == pdprops.NEWGROUP:
             groupnum, bl_group = stu.wp_newgroup()
