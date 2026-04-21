@@ -1,5 +1,5 @@
 from .datablock import DataBlock
-from .typeinfo import TypeInfo, field_info
+import data.typeinfo as tpi
 
 
 class ByteStream:
@@ -23,7 +23,7 @@ class ByteStream:
         self.cursor = cursor
 
     def read_block(self, decl_name, endmarker = None):
-        decl = TypeInfo.decl_map[decl_name]
+        decl = tpi.TypeInfo.decl_map[decl_name]
         block = DataBlock(decl_name, self.cursor)
         for typename in decl:
             val, info = self.read(typename, endmarker)
@@ -40,7 +40,7 @@ class ByteStream:
         return DataBlock('', 0, data)
 
     def read(self, decl, endmarker = None):
-        info = field_info(decl)
+        info = tpi.field_info(decl)
 
         typename = info['typename']
         is_struct = info['is_struct']
@@ -81,7 +81,7 @@ class ByteStream:
                 dataout.append(val)
 
     def read_primitive(self, typename):
-        size = TypeInfo.sizeof(typename)
+        size = tpi.TypeInfo.sizeof(typename)
 
         addr = self.cursor
         self.cursor += size
@@ -90,7 +90,7 @@ class ByteStream:
         return int.from_bytes(val, self.src_BO)
 
     def peek(self, typename, n = 1):
-        size = TypeInfo.sizeof(typename)
+        size = tpi.TypeInfo.sizeof(typename)
         addr = self.cursor
         values = []
 
@@ -102,7 +102,7 @@ class ByteStream:
         return values if n > 1 else values[0]
 
     def write(self, dataout, val, typename):
-        nbytes = TypeInfo.sizeof(typename)
+        nbytes = tpi.TypeInfo.sizeof(typename)
         __addr = len(dataout)
         __addrrel = __addr - self.ref
         __v = val
@@ -115,9 +115,9 @@ class ByteStream:
         block.write_addr = len(dataout)
 
         decl_name = block.name
-        decl = TypeInfo.get_decl(decl_name)
+        decl = tpi.TypeInfo.get_decl(decl_name)
         for field in decl:
-            info = field_info(field)
+            info = tpi.field_info(field)
 
             typename = info['typename']
             fieldname = info['fieldname']

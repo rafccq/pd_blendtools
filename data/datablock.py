@@ -1,4 +1,4 @@
-from .typeinfo import TypeInfo, field_info
+import data.typeinfo as tpi
 
 class DataBlock:
     def __init__(self, name, addr, data = None):
@@ -13,9 +13,9 @@ class DataBlock:
     @staticmethod
     def New(decl_name):
         datablock = DataBlock(decl_name, 0)
-        decl = TypeInfo.get_decl(decl_name)
+        decl = tpi.TypeInfo.get_decl(decl_name)
         for typename in decl:
-            info = field_info(typename)
+            info = tpi.field_info(typename)
             if info['is_struct']:
                 if info['is_array']:
                     n = info['array_size']
@@ -40,8 +40,8 @@ class DataBlock:
         info = self.field_infos[field]
         typename = info['typename']
 
-        size = TypeInfo.sizeof(typename)
-        offset = TypeInfo.offsetof(self.name, field)
+        size = tpi.TypeInfo.sizeof(typename)
+        offset = tpi.TypeInfo.offsetof(self.name, field)
         addr = self.write_addr + offset
 
         if info['is_array']:
