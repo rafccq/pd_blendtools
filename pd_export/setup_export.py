@@ -16,7 +16,6 @@ def export_intro(rd, dataout):
         padnum = bl_intro.pd_prop.padnum
 
         numargs = cmd_size[cmd] - 1
-        # print('  cmd', cmd, 'n', numargs)
         TypeInfo.register('intro', decl_intro_cmd, varmap={'N': numargs})
 
         block = DataBlock.New('intro')
@@ -65,12 +64,39 @@ def export(filename, compress):
     pdu.write_file(filename, dataout)
 
 def export_paths(bs, dataout):
-    # TODO: paths not implemented yet
     start = len(dataout)
     bs.write(dataout, 0, 's32') # end marker
     return start
+    # write path blocks
+    paths = []
+    pathpads = []
+    id = 0
+    for bl_path in bpy.data.collections['Paths'].objects:
+        if bl_path.pd_obj.type != pdprops.PD_OBJTYPE_PATH: continue
+
+        block = DataBlock.New('path')
+        block['id'] = id
+        bs.write_block(dataout, block)
+
+        paths.append(block)
+        pads = [bl_pad for bl_pad in bl_path.children if bl_pad.pd_obj.type == pdprops.PD_OBJTYPE_PATHPAD]
+        pathpads.append(pads)
+        id += 1
+    bs.write(dataout, 0, 's32') # end marker
+
+    # write path pads
+    ofs_pads = len(dataout)
+    for block, pads in zip(paths, pathpads):
+        block.update(dataout, 'pads', ofs_pads)
+        for bl_pad in pads:
+            bs.write(dataout, bl_pad.pd_prop.padnum, 's32')
+        bs.write(dataout, -1, 's32')
+        ofs_pads += len(dataout)
+
+    return start
 
 def add_list1000(bs, dataout):
+    add_padding(dataout, 4)
     list1000_addr = len(dataout)
 
     list1000 = [0x01, 0x85, 0x01, 0x45, 0x01, 0x46, 0x00,
@@ -81,10 +107,13 @@ def add_list1000(bs, dataout):
     bs.write_block_raw(dataout, block)
     add_padding(dataout, 4)
 
+    ofs = len(dataout)
+
     ailist_1000 = DataBlock.New('ailist')
     ailist_1000['list'] = list1000_addr
     ailist_1000['id'] = 0x1000
     bs.write_block(dataout, ailist_1000)
+    return ofs
 
 def export_ailists(bs, dataout):
     scn = bpy.context.scene
@@ -99,10 +128,10 @@ def export_ailists(bs, dataout):
         add_padding(dataout, 4)
 
     # the game will crash if there isn't at least one ailist
-    if len(ailists) == 0:
-        add_list1000(bs, dataout)
-
     ofs_ailists = len(dataout)
+
+    if len(ailists) == 0:
+        ofs_ailists = add_list1000(bs, dataout)
 
     # next, write the ailists structs (addrs and ids)
     for li in ailists:
@@ -117,7 +146,10 @@ def export_ailists(bs, dataout):
 def export_objects(rd, dataout):
     ObjCount = {}
     blockmap = {}
-    objects = [obj for obj in bpy.data.collections['Props'].objects if pdu.pdtype(obj) == pdprops.PD_OBJTYPE_PROP]
+    lib = bpy.data.collections['Props'].objects
+    objects = [obj for obj in lib if pdu.pdtype(obj) == pdprops.PD_OBJTYPE_PROP and not obj.hide_render]
+    # remove multi-ammo crates from the list
+    objects = [obj for obj in objects if obj.pd_obj.type != pdprops.PD_PROP_MULTIAMMOCRATE]
 
     # insert the lift interlinks in the object list, so they're exported as objects
     for idx, bl_obj in enumerate(objects):
@@ -132,8 +164,6 @@ def export_objects(rd, dataout):
     for idx, bl_obj in enumerate(objects):
         bl_obj['setup_index'] = idx
         objtype = bl_obj.pd_obj.type & 0xff
-        type1 = objtype in stpi.OBJ_TYPES1
-        type2 = objtype in stpi.OBJ_TYPES2
 
         objname = OBJ_NAMES[objtype]
         count = ObjCount[objtype] if objtype in ObjCount else 0
@@ -145,6 +175,14 @@ def export_objects(rd, dataout):
         set_props(bl_obj, block)
         rd.write_block(dataout, block)
         blockmap[bl_obj.name] = block
+
+        # insert the ammo crates linked to this weapon after it in the list
+        ofs = 1
+        if bl_obj.pd_obj.type == pdprops.PD_PROP_WEAPON:
+            for child in bl_obj.children:
+                if child.pd_obj.type != pdprops.PD_PROP_MULTIAMMOCRATE: continue
+                objects.insert(idx + ofs, child)
+                ofs += 1
 
     setup_fix_refs(dataout, blockmap, objects)
     rd.write(dataout, OBJTYPE_END, 'u32')
@@ -161,6 +199,9 @@ def set_props(bl_obj, block):
         OBJTYPE_WEAPON: setup_weapon,
         OBJTYPE_LIFT: setup_lift,
         OBJTYPE_LINKLIFTDOOR: setup_linkliftdoor,
+        OBJTYPE_FAN: setup_fan,
+        OBJTYPE_HOVERCAR: setup_hovercar,
+        OBJTYPE_TAG: setup_tag,
     }
 
     if type1 or type2:
@@ -223,10 +264,31 @@ def setup_linkliftdoor(interlink, block):
     block['lift'] = 0
     block['stopnum'] = interlink.stopnum - 1
 
+def setup_fan(bl_obj, block):
+    pd_fan = bl_obj.pd_fan
+
+    block['yaccel'] = round(pd_fan.yaccel * 0x10000)
+    block['ymaxspeed'] = round(pd_fan.ymaxspeed * 0x10000)
+    block['on'] = 1
+    block['base']['hidden2'] = 0x80
+
+def setup_hovercar(bl_obj, block):
+    pd_hovercar = bl_obj.pd_hovercar
+    block['ailist'] = pd_hovercar.ailist
+
+def setup_tag(bl_obj, block):
+    pd_tag = bl_obj.pd_tag
+    block['header']['type'] = OBJTYPE_TAG
+    block['tagnum'] = pd_tag.tagnum
+
 def setup_fix_refs(dataout, blockmap, objects):
     # print('---- REFS ----')
     for bl_obj in objects:
         objtype = bl_obj.pd_obj.type & 0xff
+        if bl_obj.name not in blockmap: continue
+
+        block = blockmap[bl_obj.name]
+
         if objtype == OBJTYPE_DOOR:
             pd_door = bl_obj.pd_door
             sibling = pd_door.sibling
@@ -236,7 +298,6 @@ def setup_fix_refs(dataout, blockmap, objects):
             sibling_idx = sibling['setup_index']
             diff = sibling_idx - door_idx
 
-            block = blockmap[bl_obj.name]
             block.update(dataout, 'sibling', diff, signed=True)
             # print(f'{bl_obj.name}: {diff}')
         elif objtype == OBJTYPE_LIFT:
@@ -254,7 +315,6 @@ def setup_fix_refs(dataout, blockmap, objects):
 
                 # print(f'{door.name} (lift): {diff}')
 
-            block = blockmap[bl_obj.name]
             block.update(dataout, 'doors', doors_ofs, signed=True)
         elif objtype == OBJTYPE_LINKLIFTDOOR:
             lift = bl_obj.controlled
@@ -262,11 +322,11 @@ def setup_fix_refs(dataout, blockmap, objects):
 
             if lift is None:
                 print(f'WARNING: interlink {bl_obj.name} has no controller object')
+                continue
 
             if door is None:
                 print(f'WARNING: interlink {bl_obj.name} has no controlled object')
-
-            block = blockmap[bl_obj.name]
+                continue
 
             index = bl_obj['setup_index']
             lift_idx = lift['setup_index']
@@ -275,6 +335,17 @@ def setup_fix_refs(dataout, blockmap, objects):
             door_ofs = door_idx - index
             block.update(dataout, 'lift', lift_ofs, signed=True)
             block.update(dataout, 'door', door_ofs, signed=True)
+        elif objtype == OBJTYPE_TAG:
+            tagged = bl_obj.pd_tag.obj
+
+            if tagged is None:
+                print(f'WARNING: Tag {bl_obj.name} has no object')
+                continue
+
+            index = bl_obj['setup_index']
+            tagged_idx = tagged['setup_index']
+            tagged_ofs = tagged_idx - index
+            block.update(dataout, 'cmdoffset', tagged_ofs, signed=True)
 
     # print('------------------')
 

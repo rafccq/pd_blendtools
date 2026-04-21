@@ -560,6 +560,18 @@ def fzero(fa, epsilon=1e-4):
 def vec_comp(v0, v1, e=1e-4):
     return fcomp(v0[0], v1[0], e) and fcomp(v0[1], v1[1], e) and fcomp(v0[2], v1[2], e)
 
+def vec_comp_abs(v0, v1, e=1e-4):
+    f = abs
+    v0 = (f(v0.x),f(v0.y),f(v0.z))
+    return fcomp(v0[0], v1[0], e) and fcomp(v0[1], v1[1], e) and fcomp(v0[2], v1[2], e)
+
+def vec_lhs(v):
+    return Vector((v.x, v.z, -v.y))
+
+# swaps Y <-> Z
+def bbox_lhs(bb):
+    return [bb[0], bb[1], bb[4], bb[5], bb[2], bb[3]]
+
 # returns the level 'code' from the filename, examples:
 # bgdata/bg_dish.seg: dish
 # UsetupearZ: ear

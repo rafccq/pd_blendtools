@@ -22,19 +22,13 @@ uz = Vector((0, 0, 1))
 M_BADPI = mtx.M_BADPI
 
 def vec_alignment(v):
-    if pdu.vec_comp(v, ux):
-        return 'X', ''
-    elif pdu.vec_comp(v, -ux):
-        return 'X', 'INV'
-    elif pdu.vec_comp(v, uy):
-        return 'Y', ''
-    elif pdu.vec_comp(v, -uy):
-        return 'Y', 'INV'
-    elif pdu.vec_comp(v, uz):
-        return 'Z', ''
-    elif pdu.vec_comp(v, -uz):
-        return 'Z', 'INV'
-
+    inv = 'INV' if pdu.fcomp(v.x + v.y + v.z, -1) else ''
+    if pdu.vec_comp_abs(v, ux):
+        return 'X', inv
+    elif pdu.vec_comp_abs(v, uy):
+        return 'Y', inv
+    elif pdu.vec_comp_abs(v, uz):
+        return 'Z', inv
     return '', ''
 
 ALIGN_FLAGS = {
@@ -128,22 +122,16 @@ def pad_initial_pos(bl_obj):
     pd_pad = pd_prop.pad
 
     objtype = bl_obj.pd_obj.type
-    is_intro = pdu.pdtype(bl_obj) == pdprops.PD_OBJTYPE_INTRO
 
     B = mtx.rot_blender_inv()
-    M = B @ bl_obj.matrix_world
+    M = bl_obj.matrix_world
 
-    if is_intro:
-        M = bl_obj.matrix_world.copy()
-        T = M.translation
-        M = M @ mtx.rot_introinv()
-        M.translation = T
-        M = B @ M
+    objpos = pdu.vec_lhs(M.translation)
 
-    objpos = M.translation
+    bbox_lhs = lambda bb: pdp.Bbox(*pdu.bbox_lhs(bb))
 
-    pad_bbox = pdp.Bbox(*pd_pad.bbox)
-    model_bbox = pdp.Bbox(*pd_pad.model_bbox)
+    pad_bbox = bbox_lhs(pd_pad.bbox)
+    model_bbox = bbox_lhs(pd_pad.model_bbox)
     modelscale = pd_prop.modelscale * pd_prop.extrascale / (256 * 4096)
     flags = pdu.flags_pack(pd_prop.flags1, [e[1] for e in pdprops.OBJ_FLAGS1])
     sx, sy, sz = stu.obj_getscale(modelscale, pad_bbox, model_bbox, flags)
@@ -156,7 +144,9 @@ def pad_initial_pos(bl_obj):
     # doors have an extra rotation
     R = R @ mtx.rot_doorinv() if objtype == pdprops.PD_PROP_DOOR else R
 
-    normal, up, look = mtx.mtx_basis(M @ R)
+    normal, look, up = mtx.mtx_basis(M @ R)
+    look = -look
+
     sc = Vector((sx, sy, sz))
     pos = pad_inv_pos(objpos, look, up, flags, sc, R, model_bbox)
     pad = pdp.Pad(pos, look, up, normal, pad_bbox, None)
@@ -174,11 +164,17 @@ def export_pad(bl_obj, padnum, dataout):
 
     padpos, up, look = pad_initial_pos(bl_obj)
     padflags = pad_flags(up, look)
+
     if pd_pad.hasbbox: padflags |= pdp.PADFLAG_HASBBOXDATA
     flags |= padflags
     flags |= pdp.PADFLAG_INTPOS
 
-    header = pdp.pad_makeheader(flags, pd_pad.room, pd_pad.lift)
+    room = pd_pad.room
+    roomnum = room.pd_room.roomnum if room else pd_pad.roomnum
+    header = pdp.pad_makeheader(flags, roomnum, pd_pad.lift)
+
+    # print('_pad_', hex(padnum), hex(header), bl_obj.name, hex(roomnum))
+
     rd.write(dataout, header, 'u32')
     size = TypeInfo.sizeof('u32')
 
@@ -229,8 +225,10 @@ def export_pad(bl_obj, padnum, dataout):
         ymax = bgu.as_u32(bbox.ymax)
         zmin = bgu.as_u32(bbox.zmin)
         zmax = bgu.as_u32(bbox.zmax)
-        vals = [xmin, xmax, ymin, ymax, zmin, zmax]
+
+        vals = [xmin, xmax, zmin, zmax, ymin, ymax]
         for v in vals: rd.write(dataout, f(v), 'u32')
+
         # print(f'  xmin  : {xmin:08X}({bbox.xmin:.4f})')
         # print(f'  xmax  : {xmax:08X}({bbox.xmax:.4f})')
         # print(f'  ymin  : {ymin:08X}({bbox.ymin:.4f})')
@@ -349,7 +347,7 @@ def export_waygroups(dataout):
 def export_covers(dataout):
     rd = ByteStream(None)
 
-    covers = [obj for obj in bpy.data.collections['Cover Pads'].objects if pdu.pdtype(obj) == pdprops.PD_OBJTYPE_COVER]
+    covers = get_objs('Cover Pads', pdprops.PD_OBJTYPE_COVER)
 
     for bl_cover in covers:
         block = DataBlock.New('cover')
@@ -457,4 +455,5 @@ def export(filename, compress):
     if compress:
         dataout = pdu.compress(dataout)
 
+    filename = pdu.make_dir_bgdata(filename)
     pdu.write_file(filename, dataout)
