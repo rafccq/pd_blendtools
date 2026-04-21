@@ -169,12 +169,12 @@ def obj_load_model(romdata, modelnum):
     else:
         return mdi.import_model(romdata, matcache, mdi.ASSET_TYPE_OBJ, modelname=modelname)
 
-def change_model(bl_obj, modelnum):
+def change_model(bl_obj, modelnum, force=False):
     if not bl_obj: return
 
     pd_prop = bl_obj.pd_prop
 
-    if pd_prop.modelnum == modelnum: return
+    if pd_prop.modelnum == modelnum and not force: return
 
     romdata = rom.load()
     new_obj, model = obj_load_model(romdata, modelnum)
