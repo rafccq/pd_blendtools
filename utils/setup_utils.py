@@ -121,14 +121,16 @@ def check_flags(packedflags, *flags):
 
     return packedflags & flagsval
 
-def obj_hasmodel(pd_obj):
-    return pd_obj.type in [
-        pdprops.OBJTYPE_BASIC,
-        pdprops.OBJTYPE_DOOR,
-        pdprops.OBJTYPE_GLASS,
-        pdprops.OBJTYPE_TINTEDGLASS,
-        pdprops.OBJTYPE_LIFT,
-        pdprops.OBJTYPE_MULTIAMMOCRATE,
+def obj_hasmodel(type):
+    return type in [
+        pdprops.OBJTYPE_BASIC, 'standard',
+        pdprops.OBJTYPE_DOOR, 'door',
+        pdprops.OBJTYPE_GLASS, 'glass',
+        pdprops.OBJTYPE_TINTEDGLASS, 'tinted glass',
+        pdprops.OBJTYPE_LIFT, 'lift',
+        pdprops.OBJTYPE_MULTIAMMOCRATE, 'multi-ammo crate',
+        pdprops.OBJTYPE_FAN, 'fan',
+        pdprops.OBJTYPE_HOVERCAR, 'hovercar',
     ]
 
 def obj_load_model(romdata, modelnum):

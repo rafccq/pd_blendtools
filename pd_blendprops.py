@@ -1407,6 +1407,7 @@ def register():
     Scene.weapon_num = EnumProperty(items=WEAPONS_NUMS_ITEMS, name="weapon_num", default=WEAPONS_NUMS[0])
     Scene.pd_obj_type = EnumProperty(items=OBJ_TYPES_ITEMS, name="pd_obj_type", default=OBJ_NAMES[PD_PROP_STANDARD], update=on_select_pdtype)
     Scene.pd_model = EnumProperty(items=ModelNames_Items, default=ModelNames[0], update=on_select_model)
+    Scene.case_setnum = IntProperty(name="case_setnum", default=0, min=0, max=10)
 
     # model files and names list
     Scene.pd_modelfiles = CollectionProperty(type=PDModelListItem)

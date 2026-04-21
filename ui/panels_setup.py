@@ -193,13 +193,10 @@ class PDTOOLS_PT_SetupObjectTools(Panel):
             return
 
         obj_type = scn.pd_obj_type.lower()
-        has_model = ['standard', 'door', 'glass', 'tinted glass', 'lift', 'multi-ammo crate']
-        if obj_type in has_model:
+        if stu.obj_hasmodel(obj_type):
             box2 = box.box()
             box2.label(text=f'Model: {scn.pd_model[:4]}')
             row = box2.row().split(factor=0.9)
-            model = scn.pd_model
-            item = scn.pd_modelnames[scn.pd_modelnames_idx]
 
             row.prop(scn, 'pd_model', text='')
             op = row.operator('pdtools.select_model', text='...')
@@ -210,6 +207,11 @@ class PDTOOLS_PT_SetupObjectTools(Panel):
             row = box.row().split(factor=0.4)
             row.label(text='Weapon Pickup:')
             row.prop(scn, 'weapon_num', text='')
+        elif obj_type in ['case', 'caserespawn']:
+            pdu.ui_separator(box, type='LINE')
+            row = box.row().split(factor=0.4)
+            row.label(text='Set:')
+            row.prop(scn, 'case_setnum', text='')
 
         ops = bpy.context.window.modal_operators if bpy.app.version >= (4, 2, 0) else []
 
