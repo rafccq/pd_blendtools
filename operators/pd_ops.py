@@ -395,7 +395,7 @@ class PDTOOLS_OT_ImportLevel(Operator):
         row.prop(scn, 'external_models_dir', text='')
         op = row.operator('pdtools.select_directory', text='...')
         op.type = 'EXT_MODELS'
-        row.enabled = scn.level_external_tex and scn.import_bg
+        row.enabled = scn.import_setup and scn.import_pads
 
     def draw_tiles(self, context):
         scn = context.scene
