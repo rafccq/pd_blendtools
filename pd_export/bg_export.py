@@ -9,7 +9,7 @@ from utils import (
 )
 from . import model_export as mde
 from pd_data.decl_bgfile import decl_portalvertices
-from data.typeinfo import TypeInfo
+import data.typeinfo as tpi
 from data.datablock import DataBlock
 from data.bytestream import ByteStream, add_padding
 import pd_mtx as mtx
@@ -78,10 +78,19 @@ def export_portals(rd, dataout):
     R_inv = mtx.rot_blender_inv()
 
     portalvertices = []
-    for idx, bl_portal in enumerate(coll.objects):
+    idx = 0
+    for bl_portal in coll.objects:
         pd_portal = bl_portal.pd_portal
 
         data = DataBlock.New('bgportal')
+
+        if not pd_portal.room1 or not pd_portal.room2:
+            print(f'WARNING missing room in {bl_portal.name}')
+            continue
+
+        if bl_portal.hide_render:
+            print(f'SKIPPED {bl_portal.name}')
+            continue
 
         pd_room1, pd_room2 = pd_portal.room1.pd_room, pd_portal.room2.pd_room
         data['verticesoffset'] = idx + 1
@@ -92,6 +101,7 @@ def export_portals(rd, dataout):
 
         verts = bgu.verts_world(bl_portal, R_inv)
         portalvertices.append(verts)
+        idx += 1
 
     endmarker = DataBlock.New('bgportal')
     rd.write_block(dataout, endmarker)
@@ -103,7 +113,7 @@ def export_portalvertices(rd, dataout, portalvertices):
     # for verts in portalvertices:
     for idx, verts in enumerate(portalvertices):
         count = len(verts)
-        TypeInfo.register('portalvertices', decl_portalvertices, False, varmap={'N': count})
+        tpi.TypeInfo.register('portalvertices', decl_portalvertices, False, varmap={'N': count})
         data = DataBlock.New('portalvertices')
         data['count'] = count
         for i, v in enumerate(verts):
@@ -111,6 +121,9 @@ def export_portalvertices(rd, dataout, portalvertices):
             pv['x'], pv['y'], pv['z'] = bgu.coord_as_u32(v, round)
 
         rd.write_block(dataout, data)
+
+    if len(portalvertices) == 0:
+        tpi.TypeInfo.register('portalvertices', decl_portalvertices, False, varmap={'N': 0})
 
     endmarker = DataBlock.New('portalvertices')
     rd.write_block(dataout, endmarker)
