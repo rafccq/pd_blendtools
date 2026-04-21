@@ -80,6 +80,13 @@ def register_types():
     for name, decl in model_decls.items():
         TypeInfo.register(name, decl)
 
+def register_class(cls):
+    try:
+        bpy.utils.register_class(cls)
+    except ValueError:
+        bpy.utils.unregister_class(cls)
+        bpy.utils.register_class(cls)
+
 def register():
     v = bl_info['version']
     print(f'---------------------------------')
@@ -87,8 +94,8 @@ def register():
     print(f'---------------------------------')
 
     addon_updater_ops.register(bl_info)
-    bpy.utils.register_class(PD_AddonPreferences)
-    bpy.utils.register_class(PDModelPropertyGroup)
+    register_class(PD_AddonPreferences)
+    register_class(PDModelPropertyGroup)
     Object.pd_model = bpy.props.PointerProperty(type=PDModelPropertyGroup)
     register_types()
 

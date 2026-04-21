@@ -1512,10 +1512,17 @@ def register(bl_info):
     # If using bpy.utils.register_module(__name__) to register elsewhere
     # in the addon, delete these lines (also from unregister).
     for cls in classes:
-        # Apply annotations to remove Blender 2.8+ warnings, no effect on 2.7
         make_annotations(cls)
+
+        try:
+            bpy.utils.register_class(cls)
+        except ValueError:
+            # Already registered, skip or re-register
+            bpy.utils.unregister_class(cls)
+            bpy.utils.register_class(cls)
+        # Apply annotations to remove Blender 2.8+ warnings, no effect on 2.7
+        # make_annotations(cls)
         # Comment out this line if using bpy.utils.register_module(__name__)
-        bpy.utils.register_class(cls)
 
     # Special situation: we just updated the addon, show a popup to tell the
     # user it worked. Could enclosed in try/catch in case other issues arise.
