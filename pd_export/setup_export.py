@@ -9,7 +9,8 @@ from data.datablock import DataBlock
 from data.typeinfo import TypeInfo
 
 def export_intro(rd, dataout):
-    objects = [obj for obj in bpy.data.collections['Intro'].objects if pdu.pdtype(obj) == pdprops.PD_OBJTYPE_INTRO]
+    lib = bpy.data.collections['Intro'].objects
+    objects = [obj for obj in lib if pdu.pdtype(obj) == pdprops.PD_OBJTYPE_INTRO and not obj.hide_render]
     for bl_intro in objects:
         cmd = bl_intro.pd_obj.type & 0xff
         padnum = bl_intro.pd_prop.padnum
@@ -27,10 +28,10 @@ def export_intro(rd, dataout):
         elif cmd == INTROCMD_HILL:
             params[0] = padnum
         elif cmd == INTROCMD_CASE:
-            # params[1] = setnum # TODO add set
+            params[0] = bl_intro.pd_intro.case_setnum
             params[1] = padnum
         elif cmd == INTROCMD_CASERESPAWN:
-            # params[1] = setnum # TODO add set
+            params[0] = bl_intro.pd_intro.case_setnum
             params[1] = padnum
 
         rd.write_block(dataout, block)
