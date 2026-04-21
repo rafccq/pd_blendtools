@@ -140,7 +140,7 @@ class PD_ModelFile:
         dataout = bytearray()
 
         bs.write_block(dataout, self.modeldef)
-        bs.write_block(dataout, self.modelparts)
+        bs.write_block(dataout, self.modelparts, pad=4)
 
         for texconf in self.texconfigs:
             bs.write_block(dataout, texconf, pad=4)
@@ -177,7 +177,7 @@ class PD_ModelFile:
             if not texnum & m: continue
 
             texnum_new = texaddrs[texnum & ~m] + (texnum & m)
-            dataout[addr:addr+4] = texnum_new.to_bytes(4, DEST_BO)
+            dataout[addr:addr+4] = texnum_new.to_bytes(4, 'big')
             # log(texconfig, f'addr: tex {texnum:08X} texnew {texnum_new:08X}')
 
         nodes = list(self.nodes.values())
