@@ -1,5 +1,5 @@
 import bpy
-from mathutils import Matrix, Euler
+from mathutils import Vector, Matrix, Euler
 
 from pd_data.decl_setupfile import *
 from . import pd_utils as pdu
@@ -11,26 +11,45 @@ from pd_data import romdata as rom, pd_padsfile as pdp
 
 
 def obj_setup_mtx(obj, look, up, pos, rotation=None, scale=None, flags=None, bbox=None):
-    side = up.cross(look).normalized()
-    up = look.cross(side).normalized()
+    conv = pdu.pos_to_lhs
+
+    look = conv(-look)
+    up = conv(up)
+
+    side = look.cross(up).normalized()
+    up = side.cross(look).normalized()
 
     M = Matrix([
-        [side.x, up.x, look.x, 0],
-        [side.y, up.y, look.y, 0],
-        [side.z, up.z, look.z, 0],
+        [side.x, look.x, up.x, 0],
+        [side.y, look.y, up.y, 0],
+        [side.z, look.z, up.z, 0],
         [0, 0, 0, 1]
     ])
 
     T = Matrix.Identity(4)
+    if rotation:
+        Rx = Matrix.Rotation(rotation[0], 4, 'X')
+        Ry = Matrix.Rotation(rotation[1], 4, 'Y')
+        Rz = Matrix.Rotation(-rotation[2], 4, 'Z')
+        rot_lh = Rz @ Ry @ Rx
+
+        # convert to right-handed by applying the same coord change as conv
+        # conv: (x, y, z) -> (x, -z, y), which is a -90d rotation around X
+        C = Matrix([
+            [1, 0, 0, 0],
+            [0, 0, 1, 0],
+            [0, -1, 0, 0],
+            [0, 0, 0, 1]
+        ])
+        rot_rh = C @ rot_lh @ C.inverted()
+
+        T = T @ rot_rh
+
     if scale:
         sx = Matrix.Scale(scale.x, 4, (1.0, 0.0, 0.0))
-        sy = Matrix.Scale(scale.y, 4, (0.0, 1.0, 0.0))
-        sz = Matrix.Scale(scale.z, 4, (0.0, 0.0, 1.0))
+        sy = Matrix.Scale(scale.z, 4, (0.0, 1.0, 0.0))
+        sz = Matrix.Scale(scale.y, 4, (0.0, 0.0, 1.0))
         T = T @ sx @ sy @ sz
-
-    if rotation:
-        rot_mat = Euler(rotation).to_matrix().to_4x4()
-        T = T @ rot_mat
 
     newpos = pos
     if flags is not None:
@@ -48,6 +67,7 @@ def obj_setup_mtx(obj, look, up, pos, rotation=None, scale=None, flags=None, bbo
 
     obj.matrix_world = M @ T
     obj.matrix_world.translation = newpos
+    pdu.obj_pos_to_lhs(obj)
 
 def obj_getscale(modelscale, padbbox, bbox, flags):
     sx = sy = sz = 1.0
@@ -174,7 +194,7 @@ def change_model(bl_obj, modelnum):
     set_bbox(pd_pad.model_bbox, bbox)
 
 def set_bbox(dst_bbox, src_bbox):
-    bbox = [src_bbox.xmin, src_bbox.xmax, src_bbox.ymin, src_bbox.ymax, src_bbox.zmin, src_bbox.zmax]
+    bbox = [src_bbox.xmin, src_bbox.xmax, src_bbox.zmin, src_bbox.zmax, src_bbox.ymin, src_bbox.ymax]
     for i, val in enumerate(bbox):
         dst_bbox[i] = val
 

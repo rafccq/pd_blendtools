@@ -47,7 +47,6 @@ def load_model(_context, modelname=None, filename=None):
 
     coll = pdu.active_collection()
     pdu.add_to_collection(model_obj, coll=coll)
-    stpi.blender_align(model_obj)
     pdu.select_obj(model_obj)
 
 def get_model_obj(bl_obj):

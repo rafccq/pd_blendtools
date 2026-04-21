@@ -752,9 +752,9 @@ def update_pad_bbox(self, _context):
     if proptype == PD_PROP_DOOR:
         padbbox = pdp.Bbox(*self.bbox)
         bbox = pdp.Bbox(*self.model_bbox)
-        sx = (padbbox.ymax - padbbox.ymin) / (bbox.xmax - bbox.xmin)
-        sy = (padbbox.zmax - padbbox.zmin) / (bbox.ymax - bbox.ymin)
-        sz = (padbbox.xmax - padbbox.xmin) / (bbox.zmax - bbox.zmin)
+        sx = (padbbox.zmax - padbbox.zmin) / (bbox.xmax - bbox.xmin)
+        sz = (padbbox.ymax - padbbox.ymin) / (bbox.zmax - bbox.zmin)
+        sy = (padbbox.xmax - padbbox.xmin) / (bbox.ymax - bbox.ymin)
 
         if sx <= 0.000001 or sy <= 0.000001 or sz <= 0.000001:
             sx = sy = sz = 1
@@ -767,17 +767,17 @@ def update_pad_bbox(self, _context):
     R = mtx.rot_doorinv() if proptype == PD_PROP_DOOR else Matrix()
     center = obj.location
 
-    normal, up, look = mtx.mtx_basis(obj.matrix_world @ R)
+    normal, look, up = mtx.mtx_basis(obj.matrix_world @ R)
+
     newpos = pdp.pad_pos(center, bbox_p, look, up, normal)
     pad = pdp.Pad(newpos, look, up, normal, bbox, None)
     center = pdp.pad_center(pad)
-    normal, up, look = mtx.mtx_basis(obj.matrix_world)
-    stu.obj_setup_mtx(obj, look, up, center)
 
     self.pad_pos = newpos
     for i, val in enumerate(self.bbox):
         self.bbox_p[i] = val
 
+    obj.location = center
     obj.scale = (sx, sy, sz)
 
 class PDObject_PadData(PropertyGroup):
@@ -864,7 +864,6 @@ class PDObject_SetupBaseObject(PropertyGroup):
 
 def check_isdoor(_scene, obj):
     return obj.pd_obj.type == PD_PROP_DOOR
-
 
 # objtype 0x01
 class PDObject_SetupDoor(PropertyGroup):

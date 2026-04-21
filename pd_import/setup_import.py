@@ -50,10 +50,11 @@ OBJ_TYPES2 = [
     OBJTYPE_SAFE,
 ]
 
+# these objects have no 'base' struct
+OBJ_TYPES3 = [
+    OBJTYPE_TAG,
+]
 
-def blender_align(obj):
-    rot_mat = Euler((pi/2, 0, pi/2)).to_matrix().to_4x4()
-    obj.matrix_world = rot_mat @ obj.matrix_world
 
 def init_door(bl_door, prop, prop_base, pad, bbox):
     bl_door.pd_obj.type = pdprops.PD_PROP_DOOR
@@ -91,7 +92,7 @@ def init_door(bl_door, prop, prop_base, pad, bbox):
 
     pd_pad.padnum = prop_base['pad']
     pd_pad.pos = pad.pos
-    pd_pad.room = pdp.pad_room(pad)
+    pd_pad.roomnum = pdp.pad_room(pad)
     pd_pad.lift = pdp.pad_lift(pad)
     pd_pad.hasbbox = True # assuming doors always have a bbox (TODO verify)
     stu.set_bbox(pd_pad.model_bbox, bbox)
@@ -129,10 +130,10 @@ def setup_create_door(prop, prop_base, romdata, pad, rotated=True):
 
     center = pdp.pad_center(pad) if hasbbox else pad.pos
     rotation = (pi/2, 0, pi/2) if rotated else None
+    bl_door.pd_obj.type = pdprops.PD_PROP_DOOR
     stu.obj_setup_mtx(bl_door, Vector(pad.look), Vector(pad.up), center, rotation)
 
-    blender_align(bl_door)
-    bl_door.scale = (sx, sy, sz)
+    bl_door.scale = (sx, sz, sy)
     init_door(bl_door, prop, prop_base, pad, bbox)
     bl_door.pd_prop.pad.padnum = padnum # TODO TMP
 
@@ -233,7 +234,6 @@ def setup_create_obj(prop, prop_base, romdata, pad, paddata=None):
         # print(f'  c {center}')
 
     stu.obj_setup_mtx(bl_obj, Vector(pad.look), Vector(pad.up), center, rotation, scale, flags, bbox)
-    blender_align(bl_obj)
 
     if hasbbox:
         stu.set_bbox(pd_pad.model_bbox, bbox)
@@ -243,11 +243,13 @@ def setup_create_obj(prop, prop_base, romdata, pad, paddata=None):
     bl_obj.pd_obj.type = pdprops.PD_OBJTYPE_PROP | proptype
 
     if proptype == OBJTYPE_LIFT:
-        init_lift(bl_obj, prop, paddata, model)
+        obj_init_lift(bl_obj, prop, paddata, model)
     elif proptype == OBJTYPE_TINTEDGLASS:
-        init_tintedglass(bl_obj, prop)
+        obj_init_tintedglass(bl_obj, prop)
     elif proptype == OBJTYPE_WEAPON:
-        init_weapon(bl_obj, prop)
+        obj_init_weapon(bl_obj, prop)
+    elif proptype == OBJTYPE_FAN:
+        obj_init_fan(bl_obj, prop)
 
     return bl_obj
 
@@ -341,7 +343,7 @@ def import_objects(romdata, setupdata, paddata, all_props, objnum, duration):
 
     return done, objnum
 
-def init_lift(bl_prop, prop, paddata, model):
+def obj_init_lift(bl_prop, prop, paddata, model):
     bl_prop.pd_lift.accel = prop['accel'] / 0x10000
     bl_prop.pd_lift.maxspeed = prop['maxspeed'] / 0x10000
     # Create lift stops
@@ -355,7 +357,8 @@ def init_lift(bl_prop, prop, paddata, model):
         bl_stop.pd_obj.type = pdprops.PD_PROP_LIFT_STOP
         bl_stop.matrix_world.translation = pad.pos
         pdu.add_to_collection(bl_stop, 'Props')
-        blender_align(bl_stop)
+        pdu.obj_pos_to_lhs(bl_stop)
+
         if idxpad == 0:
             bl_prop.pd_lift.stop1 = bl_stop
         elif idxpad == 1:
@@ -369,7 +372,7 @@ def init_lift(bl_prop, prop, paddata, model):
         bbox = model.find_bbox()
         pd_pad = bl_stop.pd_prop.pad
         pd_pad.pos = pad.pos
-        pd_pad.room = pdp.pad_room(pad)
+        pd_pad.roomnum = pdp.pad_room(pad)
         pd_pad.lift = pdp.pad_lift(pad)
         pd_pad.hasbbox = True
         stu.set_bbox(pd_pad.model_bbox, bbox)
@@ -420,14 +423,21 @@ def lift_setinterlink(prop, setup_props, pad2obj, idx):
 
     interlink.stopnum = prop['stopnum'] + 1
 
-def init_tintedglass(bl_prop, prop):
+def obj_init_tintedglass(bl_prop, prop):
     pd_tintedglass = bl_prop.pd_tintedglass
     pd_tintedglass.opadist = prop['opadist']
     pd_tintedglass.xludist = prop['xludist']
 
-def init_weapon(bl_prop, prop):
+def obj_init_weapon(bl_prop, prop):
     pd_weapon = bl_prop.pd_weapon
     pd_weapon.weaponnum = pdprops.WEAPONS_NUMS[prop['weaponnum']]
+
+def obj_init_fan(bl_prop, prop):
+    print(f"fan ac {prop['yaccel']:08X} sp {prop['ymaxspeed']:08X}")
+    pd_fan = bl_prop.pd_fan
+    pd_fan.yaccel = prop['yaccel'] / 0x10000
+    pd_fan.ymaxspeed = prop['ymaxspeed'] / 0x10000
+
 
 def setup_fix_refs(all_props, setup_props):
     pad2obj = {prop.pd_prop.pad.padnum: prop for prop in all_props if prop}
@@ -472,9 +482,6 @@ def create_intro_obj(name, pad, padnum, objtype, sc=16, case_set=None):
     collection = pdu.new_collection('Intro')
     collection.objects.link(intro_obj)
     stu.obj_setup_mtx(intro_obj, Vector(pad.look), Vector(pad.up), pad.pos, scale = pdp.Vec3(sc, sc, sc))
-    blender_align(intro_obj)
-    intro_obj.rotation_euler[0] -= pi/2
-    intro_obj.rotation_euler[2] -= pi/2
 
     intro_obj.pd_obj.type = objtype
     intro_obj.pd_intro.type = objtype
@@ -490,7 +497,7 @@ def pad_setprops(bl_obj, pad, padnum):
     pd_pad = bl_obj.pd_prop.pad
     pd_pad.padnum = padnum
     pd_pad.hasbbox = pdp.pad_hasbbox(pad)
-    pd_pad.room = pdp.pad_room(pad)
+    pd_pad.roomnum = pdp.pad_room(pad)
     pd_pad.lift = pdp.pad_lift(pad)
     padflags = pdp.pad_flags(pad)
 
@@ -574,7 +581,6 @@ def create_waypoint(id, pos, groupnum, pad=None):
 
     if pad:
         stu.obj_setup_mtx(bl_waypoint, Vector(pad.look), Vector(pad.up), pad.pos, scale=pdp.Vec3(7, 7, 7))
-        blender_align(bl_waypoint)
     else:
         bl_waypoint.scale = (7, 7, 7)
 
