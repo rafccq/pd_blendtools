@@ -514,21 +514,28 @@ class PDTOOLS_OT_SetupObjEditPadFlags(bpy.types.Operator):
         bl_obj = context.active_object
         if not bl_obj: return
 
-        # pd_obj = bl_obj.pd_obj
         objtype = pdu.pdtype(bl_obj)
         pad = bl_obj.pd_prop.pad
 
         layout = self.layout
         scn = context.scene
 
-        layout.label(text='Pad Flags')
+        row = layout.row()
+        layout.label(text='Pad Properties')
+        pdu.ui_separator(layout, type='LINE')
 
         row = layout.row()
-        row = row.row()
-        row.prop(pad, "flags_packed", text='Value')
+        row.prop(pad, "room", text='Room')
+        row = layout.row()
         row.prop(pad, "lift", text='Lift')
 
         pdu.ui_separator(layout, type='LINE')
+        box = layout.box()
+        layout = box
+        layout.label(text='Flags')
+
+        row = layout.row()
+        row.prop(pad, "flags_packed", text='Value')
 
         row = layout.row()
         col = row.column()
@@ -612,6 +619,12 @@ class PDTOOLS_OT_SetupObjectCreate(Operator):
     bl_description = 'Click on the viewport to create an object'
 
     created_objs = []
+
+    def get_objs(self):
+        lib = bpy.data.collections[coll].objects
+        objlist = lambda coll: [obj for obj in lib if obj.data and not obj.hide_render]
+
+        return objlist('Rooms') + objlist('Props')
 
     def raycast(self, context, event):
         scn = context.scene

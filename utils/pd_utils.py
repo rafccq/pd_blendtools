@@ -4,6 +4,7 @@ from pathlib import Path
 from glob import glob
 import struct
 import os
+import pathlib
 
 import bpy
 import bmesh
@@ -343,6 +344,7 @@ def select_vtx_unassigned_mtxs():
     verts = get_vtx_unassigned_mtxs(bm)
     for v in verts:
         v.select = True
+        mesh.vertices[v.index].select = True
 
     bm.free()
     return len(verts)
@@ -568,6 +570,9 @@ def vec_comp_abs(v0, v1, e=1e-4):
 def vec_lhs(v):
     return Vector((v.x, v.z, -v.y))
 
+def to_rhs(v):
+    return [v[0], -v[2], v[1]]
+
 # swaps Y <-> Z
 def bbox_lhs(bb):
     return [bb[0], bb[1], bb[4], bb[5], bb[2], bb[3]]
@@ -654,6 +659,9 @@ def make_prop(name, config, default, callback_update=None) -> EnumProperty:
 def item_from_value(items, value, default_idx=0):
    default = items[default_idx]
    return next(filter(lambda e: e[2] == value, items), default)[0]
+
+def dict_key_from_value(dict, value):
+    return next((k for k, v in dict.items() if v == value), None)
 
 def get_children(bl_obj):
     src = [bl_obj]
