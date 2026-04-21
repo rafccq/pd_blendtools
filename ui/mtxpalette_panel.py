@@ -62,7 +62,7 @@ class PDTOOLS_PT_MtxPalettePanel(bpy.types.Panel):
     @classmethod
     def poll(cls, context):
         obj = context.active_object
-        ismodel = obj and pdu.pdtype(obj.parent) == pdprops.PD_OBJTYPE_MODEL
+        ismodel = obj and hasattr(obj, 'pd_obj') and pdu.pdtype(obj.parent) == pdprops.PD_OBJTYPE_MODEL
         return ismodel and context.mode in ['PAINT_VERTEX', 'EDIT_MESH']
 
 
