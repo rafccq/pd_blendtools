@@ -204,7 +204,7 @@ def wp_addneighbour(bl_waypoint, bl_neighbour):
 
     neighbour_item = pd_neighbours.add()
     neighbour_item.name = wp_name(pd_neighbour_wp.id)
-    neighbour_item.groupnum = pd_waypoint.groupnum
+    neighbour_item.groupnum = pd_neighbour_wp.groupnum
     neighbour_item.id = pd_neighbour_wp.id
 
     edge = pdprops.WAYPOINT_EDGETYPES[0][0]
@@ -219,13 +219,20 @@ def wp_remove_neighbour(pd_waypoint, id):
     for idx, neighbour in enumerate(neighbours_coll):
         if neighbour.id == id:
             neighbours_coll.remove(idx)
+
+            # check if the active neighbor is the last one...
+            n_nbs = len(neighbours_coll)
+            nb_idx = pd_waypoint.active_neighbour_idx
+            # ... if so, update it
+            if nb_idx >= n_nbs:
+                pd_waypoint.active_neighbour_idx = n_nbs - 1
             return
 
 def wp_newgroup():
     groupnum = wp_maxgroup()
-    groupname = group_name(groupnum)
-    bl_group = new_empty_obj(groupname, dsize=0, link=False)
-    add_to_collection(bl_group, 'Waypoints')
+    groupname = pdu.group_name(groupnum)
+    bl_group = pdu.new_empty_obj(groupname, dsize=0, link=False)
+    pdu.add_to_collection(bl_group, 'Waypoints')
 
     return groupnum, bl_group
 

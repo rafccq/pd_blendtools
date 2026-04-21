@@ -1098,7 +1098,7 @@ def draw_waypoints():
             ofs_dst = offset_to_face(p_dst, p_src, s, dz)
 
             list_neighbour_idx = pd_waypoint.active_neighbour_idx
-            if sel_group > 0 and bl_waypoint == bl_obj and idx == list_neighbour_idx:
+            if sel_group >= 0 and bl_waypoint == bl_obj and idx == list_neighbour_idx:
                 verts_sel.append(p_src + ofs_src)
                 verts_sel.append(p_dst + ofs_dst)
                 colors_sel.append(col)
