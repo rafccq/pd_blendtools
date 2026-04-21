@@ -328,23 +328,28 @@ class PDTOOLS_OT_SetupWaypointCreateNeighbours(Operator):
         bl_group = bpy.data.objects[groupname]
 
         angle = 0
+        neighbors = []
         for i in range(self.num):
             r = self.distance
             p = (r * math.cos(angle), r * math.sin(angle), 0)
             pos = objpos + Vector(p)
 
-            bl_neighbour = stpi.create_waypoint(id, pos, groupnum, False)
-            pd_neighbour = bl_neighbour.pd_waypoint
+            bl_neighbor = stpi.create_waypoint(id, pos, groupnum, False)
+            pd_neighbour = bl_neighbor.pd_waypoint
             pd_neighbour.id = id
             pd_neighbour.groupnum = groupnum
             pd_neighbour.group_enum = groupname
+            bl_neighbor.pd_prop.pad.room = bl_waypoint.pd_prop.pad.room
+            bl_neighbor.pd_prop.pad.roomnum = bl_waypoint.pd_prop.pad.roomnum
+            neighbors.append(bl_neighbor)
 
-            stu.wp_addneighbour(bl_waypoint, bl_neighbour)
-            stu.wp_addneighbour(bl_neighbour, bl_waypoint)
+            stu.wp_addneighbour(bl_waypoint, bl_neighbor)
+            stu.wp_addneighbour(bl_neighbor, bl_waypoint)
 
             angle += 2*math.pi / self.num
             id += 1
 
+        pdu.select_objects(neighbors)
         return {'FINISHED'}
 
     def invoke(self, context, _event):
