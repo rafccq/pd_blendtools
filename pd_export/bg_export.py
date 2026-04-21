@@ -1,5 +1,6 @@
 from collections import deque
 import math
+import datetime
 
 import bpy
 
@@ -32,7 +33,6 @@ def export_rooms(rd, dataout):
 
         data = DataBlock.New('bgroom')
         rooms.append(data)
-        print(bl_room.name, data)
 
         roompos = R_inv @ bl_room.matrix_world.translation
         pos = data['pos']
@@ -168,6 +168,7 @@ def export_roomGDL(roomblocks):
 
     mde.update_log()
 
+    ofs_vtx = 0
     for block in roomblocks:
         pd_roomblock = block.pd_room
         mesh = mde.ExportMeshData(block.name, pd_roomblock.layer, block.data)
@@ -179,6 +180,7 @@ def export_roomGDL(roomblocks):
         vtxdata = bytearray()
         colordata = bytearray()
 
+        nverts_batches = 0
         for batch in mesh.batches:
             batch.vtx_offset = len(vtxdata)
             batch.color_offset = len(colordata)
@@ -192,14 +194,19 @@ def export_roomGDL(roomblocks):
             if image:
                 texsize = image.size
             else:
-                print(f'WARNING: material has no texture. Mesh{mesh.name} mat {mat.name}')
+                print(f'WARNING: material has no texture. Mesh {mesh.name} mat {mat.name}')
 
-            vtxdata += batch.vtx_bytes(texsize, bbox=bbox)
+            texconfig = pdm.material_get_texconfig(mat)
+            texscale = texconfig.tex_scale
+            vtxdata += batch.vtx_bytes(texsize, texscale, bbox=bbox)
             colordata += batch.color_bytes()
+            nverts_batches += batch.nverts()
 
         nverts = len(block.data.vertices)
-        gdlbytes = mde.mesh_to_gdl(mesh, 0, nverts, 0xe, 0xd)
+        vtx_start = ofs_vtx if pd_roomblock.layer == 'xlu' else 0
+        gdlbytes = mde.mesh_to_gdl(mesh, vtx_start, nverts, 0xe, 0xd)
         gfxdata.append((vtxdata, colordata, gdlbytes))
+        ofs_vtx += nverts_batches * 12
 
     return gfxdata, textures, bbox
 
@@ -281,7 +288,11 @@ def export_roomgfxdata(rd, bl_room, ofs_room):
 
     gfxdata, textures, bbox = export_roomGDL(blocks_dl)
 
-    def write_data(idx, field, update_ptr=None):
+    # ---- write gfx data
+    DAT_VTX = 0
+    DAT_COLORS = 1
+    DAT_GDL = 2
+    def write_data(idx, field):
         datalist = [e[idx] for e in gfxdata]
         for bl_block, data in zip(blocks_dl, datalist):
             ofs = len(dataout) + ofs_room
@@ -291,15 +302,21 @@ def export_roomgfxdata(rd, bl_room, ofs_room):
             block.update(dataout, field, ofs)
 
         add_padding(dataout, 8)
-
-        if update_ptr:
-            ptr = ofs_room + len(dataout)
-            header.update(dataout, update_ptr, ptr)
+        return len(dataout)
 
     # write verts, colours and GDL data
-    write_data(0, 'vertices|coord1', update_ptr='colours')
-    write_data(1, 'colours')
-    write_data(2, 'gdl|child')
+    ofs_col = write_data(DAT_VTX, 'vertices|coord1')
+    write_data(DAT_COLORS, 'colours')
+    write_data(DAT_GDL, 'gdl|child')
+    header.update(dataout, 'colours', ofs_col + ofs_room)
+
+    # this weird quirk is needed for animated textures to work: xlu blocks vertices
+    # must be the same as the header, the offset goes into the VTX command
+    for bl_block in blocks_dl:
+        pd_room = bl_block.pd_room
+        if pd_room.layer != 'xlu': continue
+        block = blockmap[bl_block.name]
+        block.update(dataout, 'vertices|coord1', ptr_verts)
 
     add_padding(dataout, 4)
 
@@ -386,9 +403,10 @@ def export_section2(textures):
     rd = ByteStream(dataout)
 
     scn = bpy.context.scene
+    texmap = scn['map_texids']
     for tex in textures:
         name = tex.name
-        texnum = scn['map_texids'][name] if scn.remap_texids else int(pdu.filename(name), 16)
+        texnum = texmap[name] if scn.remap_texids and name in texmap else int(pdu.filename(name), 16)
         rd.write(dataout, texnum, 's16')
 
     return pack_section(dataout, mask=0x7fff)
@@ -439,4 +457,9 @@ def export(filename, _):
     section3 = export_section3(gfxdatalens, bboxes, [0] * len(gfxdatalens))
 
     bgdata = section1 + section2 + section3
+
+    filename = pdu.make_dir_bgdata(filename)
     pdu.write_file(filename, bgdata)
+
+    now = datetime.datetime.now()
+    print(f'BG export done at {now}')
