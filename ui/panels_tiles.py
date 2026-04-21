@@ -37,10 +37,17 @@ class PDTOOLS_PT_TileTools(Panel):
         row.enabled = bool(bl_tile) and pdu.pdtype(bl_tile) == pdprops.PD_OBJTYPE_TILE and nsel == 1
 
 
-def draw_row(props, label, name, layout, factor):
-    container = layout.split(factor=factor)
-    container.label(text=label)
-    container.prop(props, name, text='')
+def draw_row(pd_tile, label, name, layout, factor, multiple, multiple_prop):
+    container = layout.split(factor=.91) if multiple else layout
+
+    container_L = container.split(factor=factor)
+    container_L.label(text=label)
+    container_L.prop(pd_tile, name, text='')
+
+    if multiple:
+        container.context_pointer_set(name='pd_tile', data=pd_tile)
+        op = container.operator('pdtools.tile_apply_props', text='', icon='CHECKMARK')
+        op.prop = multiple_prop
 
 
 class PDTOOLS_PT_Tile(Panel):
@@ -61,29 +68,39 @@ class PDTOOLS_PT_Tile(Panel):
 
         if not obj: return
 
+        scn = context.scene
         layout = self.layout
 
         column = layout.column()
 
-        props_tile = obj.pd_tile
+        pd_tile = obj.pd_tile
         txt = 'Multiple Selected' if multiple else f'{obj.name}'
         column.label(text=txt, icon='OBJECT_DATA')
         pdu.ui_separator(column, type='LINE')
 
-        draw_row(props_tile, 'Room', 'room', column, .35)
-        draw_row(props_tile, 'Floor Color', 'floorcol', column, .35)
-        draw_row(props_tile, 'Floor Type', 'floortype', column, .35)
+        factor = .35
+        draw_row(pd_tile, 'Room', 'room', column, factor, multiple, pdprops.TILEPROP_ROOM)
+        draw_row(pd_tile, 'Floor Color', 'floorcol', column, factor, multiple, pdprops.TILEPROP_FLOORCOL)
+        draw_row(pd_tile, 'Floor Type', 'floortype', column, factor, multiple, pdprops.TILEPROP_FLOORTYPE)
 
         box = column.box()
-        box.label(text=f'Flags')
+        row = box.row().split(factor=.85)
+        row.label(text=f'Flags')
+        row.prop(scn, 'pd_tile_flag_presets', text='', icon='COLLAPSEMENU')
         container = box.grid_flow(columns=2, align=True)
 
         for idx, flag in enumerate(TILE_FLAGS):
-            container.prop(props_tile, 'flags', index=idx, text=flag)
+            container.prop(pd_tile, 'flags', index=idx, text=flag)
 
         if multiple:
-            column.context_pointer_set(name='pd_tile', data=obj.pd_tile)
-            column.operator("pdtools.tile_apply_props", text = "Apply To Selection")
+            container = column
+            container.context_pointer_set(name='pd_tile', data=pd_tile)
+            op = container.operator("pdtools.tile_apply_props", text="Apply Flags To Selection", icon='GREASEPENCIL')
+            op.prop = pdprops.TILEPROP_FLAGS
+            pdu.ui_separator(container, type='LINE')
+            container.context_pointer_set(name='pd_tile', data=pd_tile)
+            op = container.operator('pdtools.tile_apply_props', text = 'Apply All To Selection')
+            op.prop = pdprops.TILEPROP_ALL
 
 
 classes = [
