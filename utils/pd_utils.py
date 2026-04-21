@@ -659,6 +659,9 @@ def filename(name):
     return ''.join(name.split('.')[:-1])
 
 def all_objects_in_collection(name):
+    if name not in bpy.data.collections:
+        return []
+
     stack = [bpy.data.collections[name]]
     objs = []
     while len(stack):

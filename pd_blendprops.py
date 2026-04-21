@@ -366,6 +366,7 @@ OBJ_FLAGS2 = [
 ]
 
 OBJ_FLAGS3 = [
+    (['Can be Pushed'],         0x00000001),
     (['Grabbable'],             0x00000002),
     (['Door Sticky'],           0x00000004), # eg. Skedar Ruins
     (['00000008'],              0x00000008), # Not used in scripts
@@ -832,7 +833,8 @@ class PDObject_SetupBaseObject(PropertyGroup):
         stu.change_model(bl_obj, modelnum)
 
     def update_scale(self, context):
-        bl_obj = context.active_object
+        bl_obj = self.id_data
+
         if not bl_obj: return
 
         pd_prop = bl_obj.pd_prop
@@ -994,6 +996,8 @@ def update_scene_vis(_self, context):
 
 def update_scene_sel(self, context):
     for idx, name in enumerate(PD_COLLECTIONS):
+        if name not in bpy.data.collections: continue
+
         coll = bpy.data.collections[name]
         coll.hide_select = not context.scene.collections_sel[idx]
 
@@ -1371,7 +1375,7 @@ def register():
     for cls in classes:
         register_class(cls)
 
-    # object props
+    # model/BG props
     Object.pd_obj = bpy.props.PointerProperty(type=PDObject)
     Object.pd_model = bpy.props.PointerProperty(type=PDObject_Model)
     Object.pd_room = bpy.props.PointerProperty(type=PDObject_RoomBlock)
