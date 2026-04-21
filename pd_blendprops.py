@@ -164,6 +164,21 @@ TILE_HIGHLIGHT_MODE = [
     ('Room',        'Highlight All Tiles From Room',         5),
 ]
 
+TILE_FLAG_PRESETS = [
+    ('Ground', 'Flag Presets', 0),
+    ('Ground|Step', 'Flag Presets', 1),
+    ('Wall', 'Flag Presets', 3),
+    ('Ladder', 'Flag Presets', 4),
+    ('Clear', 'Flag Presets', 5),
+]
+
+TILEPROP_ALL = 0
+TILEPROP_FLAGS = 1
+TILEPROP_FLOORCOL = 2
+TILEPROP_FLOORTYPE = 3
+TILEPROP_ROOM = 4
+
+
 DOOR_FLAGS = [
     ('DOORFLAG_0001',       0x0001),
     ('Windowed',            0x0002),
@@ -539,6 +554,41 @@ WEAPONS_NUMS = {
 }
 
 WEAPONS_NUMS_ITEMS = [(e, e, e, idx) for idx, e in WEAPONS_NUMS.items()]
+
+SURFACETYPE_DEFAULT      = 0
+SURFACETYPE_STONE        = 1
+SURFACETYPE_WOOD         = 2
+SURFACETYPE_METAL        = 3
+SURFACETYPE_GLASS        = 4
+SURFACETYPE_SHALLOWWATER = 5
+SURFACETYPE_SNOW         = 6
+SURFACETYPE_DIRT         = 7
+SURFACETYPE_MUD          = 8
+SURFACETYPE_TILE         = 9
+SURFACETYPE_METALOBJ     = 10
+SURFACETYPE_CHR          = 11
+SURFACETYPE_GLASSXLU     = 12
+SURFACETYPE_NONE         = 13
+SURFACETYPE_DEEPWATER    = 14
+
+ENUM_SURFACE_TYPES = [
+    ('[Not Set]',     '[Not Set]',      '[Not Set]',      -1),
+    ('Default',       'Default',        'Default',        SURFACETYPE_DEFAULT),
+    ('Stone',         'Stone',          'Stone',          SURFACETYPE_STONE),
+    ('Wood',          'Wood',           'Wood',           SURFACETYPE_WOOD),
+    ('Metal',         'Metal',          'Metal',          SURFACETYPE_METAL),
+    ('Glass',         'Glass',          'Glass',          SURFACETYPE_GLASS),
+    ('Shallowwater',  'Shallowwater',   'Shallowwater',   SURFACETYPE_SHALLOWWATER),
+    ('Snow',          'Snow',           'Snow',           SURFACETYPE_SNOW),
+    ('Dirt',          'Dirt',           'Dirt',           SURFACETYPE_DIRT),
+    ('Mud',           'Mud',            'Mud',            SURFACETYPE_MUD),
+    ('Tile',          'Tile',           'Tile',           SURFACETYPE_TILE),
+    ('Metalobj',      'Metalobj',       'Metalobj',       SURFACETYPE_METALOBJ),
+    ('Chr',           'Chr',            'Chr',            SURFACETYPE_CHR),
+    ('Glassxlu',      'Glassxlu',       'Glassxlu',       SURFACETYPE_GLASSXLU),
+    ('None',          'None',           'None',           SURFACETYPE_NONE),
+    ('Deepwater',     'Deepwater',      'Deepwater',      SURFACETYPE_DEEPWATER),
+]
 
 class PDObject(PropertyGroup):
     name: StringProperty(name='name', default='', options={'LIBRARY_EDITABLE'})
@@ -955,6 +1005,25 @@ def update_scene_tilehighlight(_self, context):
 def update_scene_wp_vis(_self, context):
     scn = context.scene
 
+def update_scene_tile_presets(_self, context):
+    scn = context.scene
+    multiple = len(context.selected_objects) > 1
+    obj = context.selected_objects[-2] if multiple else context.active_object
+    print(scn.pd_tile_flag_presets)
+
+    presets = {
+        'ground': [ 'Floor1', 'Floor2', 'Block Sight', 'Block Shoot' ],
+        'ground|step': [ 'Floor1', 'Floor2', 'Block Sight', 'Block Shoot', 'Step' ],
+        'wall': [ 'Wall', 'Block Sight', 'Block Shoot' ],
+        'ladder': [ 'Wall', 'Block Sight', 'Block Shoot', 'Ladder'],
+        'clear': [],
+    }
+
+    pd_tile = obj.pd_tile
+    preset_flags = presets[scn.pd_tile_flag_presets]
+    for idx, flag in enumerate(TILE_FLAGS):
+        pd_tile.flags[idx] = flag in preset_flags
+
 def update_scene_roomgoto(self, _context):
     area = next(area for area in bpy.context.screen.areas if area.type == 'VIEW_3D')
     space = next(space for space in area.spaces if space.type == 'VIEW_3D')
@@ -1332,6 +1401,7 @@ def register():
     Scene.pd_bspwidth = IntProperty(name="pd_bspwidth", default=1000, min=1, options={'TEXTEDIT_UPDATE'})
     Scene.pd_ailists = CollectionProperty(type=PD_AIList)
     Scene.pd_bgcmds = CollectionProperty(type=PD_BGCmd)
+    Scene.pd_tile_flag_presets = pdu.make_prop('pd_tile_flag_presets', {'pd_tile_flag_presets': TILE_FLAG_PRESETS}, 'ground', update_scene_tile_presets)
 
     # object creation
     Scene.weapon_num = EnumProperty(items=WEAPONS_NUMS_ITEMS, name="weapon_num", default=WEAPONS_NUMS[0])
