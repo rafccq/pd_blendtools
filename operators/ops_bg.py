@@ -534,15 +534,41 @@ class PD_WSTOOL_PortalFromEdge(WorkSpaceTool):
 
 
 class PDTOOLS_OT_PortalFromFace(Operator):
-    bl_idname = "pdtools.op_portal_from_face"
-    bl_label = "PD: Portal From Face"
-    bl_description = "Creates a portal from the selected face"
+    bl_idname = "pdtools.op_portals_from_faces"
+    bl_label = "PD: Portals From Faces"
+    bl_description = "Creates portals from the selected faces"
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
-        err = bgu.new_portal_from_faces(context)
-        if err:
-            pdu.msg_box('', err, 'ERROR')
+        # err = bgu.new_portal_from_faces(context)
+        # if err:
+        #     pdu.msg_box('', err, 'ERROR')
+        bl_obj = context.edit_object
+        bm = bmesh.from_edit_mesh(bl_obj.data)
+        faces_sel = [f for f in bm.faces if f.select]
+
+        if not faces_sel:
+            pdu.msg_box('', 'No Selection', 'ERROR')
+            bm.free()
+            return {'FINISHED'}
+
+        lib = bpy.data.collections
+        num = len(lib['Portals'].objects) if 'Portals' in lib else 0
+        portals = []
+        for face in faces_sel:
+            bl_portal = bgu.portal_from_face(f'portal_{num}', bl_obj, face)
+            if pdu.pdtype(bl_obj) == pdprops.PD_OBJTYPE_ROOMBLOCK:
+                bl_portal.pd_portal.room1 = bl_obj
+
+            portals.append(bl_portal)
+            num += 1
+
+        # switch to object mode and select all the newly created portals
+        bpy.ops.object.mode_set(mode="OBJECT")
+        bpy.ops.object.select_all(action='DESELECT')
+        for tile in portals: tile.select_set(True)
+        pdu.set_active_obj(portals[0])
+        bm.free()
         return {'FINISHED'}
 
 

@@ -509,6 +509,16 @@ def dissolve_colinear_verts(obj):
     bm.free()
 
 def tile_from_face(name, bl_obj, face):
+    bl_tileobj = obj_from_face(name, bl_obj, face, pdprops.PD_OBJTYPE_TILE, 'Tiles')
+    bl_tileobj.pd_tile.floorcol = [1, 1, 1, 1]
+    return bl_tileobj
+
+def portal_from_face(name, bl_obj, face):
+    bl_portal = obj_from_face(name, bl_obj, face, pdprops.PD_OBJTYPE_PORTAL, 'Portals')
+    init_portal(bl_portal, name)
+    return bl_portal
+
+def obj_from_face(name, bl_obj, face, pdtype, collname=None, show_wire=True):
     M = bl_obj.matrix_world
     verts = [M @ v.co for v in face.verts]
     center = pdu.points_median(verts)
@@ -516,14 +526,19 @@ def tile_from_face(name, bl_obj, face):
     for v in verts:
         v -= center
 
-    tilemesh = pdu.mesh_from_verts(verts, name, triangulate=False)
-    bl_tileobj = bpy.data.objects.new(f'{name}', tilemesh)
-    dissolve_colinear_verts(bl_tileobj)
-    bl_tileobj.show_wire = True
-    bl_tileobj.location = center
-    pdu.add_to_collection(bl_tileobj, 'Tiles')
-    bl_tileobj.pd_obj.type = pdprops.PD_OBJTYPE_TILE
-    return bl_tileobj
+    mesh = pdu.mesh_from_verts(verts, name, triangulate=False)
+    bl_newobj = bpy.data.objects.new(f'{name}', mesh)
+    dissolve_colinear_verts(bl_newobj)
+    bl_newobj.location = center
+    bl_newobj.pd_obj.type = pdtype
+
+    if show_wire:
+        bl_newobj.show_wire = True
+
+    if collname:
+        pdu.add_to_collection(bl_newobj, collname)
+
+    return bl_newobj
 
 def blockname(roomnum, blockidx, blocktype, layer):
     bsp = ' (BSP)' if blocktype == 'BSP' else ''

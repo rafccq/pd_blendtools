@@ -323,8 +323,6 @@ def assign_mtx_to_selected_verts(mtx):
     layer_mtx = bm.loops.layers.color["matrices"]
     verts = [v for v in bm.verts if v.select]
     for v in verts:
-        print(v.index)
-
         for loop in v.link_loops:
             loop[layer_mtx] = mtxp.mtx2color(mtx)
 
