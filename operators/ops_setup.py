@@ -548,6 +548,51 @@ class PDTOOLS_OT_SetupDoorPlaySound(Operator):
         return {'FINISHED'}
 
 
+
+class PDTOOLS_OT_SetupCreateMultiAmmoCrate(Operator):
+    bl_idname = "pdtools.create_mp_ammo_crate"
+    bl_label = ""
+
+    def execute(self, context):
+        bl_weapon = context.active_object
+        print(bl_weapon)
+
+        pos = Vec3(*bl_weapon.location)
+        bbox = Bbox(-100, 100, -100, 100, -100, 100)
+        up, look, normal = Vec3(0,1,0), Vec3(1,0,0), Vec3(0,0,1)
+        # flags = PADFLAG_HASBBOXDATA
+        flags = 1
+        header = pdpads.pad_makeheader(flags, 0, 0)
+
+        pad = pdpads.Pad(pos, look, up, normal, bbox, header)
+
+        prop_base = {
+            'pad': 0,
+            'type': OBJTYPE_MULTIAMMOCRATE,
+            'modelnum': 0xc1,
+            'flags': flags,
+            'flags2': 0,
+            'flags3': 0,
+            'extrascale': 0x100,
+            'maxdamage': 0x03e8,
+            'floorcol': 0,
+        }
+
+        romdata = rom.load()
+        bl_ammocrate = stpi.setup_create_obj({}, prop_base, romdata, pad)
+        bl_ammocrate.pd_mp_ammocrate.weapon = bl_weapon
+        bl_ammocrate.pd_prop.pad.room = bl_weapon.pd_prop.pad.room
+
+        bl_ammocrate.parent = bl_weapon
+        bl_ammocrate.location = (0, 0, 0)
+        px, py, pz = bl_weapon.scale
+        sx, sy, sz = bl_ammocrate.scale
+        bl_ammocrate.scale = (sx/px, sy/py, sz/pz)
+        bl_ammocrate.rotation_euler = (0, 0, 0)
+
+        return {'FINISHED'}
+
+
 class PDTOOLS_OT_SetupObjectCreate(Operator):
     bl_idname = "pdtools.op_setup_object_create"
     bl_label = 'Create Object'
@@ -674,14 +719,43 @@ class PDTOOLS_OT_SetupObjectCreate(Operator):
                 bbox = Bbox(-100, 100, -100, 100, -100, 100)
                 pad = pdpads.Pad(pos, look, up, normal, bbox, header)
                 return stpi.setup_create_obj(prop, prop_base, romdata, pad)
+            elif sel_type == pdprops.PD_PROP_FAN:
+                prop = {
+                    'yaccel'   : 0x00000006,
+                    'ymaxspeed': 0x00000044,
+                }
+                bbox = Bbox(-100, 100, -100, 100, -100, 100)
+                pad = pdpads.Pad(pos, look, up, normal, bbox, header)
+                return stpi.setup_create_obj(prop, prop_base, romdata, pad)
+            elif sel_type == pdprops.PD_PROP_HOVERCAR:
+                pad = pdpads.Pad(pos, look, up, normal, bbox, header)
+                return stpi.setup_create_obj({}, prop_base, romdata, pad)
             elif sel_type == pdprops.PD_PROP_DOOR:
                 return self.create_door(prop_base, pos, romdata)
+            elif sel_type == pdprops.PD_PROP_TAG:
+                bl_tag = pdu.new_empty_obj('Tag', None, dsize=50, dtype='PLAIN_AXES', link=False)
+                pdu.add_to_collection(bl_tag, 'Props')
+                bl_tag.matrix_world.translation = click_pos
+                bl_tag.pd_obj.type = pdprops.PD_PROP_TAG
+                if pdu.pdtype(picked_obj) == pdprops.PD_OBJTYPE_PROP:
+                    bl_tag.pd_tag.obj = picked_obj
+                return bl_tag
         elif pdtype == pdprops.PD_OBJTYPE_INTRO:
             padnum = self.next_pad('Intro', sel_type)
             ofs = 0 if pdtype == pdprops.PD_INTRO_CASE else 24
             pos = Vec3(pos.x, pos.y + ofs, pos.z)
-            pad = pdpads.Pad(pos, look, up, normal, bbox, 0)
-            return stpi.create_intro_obj(scn.pd_obj_type, pad, padnum, sel_type)
+            pad = pdpads.Pad(pos, look, up, normal, bbox, 0x3ff << 4)
+            obj = stpi.create_intro_obj(scn.pd_obj_type, pad, padnum, sel_type, 24, scn.case_setnum)
+            obj.pd_prop.pad.room = picked_obj.pd_room.room
+            return obj
+        elif pdtype == pdprops.PD_OBJTYPE_PATH:
+            bl_path = pdu.new_empty_obj('Path', None, dsize=50, dtype='CIRCLE', link=False)
+            pdu.add_to_collection(bl_path, 'Paths')
+            # bl_path.matrix_world.translation = ctx.scene.cursor.location
+            bl_path.matrix_world.translation = click_pos
+            bl_path.rotation_euler[0] -= math.pi / 2
+            bl_path.pd_obj.type = pdprops.PD_OBJTYPE_PATH
+            return bl_path
 
         return None
 
@@ -742,6 +816,7 @@ classes = [
     PDTOOLS_OT_SetupInterlinkRemove,
     PDTOOLS_OT_SetupDoorSelectSibling,
     PDTOOLS_OT_SetupDoorPlaySound,
+    PDTOOLS_OT_SetupCreateMultiAmmoCrate,
     PDTOOLS_OT_SetupWaypointAddNeighbour,
     PDTOOLS_OT_SetupWaypointRemoveNeighbour,
     PDTOOLS_OT_SetupWaypointCreateFromMesh,

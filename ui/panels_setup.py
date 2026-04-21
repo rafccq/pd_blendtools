@@ -172,6 +172,12 @@ def draw_weapon(props_weapon, layout, context, multiple):
     column = layout.column()
     pdu.ui_separator(column, type='LINE')
     column.prop(props_weapon, 'weaponnum', text='Weapon')
+    column.operator('pdtools.create_mp_ammo_crate', text='Add Ammo Crate')
+
+def draw_multiammocrate(props_mpammocrate, layout, context, multiple):
+    column = layout.column()
+    pdu.ui_separator(column, type='LINE')
+    column.prop(props_mpammocrate, 'weapon', text='Weapon')
 
 
 class PDTOOLS_PT_SetupObjectTools(Panel):
@@ -315,6 +321,10 @@ class PDTOOLS_PT_SetupObject(Panel):
             self.bl_label = 'Weapon'
             props_weapon = obj.pd_weapon
             draw_weapon(props_weapon, layout, context, multiple)
+        elif obj.pd_obj.type == pdprops.PD_PROP_MULTIAMMOCRATE:
+            self.bl_label = 'Multi-Ammo Crate'
+            props_mpammocrate = obj.pd_mp_ammocrate
+            draw_multiammocrate(props_mpammocrate, layout, context, multiple)
 
 
 class PDTOOLS_PT_SetupIntro(Panel):

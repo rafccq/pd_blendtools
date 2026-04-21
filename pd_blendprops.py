@@ -37,6 +37,8 @@ PD_OBJTYPE_WAYPOINT     = 0x0900
 PD_OBJTYPE_WAYGROUP     = 0x0a00
 PD_OBJTYPE_COVER        = 0x0b00
 PD_PROP_LIFT_STOP       = 0x0c00
+PD_OBJTYPE_PATH         = 0x0d00
+PD_OBJTYPE_PATHPAD      = 0x0e00
 
 #### Setup:Props
 PD_PROP_DOOR            = PD_OBJTYPE_PROP | OBJTYPE_DOOR
@@ -46,6 +48,9 @@ PD_PROP_MULTIAMMOCRATE  = PD_OBJTYPE_PROP | OBJTYPE_MULTIAMMOCRATE
 PD_PROP_GLASS           = PD_OBJTYPE_PROP | OBJTYPE_GLASS
 PD_PROP_TINTEDGLASS     = PD_OBJTYPE_PROP | OBJTYPE_TINTEDGLASS
 PD_PROP_LIFT            = PD_OBJTYPE_PROP | OBJTYPE_LIFT
+PD_PROP_FAN             = PD_OBJTYPE_PROP | OBJTYPE_FAN
+PD_PROP_HOVERCAR        = PD_OBJTYPE_PROP | OBJTYPE_HOVERCAR
+PD_PROP_TAG             = PD_OBJTYPE_PROP | OBJTYPE_TAG
 
 #### Setup:Intro Objs
 PD_INTRO_SPAWN          = PD_OBJTYPE_INTRO | 0x00
@@ -62,6 +67,11 @@ OBJ_NAMES = {
     PD_PROP_GLASS:          'Glass',
     PD_PROP_TINTEDGLASS:    'Tinted Glass',
     PD_PROP_LIFT:           'Lift',
+    PD_PROP_FAN:            'Fan',
+    PD_PROP_HOVERCAR:       'Hovercar',
+    PD_PROP_TAG:            'Tag',
+    PD_OBJTYPE_PATH:        'Path',
+
     PD_INTRO_SPAWN:         'Spawn',
     PD_INTRO_HILL:          'Hill',
     PD_INTRO_CASE:          'Case',
@@ -800,14 +810,15 @@ class PDObject_PadData(PropertyGroup):
     flags_packed: StringProperty(name="flags_packed", update=on_update_flagpacked)
 
     hasbbox: BoolProperty(name="hasbbox", default=False, options={'LIBRARY_EDITABLE'})
-    room: IntProperty(name='room', default=0, min=0, options={'LIBRARY_EDITABLE'})
+    # if room is None: either roomnum = -1 or it was imported w/o rooms
+    room: PointerProperty(name='room', type=Object, poll=check_isroom)
+    roomnum: IntProperty(name='roomnum', default=0x3ff, min=-1, options={'LIBRARY_EDITABLE'})
     lift: IntProperty(name='lift', default=0, min=0, options={'LIBRARY_EDITABLE'})
 
 
 class PDObject_SetupIntro(PropertyGroup):
     type: IntProperty(name='type', default=0, min=0, options={'LIBRARY_EDITABLE'})
     case_setnum: IntProperty(name='case_setnum', default=0, min=0, options={'LIBRARY_EDITABLE'})
-
 
 class PDObject_SetupBaseObject(PropertyGroup):
     def update_flag1(self, context):
@@ -891,6 +902,22 @@ class PDObject_SetupDoor(PropertyGroup):
 class PDObject_SetupWeapon(PropertyGroup):
     weaponnum: EnumProperty(items = WEAPONS_NUMS_ITEMS, name='weaponnum')
 
+def check_isweapon(_scene, obj):
+    return obj.pd_obj.type == PD_PROP_WEAPON
+
+# objtype 0x14
+class PDObject_SetupMpAmmoCrate(PropertyGroup):
+    weapon: PointerProperty(name='weapon', type=bpy.types.Object, poll=check_isweapon, options={'LIBRARY_EDITABLE'})
+
+# objtype 0x16
+class PDObject_SetupTag(PropertyGroup):
+    tagnum: IntProperty(name='tagnum', min=1, default=1, options={'LIBRARY_EDITABLE'})
+    obj: PointerProperty(name='obj', type=bpy.types.Object, options={'LIBRARY_EDITABLE'})
+
+# objtype 0x36
+class PDObject_SetupFan(PropertyGroup):
+    yaccel: FloatProperty(name='yaccel', min=0, default=0, options={'LIBRARY_EDITABLE'})
+    ymaxspeed: FloatProperty(name='ymaxspeed', min=0, default=0, options={'LIBRARY_EDITABLE'})
 
 # objtype 0x2f
 class PDObject_SetupTintedGlass(PropertyGroup):
@@ -955,6 +982,9 @@ class PDObject_SetupWaypoint(PropertyGroup):
 def check_is_liftstop(_scene, obj):
     return obj and obj.pd_obj.type == PD_PROP_LIFT_STOP
 
+def check_is_path(_scene, obj):
+    return obj and obj.pd_obj.type == PD_OBJTYPE_PATH
+
 # objtype 0x30
 class PDObject_SetupLift(PropertyGroup):
     sound: IntProperty(name='sound', default=0x16, min=0, max=0x3f, options={'LIBRARY_EDITABLE'})
@@ -970,6 +1000,17 @@ class PDObject_SetupLift(PropertyGroup):
     maxspeed: FloatProperty(name='maxspeed', default=0, options={'LIBRARY_EDITABLE'})
     interlinks: CollectionProperty(name='interlinks', type=PDObject_SetupInterlinkObject)
     active_interlink_idx: IntProperty(name='active_interlink_idx', default=0, options={'LIBRARY_EDITABLE'})
+
+class PDObject_SetupHovercar(PropertyGroup):
+    ailist: IntProperty(name='ailist', default=0, min=0, options={'LIBRARY_EDITABLE'})
+    path: PointerProperty(name='path', type=Object, poll=check_is_path, options={'LIBRARY_EDITABLE'})
+
+class PD_PathPad(PropertyGroup):
+    obj: PointerProperty(name='obj', type=Object, options={'LIBRARY_EDITABLE'})
+
+class PD_Path(PropertyGroup):
+    pads: CollectionProperty(name='pads', type=PD_PathPad)
+    flags: BoolVectorProperty(name='flags', size=3, options={'LIBRARY_EDITABLE'})
 
 class PD_AIList(PropertyGroup):
     id: IntProperty(name='id')
@@ -1361,11 +1402,17 @@ classes = [
     PDObject_SetupTintedGlass,
     PDObject_SetupInterlinkObject,
     PDObject_SetupLift,
+    PDObject_SetupFan,
     PDObject_SetupWaypointNeighbour,
     PDObject_SetupWaypoint,
     PDObject_SetupIntro,
+    PDObject_SetupHovercar,
+    PDObject_SetupTag,
+    PDObject_SetupMpAmmoCrate,
     PD_AIList,
     PD_BGCmd,
+    PD_PathPad,
+    PD_Path,
     PDModelListItem,
     Fast64RenderSettings_Properties,
     Fast64_Properties,
@@ -1399,6 +1446,14 @@ def register():
     Object.pd_lift = bpy.props.PointerProperty(type=PDObject_SetupLift)
     Object.pd_waypoint = bpy.props.PointerProperty(type=PDObject_SetupWaypoint)
     Object.pd_intro = bpy.props.PointerProperty(type=PDObject_SetupIntro)
+    Object.pd_fan = bpy.props.PointerProperty(type=PDObject_SetupFan)
+    Object.pd_hovercar = bpy.props.PointerProperty(type=PDObject_SetupHovercar)
+    Object.pd_tag = bpy.props.PointerProperty(type=PDObject_SetupTag)
+    Object.pd_mp_ammocrate = bpy.props.PointerProperty(type=PDObject_SetupMpAmmoCrate)
+    Scene.wp_group_room = bpy.props.PointerProperty(type=Object, poll=check_isroom)
+
+    # setup path
+    Object.pd_path = bpy.props.PointerProperty(type=PD_Path)
 
     n_coll = len(PD_COLLECTIONS)
     Scene.collections_vis = BoolVectorProperty(name='collections_vis', size=n_coll, default=[1]*n_coll, update=update_scene_vis, options={'LIBRARY_EDITABLE'})

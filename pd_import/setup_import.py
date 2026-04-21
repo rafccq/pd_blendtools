@@ -39,8 +39,11 @@ OBJ_TYPES1 = [
     OBJTYPE_AUTOGUN,
     OBJTYPE_TINTEDGLASS,
     OBJTYPE_WEAPON,
+    OBJTYPE_FAN,
+    OBJTYPE_HOVERCAR,
 ]
 
+# these objects are just the 'base' struct
 OBJ_TYPES2 = [
     OBJTYPE_BASIC,
     OBJTYPE_ALARM,
@@ -613,9 +616,27 @@ def create_coverpad(cover, idx):
     up = (0, 1, 0)
 
     stu.obj_setup_mtx(bl_cover, Vector(look), Vector(up), pos, scale=pdp.Vec3(7, 7, 7))
-    blender_align(bl_cover)
 
     return bl_cover
+
+def create_path_pad(bl_path):
+    pd_path = bl_path.pd_path
+    n = len(pd_path.pads)
+    objname = f'Pad {n:02X}'
+    bl_pad = tmesh.create_mesh(objname, 'cube')
+    bl_pad.pd_obj.type = pdprops.PD_OBJTYPE_PATHPAD
+    pdu.add_to_collection(bl_pad, 'Paths')
+    bl_pad.parent = bl_path
+    bl_pad.location = (0, 0, 0)
+    bl_pad.color = (0.8, 0.8, 0.0, 1.0)
+    bl_pad.scale = (7, 7, 7)
+    if len(bl_pad.data.materials) == 0:
+        path_material = pdm.path_material()
+        bl_pad.data.materials.append(path_material)
+
+    pd_pads = pd_path.pads
+    pads = pd_pads.add()
+    pads.obj = bl_pad
 
 def register():
     TypeInfo.register_all(setupfile_decls)

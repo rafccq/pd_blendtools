@@ -384,23 +384,35 @@ def add_lift_stops(props):
             add_stop(pd_lift.stop3, idx)
             add_stop(pd_lift.stop4, idx)
 
-def export(filename, compress):
-    get_objs = lambda coll, objtype: [prop for prop in bpy.data.collections[coll].objects if pdu.pdtype(prop) == objtype]
+def get_objs(collname, objtype):
+    lib = bpy.data.collections
+    if collname not in lib: return []
 
+    objects = lib[collname].objects
+    return [prop for prop in objects if pdu.pdtype(prop) == objtype and not prop.hide_render]
+
+def export(filename, compress):
     props = get_objs('Props', pdprops.PD_OBJTYPE_PROP)
     intros = get_objs('Intro', pdprops.PD_OBJTYPE_INTRO)
     waypoints = get_objs('Waypoints', pdprops.PD_OBJTYPE_WAYPOINT)
+    pathpads = get_objs('Paths', pdprops.PD_OBJTYPE_PATHPAD)
 
     add_lift_stops(props)
 
     dataout = bytearray()
     rd = ByteStream(None)
 
-    all_objs = props + intros + waypoints
+    all_objs = props + intros + waypoints + pathpads
     all_objs.sort(key = lambda e: e.pd_prop.pad.padnum)
 
     for idx, bl_obj in enumerate(all_objs):
+        # print(f"'{bl_obj.name}' t {bl_obj.pd_obj.type:02X} #{idx:04X}")
         bl_obj.pd_prop.padnum = idx
+        # make the hovercar use the same pad as its path
+        if bl_obj.pd_obj.type == pdprops.PD_PROP_HOVERCAR and bl_obj.pd_hovercar.path:
+            path = bl_obj.pd_hovercar.path
+            bl_obj.pd_prop.padnum = path.children[0].pd_prop.padnum
+
 
     # print('---- OBJS ----')
     # for idx, bl_obj in enumerate(all_objs):
