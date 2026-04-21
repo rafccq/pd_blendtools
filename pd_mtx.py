@@ -1,4 +1,4 @@
-from math import pi
+from math import pi, radians
 
 from mathutils import Euler, Vector, Matrix
 
@@ -20,15 +20,22 @@ def rot(a, axis):
 # all doors have a rotation of 90d on the x and z axes
 # this function returns an inverse of this rotation
 def rot_doorinv():
-    Rx = rot(-pi/2,  'x')
-    Rz = rot(-pi/2,  'z')
-    return Rx @ Rz
-
-def rot_introinv():
-    return rotM((pi/2, 0, pi/2))
+    C = Matrix([
+        [1, 0, 0, 0],
+        [0, 0, 1, 0],
+        [0, -1, 0, 0],
+        [0, 0, 0, 1]
+    ])
+    rx = Matrix.Rotation(pi/2, 4, 'X')
+    ry = Matrix.Rotation(0, 4, 'Y')
+    rz = Matrix.Rotation(-pi/2, 4, 'Z')
+    rot_lh = rz @ ry @ rx  # ZYX order
+    rot_rh = C @ rot_lh @ C.inverted()
+    return rot_rh.inverted()
 
 def mtx_basis(M):
-    vec = lambda mat, i: Vector([mat[k][i] for k in range(3)])
+    conv = lambda v: Vector((v[0], v[2], -v[1]))
+    vec = lambda mat, i: conv([mat[k][i] for k in range(3)])
 
     _loc, rotmat, _sca = M.decompose()
     R = rotmat.to_matrix()
@@ -40,9 +47,7 @@ def rot_blender():
     return rotM((pi/2, 0, pi/2))
 
 def rot_blender_inv():
-    Rx = rot(-pi/2,  'x')
-    Rz = rot(-pi/2,  'z')
-    return Rx @ Rz
+    return Matrix.Rotation(radians(-90), 4, 'X')
 
 def rot_FLAG00000002inv():
     Rx = rot(-pi * 1.5,  'x')
