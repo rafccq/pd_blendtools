@@ -1031,7 +1031,11 @@ def update_scene_roomgoto(self, _context):
     area = next(area for area in bpy.context.screen.areas if area.type == 'VIEW_3D')
     space = next(space for space in area.spaces if space.type == 'VIEW_3D')
     region = space.region_3d
+
     room = self.pd_room_goto
+    if not room:
+        return
+
     V = region.view_matrix
     look = Vector([V[2][i] for i in range(3)])
     region.view_location = room.location - look * region.view_distance
@@ -1120,6 +1124,11 @@ def draw_waypoints():
 
     scn = bpy.context.scene
     if 'waypoints' not in scn or not collection_vis('Waypoints'):
+        return
+
+    area = bpy.context.area
+    space = area.spaces.active
+    if space.local_view is not None:
         return
 
     VIS_SELECTEDSET = pdu.make_id(WAYPOINTS_VISIBILITY[1][0])
