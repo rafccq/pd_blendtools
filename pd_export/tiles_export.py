@@ -98,10 +98,14 @@ def export(filename, compress):
 
     # build the tile map (roomnum -> [tiles])
     tilemap = {}
-    coll = bpy.data.collections['Tiles']
-    for tile in coll.objects:
+    bl_tiles = pdu.all_objects_in_collection('Tiles')
+    for tile in bl_tiles:
         if pdu.pdtype(tile) != pdprops.PD_OBJTYPE_TILE: continue
         bl_room = tile.pd_tile.room
+        if not bl_room:
+            print(f'WARNING: tile not assigned a room: {tile.name}')
+            pdu.select_obj(tile)
+
         pd_room = bl_room.pd_room
         if pd_room.roomnum in tilemap:
             tilemap[pd_room.roomnum].append(tile)
@@ -113,7 +117,6 @@ def export(filename, compress):
 
     for roomnum in range(1, numrooms + 1):
         rooms_ofs[roomnum].update(dataout, 'ofs', len(dataout))
-        print('  >> room', roomnum)
         if roomnum not in tilemap: continue
 
         # write the tiles vertices
@@ -127,4 +130,5 @@ def export(filename, compress):
     if compress:
         dataout = pdu.compress(dataout)
 
+    filename = pdu.make_dir_bgdata(filename)
     pdu.write_file(filename, dataout)

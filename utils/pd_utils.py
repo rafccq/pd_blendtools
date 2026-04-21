@@ -670,3 +670,19 @@ def all_objects_in_collection(name):
         objs += [o for o in coll.objects]
 
     return objs
+
+def make_dir_bgdata(filename):
+    path = pathlib.Path(filename)
+    parent = path.parent.resolve()
+    bgdata = f'{parent}{os.sep}bgdata{os.sep}'
+
+    if not os.path.isdir(bgdata):
+        os.makedirs(bgdata)
+
+    return f'{bgdata}{path.name}'
+
+def pos_to_lhs(pos):
+    return Vector((pos.x, -pos.z, pos.y))
+
+def obj_pos_to_lhs(bl_obj):
+    bl_obj.location = pos_to_lhs(bl_obj.location)
