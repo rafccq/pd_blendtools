@@ -40,9 +40,11 @@ def draw_obj_base(layout, props_obj):
     flags3 = props_obj.flags3_packed
     layout.label(text=f'Flags: {flags1} | {flags2} | {flags3}')
     layout.operator('pdtools.setupobj_editflags', text=f'Edit Flags')
-    layout.operator('pdtools.setupobj_editpadflags', text='Edit Pad')
+    room = pad.room.name[-2:] if pad.room else '-'
+    roomtxt = f" (R{room})"
+    layout.operator('pdtools.setupobj_editpadflags', text='Edit Pad' + roomtxt)
 
-    if stu.obj_hasmodel(props_obj):
+    if stu.obj_hasmodel(props_obj.type):
         pdu.ui_separator(layout, type='LINE')
         box = layout.box()
 
@@ -336,7 +338,7 @@ class PDTOOLS_PT_SetupIntro(Panel):
     @classmethod
     def poll(cls, context):
         obj = context.object
-        return obj and obj.pd_obj.type in [pdprops.PD_INTRO_CASE, pdprops.PD_INTRO_CASERESPAWN]
+        return obj and pdu.pdtype(obj) == pdprops.PD_OBJTYPE_INTRO
 
     def draw(self, context):
         # if multiple selected, choose the first object selected (always the first to last in the list)
@@ -348,16 +350,18 @@ class PDTOOLS_PT_SetupIntro(Panel):
         layout = self.layout
         column = layout.column()
 
-        props_obj = obj.pd_prop
         txt = 'Multiple Selected' if multiple else f'{obj.name}'
         column.label(text=txt, icon='OBJECT_DATA')
         pdu.ui_separator(column, type='LINE')
 
-        column.operator('pdtools.setupobj_editpadflags', text=f'Edit Flags')
-
+        row = column.row()
         if obj.pd_obj.type in [pdprops.PD_INTRO_CASE, pdprops.PD_INTRO_CASERESPAWN]:
-            row = column.row()
             row.prop(obj.pd_intro, 'case_setnum', text='Set')
+
+        pad = obj.pd_prop.pad
+        room = pad.room.name[-2:] if pad.room else '-'
+        roomtxt = f" (R{room})"
+        row.operator('pdtools.setupobj_editpadflags', text='Edit Pad' + roomtxt)
 
 
 class PDTOOLS_PT_SetupWaypoint(Panel):
@@ -387,8 +391,11 @@ class PDTOOLS_PT_SetupWaypoint(Panel):
         pdu.ui_separator(layout, type='LINE')
         row.prop(props_waypoint, 'group_enum', text='')
 
+        pad = obj.pd_prop.pad
         row = layout.row()
-        row.operator('pdtools.setupobj_editpadflags', text='Edit Pad')
+        room = pad.room.name[-2:] if pad.room else '-'
+        roomtxt = f" (R{room})"
+        layout.operator('pdtools.setupobj_editpadflags', text='Edit Pad' + roomtxt)
 
         pdu.ui_separator(layout, type='LINE')
 
