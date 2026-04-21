@@ -653,8 +653,12 @@ class PDTOOLS_OT_SetupObjectCreate(Operator):
             if sel_type in basic_objs:
                 return stpi.setup_create_obj({}, prop_base, romdata, pad)
             elif sel_type == pdprops.PD_PROP_WEAPON:
-                prop = {'weaponnum': 0}
-                return stpi.setup_create_obj(prop, prop_base, romdata, pad)
+                weapon = pdu.dict_key_from_value(pdprops.WEAPONS_NUMS, scn.weapon_num)
+                prop = {'weaponnum': weapon}
+                prop_base['flags'] |= 1
+                obj = stpi.setup_create_obj(prop, prop_base, romdata, pad)
+                obj.pd_prop.pad.room = picked_obj.pd_room.room
+                return obj
             elif sel_type == pdprops.PD_PROP_TINTEDGLASS:
                 prop = {
                     'opadist': 0,
