@@ -75,7 +75,7 @@ def bg_load(romdata):
 
     tex_configs = {}
     for texnum in pdbg.textures:
-        img = bpy.data.images[f'{texnum:04X}.png']
+        img = bpy.data.images[f'{texnum:04x}.png']
         tex_configs[texnum] = img['texinfo']
 
     return pdbg, tex_configs
@@ -117,13 +117,7 @@ def bg_loadportals(bgdata, roomrange):
             y = pdu.f32(v['y'])
             z = pdu.f32(v['z'])
 
-            M =  Matrix.Translation((x, y, z))
-            R = Euler((pi/2, 0, pi/2)).to_matrix().to_4x4()
-            M = R @ M
-            t = M.translation
-            verts_bl.append((round(t.x), round(t.y), round(t.z)))
-            # nx, ny, nz = verts_bl[-1]
-            # print(f'v {x} {y} {z} ({nx} {ny} {nz})')
+            verts_bl.append((round(x), round(-z), round(y)))
 
         basename = f'portal_{portalnum:02X}'
         portalmesh = pdu.mesh_from_verts(verts_bl, f'{basename}_mesh')
@@ -141,20 +135,11 @@ def loadroom(bgdata, roomnum, tex_configs):
     room = bgdata.rooms[roomnum]
     gfxdata = room['gfxdata']
 
-    bl_room = bgu.new_room(roomnum, get_vec3(room['pos']))
-
-    # to blender coords
-    R = Euler((pi / 2, 0, pi / 2)).to_matrix().to_4x4()
-    bl_room.matrix_world = R @ bl_room.matrix_world
+    vec3 = lambda p: (pdu.f32(p['x']), -pdu.f32(p['z']), pdu.f32(p['y']))
+    bl_room = bgu.new_room(roomnum, vec3(room['pos']))
 
     idx = bg_create_roomblocks(room, gfxdata['opablocks'], bl_room, bl_room, tex_configs, 'opa', 0)
     bg_create_roomblocks(room, gfxdata['xlublocks'], bl_room, bl_room, tex_configs, 'xlu', idx)
-
-def get_vec3(pos):
-    x = pdu.f32(pos['x'])
-    y = pdu.f32(pos['y'])
-    z = pdu.f32(pos['z'])
-    return x, y, z
 
 def bg_create_roomblockDL(room, block, bl_room, bl_rootobj, tex_configs, layer, idx, matcache):
     gfxdata = room['gfxdata']
@@ -224,8 +209,8 @@ def bg_create_roomblocks(room, rootaddr, bl_room, bl_rootobj, tex_configs, layer
             name = bgu.blockname(roomnum, idx, 'BSP', layer)
             bl_bspblock = pdu.new_obj(name, bl_rootobj, link=False, dsize=0.0001)
             bl_bspblock['addr'] = f'{block.addr:08X}'
-            bsp_pos = pdu.read_coord(block['coord_0'])
-            bsp_normal = pdu.read_coord(block['coord_1'])
+            bsp_pos = pdu.to_rhs(pdu.read_coord(block['coord_0']))
+            bsp_normal = pdu.to_rhs(pdu.read_coord(block['coord_1']))
             pdu.add_to_collection(bl_bspblock, 'Rooms')
             bgu.roomblock_set_props(bl_bspblock, bl_rootobj, roomnum, bl_room, idx, layer, BLOCK_BSP, bsp_pos, bsp_normal)
 
