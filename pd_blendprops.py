@@ -1248,6 +1248,24 @@ class PD_ImportSettings(PropertyGroup):
     # each bit represents one setting, following the order above. 0 for simple material and 1 for f3d
     packed: IntProperty(name='packed', default=0b011011)
 
+def on_update_surface(self, _context):
+    pd_image = self.id_data.pd_image
+    pd_image.sound_type = pd_image.surface_type
+
+class PD_ImageProperties(PropertyGroup):
+    surface_type: EnumProperty(
+        name="Surface Type",
+        items=ENUM_SURFACE_TYPES,
+        default=ENUM_SURFACE_TYPES[0][0],
+        update=on_update_surface,
+    )
+
+    sound_type: EnumProperty(
+        name="Sound Type",
+        items=ENUM_SURFACE_TYPES,
+        default = ENUM_SURFACE_TYPES[0][0],
+    )
+
 
 classes = [
     PDObject,
@@ -1271,6 +1289,7 @@ classes = [
     Fast64RenderSettings_Properties,
     Fast64_Properties,
     PD_ImportSettings,
+    PD_ImageProperties,
 ]
 
 def create_collections():
@@ -1398,6 +1417,8 @@ def register():
     bpy.types.WindowManager.import_numsteps = bpy.props.IntProperty()
     bpy.types.Material.hashed = StringProperty(name='hashed', description='')
 
+    bpy.types.Image.pd_image = PointerProperty(type=PD_ImageProperties)
+
     vp_drawhandler = SpaceView3D.draw_handler_add(draw_waypoints, (), 'WINDOW', 'POST_VIEW')
 
 def unregister():
@@ -1417,6 +1438,8 @@ def unregister():
     del Scene.pd_tile_hilight
     del Scene.collections_sel
     del Scene.collections_vis
+
+    del bpy.types.Image.pd_image
 
     for cls in reversed(classes):
         unregister_class(cls)

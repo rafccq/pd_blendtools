@@ -151,10 +151,36 @@ class PDTOOLS_PT_RoomTools(Panel):
         row.operator('pdtools.room_create_from_obj', text='Create Room From Obj')
 
 
+class PDTOOLS_PT_ImagePanel(Panel):
+    bl_label = "PD Image"
+    bl_idname = "PDTOOLS_PT_image_panel"
+    bl_space_type = 'IMAGE_EDITOR'
+    bl_region_type = 'UI'
+    bl_category = "Image"
+
+    @classmethod
+    def poll(cls, context):
+        # only show panel if an image is loaded
+        return context.space_data.image is not None
+
+    def draw(self, context):
+        layout = self.layout
+        image = context.space_data.image
+        props = image.pd_image
+
+        row = layout.split(factor=0.5)
+        row.label(text=f'Surface Type')
+        row.prop(props, 'surface_type', text='')
+
+        row = layout.split(factor=0.5)
+        row.label(text=f'Sound Type')
+        row.prop(props, 'sound_type', text='')
+
 classes = [
     PDTOOLS_PT_Portal,
     PDTOOLS_PT_Room,
     PDTOOLS_PT_RoomTools,
+    PDTOOLS_PT_ImagePanel,
 ]
 
 register, unregister = bpy.utils.register_classes_factory(classes)
