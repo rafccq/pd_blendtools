@@ -18,7 +18,7 @@ coord_as_u32 = lambda coord, f=ident: (as_u32(f(coord.x)), as_u32(f(coord.y)), a
 
 
 class Bbox:
-    MAX = 2**16 - 1
+    MAX = 2**15 - 1
     MIN = -(MAX+1)
 
     def __init__(self, xmin=MAX, xmax=MIN, ymin=MAX, ymax=MIN, zmin=MAX, zmax=MIN):
@@ -84,7 +84,7 @@ def portal_find_rooms(bl_portal):
 
     rooms_dist.sort(key=lambda e: e[1])
 
-    candidates = rooms_dist[:8]
+    candidates = rooms_dist
     closests = []
     for room_dist in candidates:
         room = room_dist[0]
@@ -119,13 +119,7 @@ def portal_find_rooms(bl_portal):
 
 def parent_room(bl_roomblock):
     if pdu.pdtype(bl_roomblock) != pdprops.PD_OBJTYPE_ROOMBLOCK: return None
-
-    bl_obj = bl_roomblock
-    while bl_obj:
-        if pdu.pdtype(bl_obj) == pdprops.PD_OBJTYPE_ROOM: return bl_obj
-        bl_obj = bl_obj.parent
-
-    return None
+    return bl_roomblock.pd_room.room
 
 def init_portal(bl_portal, name):
     bl_portal.show_wire = True
@@ -139,14 +133,20 @@ def init_portal(bl_portal, name):
 def new_room_with_block(bl_roomblock, layer, context):
     scn = context.scene
     roomnum = len(scn['rooms']) + 1
-    bl_roomblock.name = f'block 0 ({layer}) R{roomnum:02X}'
 
     bl_room = pdu.new_obj(f'Room_{roomnum:02X}', link=False, dsize=0.0001)
+    pdu.add_to_collection(bl_room, 'Rooms')
+
     bl_room.pd_obj.name = bl_room.name
     bl_room.pd_obj.type = pdprops.PD_OBJTYPE_ROOM
-    bl_room.pd_room.roomnum = roomnum
-    pdu.add_to_collection(bl_room, 'Rooms')
+
+    pd_room = bl_room.pd_room
+    pd_room.roomnum = roomnum
+    pd_room.room = bl_room
+    pd_room.first_opa = bl_roomblock
     bl_roomblock.parent = bl_room
+    bl_roomblock.name = blockname(roomnum, 0, pdprops.BLOCKTYPE_DL, 'opa')
+    roomblock_set_props(bl_roomblock, bl_room, roomnum, bl_room, 0, layer, pdprops.BLOCKTYPE_DL)
 
     scn['rooms'][str(roomnum)] = bl_room
     return bl_room
@@ -173,11 +173,6 @@ def new_room_from_faces(context):
     R = bl_roomsrc.matrix_world.to_3x3()
     bl_room.matrix_world = R @ bl_room.matrix_world
     bl_room.matrix_world.translation = bl_roomsrc.location + R @ center
-
-    # set the new roomblock as the only selection and enter edit mode
-    # bpy.ops.object.select_all(action='DESELECT')
-    # bpy.context.view_layer.objects.active = bl_roomblock_new
-    # bpy.ops.object.mode_set(mode='EDIT')
 
 def room_next_blocknum(bl_room):
     blocks = [b for b in bl_room.children]
@@ -415,8 +410,6 @@ def room_split_by_portal(bl_roomblock, bl_portal, context):
     # adjust the vertices so they're centered around the median
     verts = bl_roomblock_new.data.vertices
     center = pdu.verts_median(verts)
-    for v in verts:
-        v.co -= center
 
     bl_room = parent_room(bl_roomblock)
     bl_room_new = new_room_with_block(bl_roomblock_new, 'opa', context)
@@ -425,7 +418,6 @@ def room_split_by_portal(bl_roomblock, bl_portal, context):
     R = bl_room.matrix_world.copy()
     bl_room_new.matrix_world = R
     R.translation = (0,0,0)
-    bl_room_new.matrix_world.translation = bl_room.location + R @ center
 
     # update the portal with the new room
     d = bl_room_new.location - portal_pos
@@ -559,9 +551,8 @@ def roomblock_set_props(bl_roomblock, bl_rootobj, roomnum, bl_room, blocknum, la
     bl_roomblock.pd_room.parent = bl_roomblock.parent
 
     if bsp_pos:
-        R = mtx.rot_blender()
-        bl_roomblock.pd_room.bsp_pos = R @ Vector(bsp_pos)
-        bl_roomblock.pd_room.bsp_normal = R @ Vector(bsp_norm)
+        bl_roomblock.pd_room.bsp_pos = Vector(bsp_pos)
+        bl_roomblock.pd_room.bsp_normal = Vector(bsp_norm)
 
     if bl_rootobj and bl_rootobj.pd_room.child is None:
         bl_rootobj.pd_room.child = bl_roomblock
