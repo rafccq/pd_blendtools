@@ -152,7 +152,8 @@ def bg_colortiles(context):
     room = scn.pd_tile_hilight.room
 
     numaffected = 0
-    for bl_tile in bpy.data.collections['Tiles'].objects:
+    tiles = pdu.all_objects_in_collection('Tiles')
+    for bl_tile in tiles:
         numaffected += bg_colortile(bl_tile, context, flags, room)
 
     return numaffected
