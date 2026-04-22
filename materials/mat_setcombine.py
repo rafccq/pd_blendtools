@@ -180,12 +180,32 @@ def mat_setcombine_set(combiner, cmd):
         propval = pdu.item_from_value(items, value, -1)
         setattr(combiner, name, pdu.make_id(propval))
 
-def mat_setcombine_draw(combiner, layout, context):
+def combiner_params(mat):
+    params = {}
+
+    if mat.is_pd:
+        combiner = mat.pd_mat.combiner
+        if not combiner.set_combiner: return {}
+
+        params = {name: pdu.enum_value(combiner, name) for name in COMBINER_PARAMWIDTHS.keys()}
+    elif mat.is_f3d:
+        matf3d = mat.f3d_mat
+        if not matf3d.set_combiner: return {}
+
+        for name in COMBINER_PARAMWIDTHS.keys():
+            combiner = matf3d.combiner1 if '1' in name else matf3d.combiner2
+            src = name[len('combinerX_')].upper()
+            alpha = '_alpha' if 'alpha' in name else ''
+            params[name] = pdu.enum_value(combiner, f'{src}{alpha}')
+
+    return params
+
+def mat_setcombine_draw(mat, layout, context):
+    combiner = mat.pd_mat.combiner
     box = layout.box()
 
     draw_combiner(combiner, box, 1)
 
-    mat = context.material
     settings = mat.f3d_mat if mat.is_f3d else mat.pd_mat.othermodeH
     twocycles = settings.g_mdsft_cycletype == 'G_CYC_2CYCLE'
 
@@ -194,7 +214,8 @@ def mat_setcombine_draw(combiner, layout, context):
         draw_combiner(combiner, box, 2)
 
     row = layout.row()
-    cmd = combiner_command(combiner)
+    combparams = combiner_params(mat)
+    cmd = combiner_command(combparams)
     row.label(text=f'Command: {cmd:016X}')
 
 def draw_combiner(combiner, layout, cycle):

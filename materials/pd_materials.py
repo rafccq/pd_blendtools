@@ -665,26 +665,6 @@ def export_texconfig(texconfig, prev_texconfig):
     prevcmd = mat_texconfig_cmd(prev_texconfig)
     return cmd if cmd != prevcmd else 0
 
-def combiner_params(mat):
-    params = {}
-
-    if mat.is_pd:
-        combiner = mat.pd_mat.combiner
-        if not combiner.set_combiner: return {}
-
-        params = {name: pdu.enum_value(combiner, name) for name in COMBINER_PARAMWIDTHS.keys()}
-    elif mat.is_f3d:
-        matf3d = mat.f3d_mat
-        if not matf3d.set_combiner: return {}
-
-        for name in COMBINER_PARAMWIDTHS.keys():
-            combiner = matf3d.combiner1 if '1' in name else matf3d.combiner2
-            src = name[len('combinerX_')].upper()
-            alpha = '_alpha' if 'alpha' in name else ''
-            params[name] = pdu.enum_value(combiner, f'{src}{alpha}')
-
-    return params
-
 def export_combiner(mat, prev_mat):
     combiner = mat.pd_mat.combiner if mat.is_pd else mat.f3d_mat.combiner1
     set_combiner = combiner.set_combiner if mat.is_pd else mat.f3d_mat.set_combiner
