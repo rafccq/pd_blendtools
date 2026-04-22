@@ -641,10 +641,9 @@ def export_geo(geo, prev_geo):
     return cmd if cmd != prevcmd else 0
 
 def export_geoclear(geo, prev_geo):
-    if not prev_geo: return 0
-
     cmd = geo_command(geo)
-    prevcmd = geo_command(prev_geo)
+    # by default clear both CULL flags
+    prevcmd = geo_command(prev_geo) if prev_geo else 0x3000
     diff = (~cmd & prevcmd) & 0xffffffff
 
     return (0xb6 << 56) | diff if diff else 0
