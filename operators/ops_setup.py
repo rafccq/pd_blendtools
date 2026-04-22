@@ -2,14 +2,14 @@ import os
 import math
 
 import bpy
-from bpy.types import Operator
+from bpy.types import Operator, Object
 import bmesh
-from bpy.props import IntProperty, StringProperty, BoolProperty, EnumProperty
+from bpy.props import IntProperty, StringProperty, BoolProperty, EnumProperty, PointerProperty
 from bpy_extras import view3d_utils
 from mathutils import Vector
 import aud
 
-from pd_data.decl_setupfile import OBJTYPE_LINKLIFTDOOR
+from pd_data.decl_setupfile import OBJTYPE_LINKLIFTDOOR, OBJTYPE_MULTIAMMOCRATE
 from pd_data.pd_padsfile import *
 from pd_data import romdata as rom, pd_padsfile as pdpads
 from pd_import import setup_import as stpi
