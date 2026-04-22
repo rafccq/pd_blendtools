@@ -37,7 +37,7 @@ class MatTexConfig(PropertyGroup):
     tex_scale: bpy.props.FloatVectorProperty(
         name='tex_scale',
         min=0,
-        max=1,
+        max=1024,
         size=2,
         default=(1, 1),
         step=1,
@@ -74,18 +74,18 @@ def mat_texconfig_draw(texconfig, layout, context):
     prop_split(col, texconfig, 'tile_index', 'Tile Index')
     prop_split(col, texconfig, 'max_lods', 'Max LODs')
 
-def get_texscale(texconfig):
-    s = texconfig.tex_scale[0]
-    t = texconfig.tex_scale[1]
+def texscale_factor(texconfig):
+    if texconfig.scale_autoprop:
+        return 0xffff, 0xffff
 
-    s = int(texconfig.tex_scale[0] * 2 ** 16) if s != 1.0 else 0xffff
-    t = int(texconfig.tex_scale[1] * 2 ** 16) if t != 1.0 else 0xffff
-    return s, t
+    calc = lambda x: int((2**16 - x) / x)
+    s, t = texconfig.tex_scale
+    return calc(s), calc(t)
 
 def mat_texconfig_cmd(texconfig):
     if not texconfig: return 0
 
-    s, t = get_texscale(texconfig)
+    s, t = texscale_factor(texconfig)
     b = texconfig.tile_index | (texconfig.max_lods << 3)
     return (0xbb00 << 8*6) | (b << 8*5) | (1 << 8*4) | (s << 8*2) | t
 
@@ -142,16 +142,16 @@ def mat_texload_set(texload, cmd):
     tex0 = cmd & 0x0fff
 
     if tex0:
-        texload.tex0 = imglib[f'{tex0:04X}.png']
+        texload.tex0 = imglib[f'{tex0:04x}.png']
         texload.tex_set = True
 
     tex1 = (cmd >> 4*3) & 0xfff
     if tex1:
-        texload.tex1 = imglib[f'{tex1:04X}.png']
+        texload.tex1 = imglib[f'{tex1:04x}.png']
 
 def mat_settimg_set(texload, cmd):
     texnum = cmd & 0xffff
-    texname = f'{texnum:04X}.png'
+    texname = f'{texnum:04x}.png'
 
     imglib = bpy.data.images
 
@@ -177,6 +177,15 @@ def mat_texload_draw(texload, idx, layout, context):
     if idx == 1:
         prop_split(layout, texload, 'shift_s', 'Shift S')
         prop_split(layout, texload, 'shift_t', 'Shift T')
+
+def material_get_teximage(mat):
+    if mat.is_pd:
+        return mat.pd_mat.texload.tex0
+    elif mat.is_f3d:
+        return mat.f3d_mat.tex0.tex
+
+    print(f'WARNING: material_get_teximage() invalid material: {mat.name}')
+    return None
 
 def mat_tex_draw(pd_mat, layout, context):
     texload = pd_mat.texload
@@ -204,6 +213,18 @@ def mat_tex_draw(pd_mat, layout, context):
     box = col.box()
     mat_texconfig_draw(texconfig, box, context)
 
+    tex = pd_mat.texload.tex0
+    # image = material_get_teximage(pd_mat)
+    box = col.box()
+    row = box.split(factor=0.5)
+    row.label(text=f'Surface Type')
+    row.prop(tex.pd_image, 'surface_type', text='')
+
+    row = box.split(factor=0.5)
+    row.label(text=f'Sound Type')
+    row.prop(tex.pd_image, 'sound_type', text='')
+
+
 def get_texnums(mat):
     if not(mat.is_pd or mat.is_f3d): return 0, 0
 
@@ -215,7 +236,11 @@ def get_texnums(mat):
         texlist = [f3dmat.tex0.tex, f3dmat.tex1.tex]
 
     scn = bpy.context.scene
-    lookup = lambda idx: scn['map_texids'][texlist[idx].name] if scn.remap_texids else int(pdu.filename(texlist[idx].name), 16)
+    if texlist[0].name not in scn['map_texids'] and scn.remap_texids:
+        print(f"ERROR Tex not mapped: '{texlist[0].name}'")
+
+    texmap = scn['map_texids']
+    lookup = lambda idx: texmap[texlist[idx].name] if scn.remap_texids and texlist[idx].name in texmap else int(pdu.filename(texlist[idx].name), 16)
     id = lambda idx: lookup(idx) if texlist[idx] else 0
 
     return id(0), id(1)
