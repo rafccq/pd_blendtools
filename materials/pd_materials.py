@@ -27,6 +27,9 @@ MAT_BLENDFILE_3X = 'pd_materials_v3_x.blend'
 PORTAL_MAT = 'PD_PortalMat'
 WAYPOINT_MAT = 'PD_WaypointMat'
 COVER_MAT = 'PD_CoverMat'
+PATH_MAT = 'PD_PathMat'
+
+TEXMAP = 'map_texids'
 
 class PDMaterialCommands:
     def __init__(self):
@@ -570,6 +573,15 @@ def material_get_teximage(mat):
     print(f'WARNING: material_get_teximage() invalid material: {mat.name}')
     return None
 
+def material_get_texconfig(mat):
+    if mat.is_pd:
+        return mat.pd_mat.texconfig
+    elif mat.is_f3d:
+        return mat.f3d_mat
+
+    print(f'WARNING: material_get_texscale() invalid material: {mat.name}')
+    return None
+
 def material_has_lighting(mat):
     if mat.is_pd:
         return mat.pd_mat.geomode.g_lighting
@@ -757,6 +769,9 @@ def portal_material():
 def waypoint_material():
     return create_basic_material(WAYPOINT_MAT, (0.0, 0.8, 0.0, 1.0), 1.0)
 
+def path_material():
+    return create_basic_material(PATH_MAT, (0.8, 0.8, 0.0, 1.0), 1.0)
+
 def cover_material():
     return create_basic_material(COVER_MAT, (0.8, 0.0, 0.0, 1.0), 1.0)
 
@@ -787,8 +802,8 @@ def mat_convert_to_pd(mat, name, idx, matmap):
         return None
 
     img = node_img.image
-    if img.name in matmap:
-        return matmap[img.name]
+    if img.filepath in matmap:
+        return matmap[img.filepath]
 
     # setup a material with default commands
     matcmds = PDMaterialCommands()
@@ -820,7 +835,7 @@ def mat_convert_to_pd(mat, name, idx, matmap):
 
 def mat_create_img_map():
     '''
-    Creates a map {imgname -> material} for all materials in the library
+    Creates a map {img.filepath -> material} for all materials in the library
     '''
     matmap = {}
     for mat in bpy.data.materials:
@@ -828,7 +843,7 @@ def mat_create_img_map():
 
         nodeimg = mat_node_by_type(mat, bpy.types.ShaderNodeTexImage)
         if not nodeimg: continue
-        matmap[nodeimg.image.name] = mat
+        matmap[nodeimg.image.filepath] = mat
 
     return matmap
 
@@ -855,26 +870,38 @@ def get_tex(mat):
         f3dmat = mat.f3d_mat
         return f3dmat.tex0.tex, f3dmat.tex1.tex
 
-def create_texid_map(start_id):
+def update_texid_map(tex_ids, start_id):
     '''
     Creates a map {texname -> texid}
     This function is called before export, to map the material texture names to an ID
     '''
-    tex_ids = {}
+    id = start_id
     for mat in bpy.data.materials:
         if not (mat.is_pd or mat.is_f3d): continue
 
+        # print(f'[{mat.name}]')
         tex0, tex1 = get_tex(mat)
-        if tex0 and tex0.name not in tex_ids:
-            tex_ids[tex0.name] = start_id
-            start_id += 1
+        if tex0 and tex0.name not in tex_ids and tex0.users > 0 and not tex0.name.startswith('0'):
+            # print(f'  t0 {tex0.name} {id:04X}')
+            tex_ids[tex0.name] = id
+            id += 1
 
-        if tex1 and tex1.name not in tex_ids:
-            tex_ids[tex1.name] = start_id
+        if tex1 and tex1.name not in tex_ids and tex1.users > 0:
+            # print(f'  t1 {tex1.name} {id:04X}')
+            tex_ids[tex1.name] = id
             start_id += 1
 
     scn = bpy.context.scene
-    scn['map_texids'] = tex_ids
+
+def create_texid_map(start_id, reset=False):
+    scn = bpy.context.scene
+    map_exists = TEXMAP in scn and len(scn[TEXMAP])
+    if reset or not map_exists:
+        scn[TEXMAP] = {}
+    else:
+        start_id = max(id for id in scn[TEXMAP].values()) + 1
+
+    update_texid_map(scn[TEXMAP], start_id)
 
 def export_tex(path):
     '''
@@ -884,11 +911,55 @@ def export_tex(path):
     imglib = bpy.data.images
 
     scn = bpy.context.scene
-    tex_ids = scn['map_texids']
+    tex_ids = scn[TEXMAP]
+    to_remove = []
+    num_exp = 0
     for name, id in tex_ids.items():
+        if name not in imglib:
+            to_remove.append(name)
+            print(f'[{name} not found, will remove]')
+            continue
+
+        if name.startswith('0'):
+            print(f'[skipping {name}]')
+            continue
+
         img = imglib[name]
+        if img.users == 0: continue
 
         filename = osp.basename(img.filepath)
         ext = filename.split('.')[-1]
         imgpath = bpy.path.abspath(img.filepath)
         shutil.copy(imgpath, f'{path}/{id:04x}.{ext}')
+        print(f'{img.filepath} -> {id:04x} ({img.name})')
+        num_exp += 1
+
+    for name in to_remove:
+        del tex_ids[name]
+
+    # print(f"{len(tex_ids) - len(to_remove)} images exported, {len(to_remove)} removed")
+    print(f"{num_exp} images exported, {len(to_remove)} removed")
+    print('-'*8)
+
+def obj_texs(ob, texlist):
+    if not ob.data: return
+
+    for mat in ob.data.materials:
+        if not (mat.is_pd or not mat.is_f3d): continue
+
+        img = material_get_teximage(mat)
+        # print(' ', mat.name, img)
+        if not img or img.name in texlist: continue
+
+        texlist.append(img.name)
+
+def test_tex():
+    rooms = pdu.all_objects_in_collection('Rooms')
+    texlist = []
+    for room in rooms:
+        obj_texs(room, texlist)
+
+    for tex in texlist:
+        print(tex)
+
+    print('TOTAL:', len(texlist))
