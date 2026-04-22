@@ -362,7 +362,7 @@ def mat_presetcombine(mat):
 
 def material_settimg(mat, cmd):
     texnum = cmd & 0xffff
-    texname = f'{texnum:04X}.png'
+    texname = f'{texnum:04x}.png'
 
     imglib = bpy.data.images
 
@@ -474,7 +474,7 @@ def material_new(matcmds, use_alpha, name):
 
     if matcmds.texnum:
         texnum = matcmds.texnum & 0xffff
-        node_tex.image = imglib[f'{texnum:04X}.png']
+        node_tex.image = imglib[f'{texnum:04x}.png']
     elif matcmds.texname:
         node_tex.image = imglib[matcmds.texname]
 

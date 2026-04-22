@@ -408,7 +408,6 @@ def gdl_read_data(pdmeshdata, apply_mtx, layer=MeshLayer.OPA):
 
 def create_model_mesh(idx, meshdata, tex_configs, apply_mtx, matcache):
     *gdldatas, model_mtxs = gdl_read_data(meshdata, apply_mtx)
-    n_submeshes = len(gdldatas)
     mesh_objs = []
     for sub_idx, gdldata in enumerate(gdldatas):
         if not gdldata: continue
@@ -507,7 +506,8 @@ def import_model(romdata, matcache, asset_type, modelname=None, filename=None):
     apply_mtx = name[0] != 'P' or name in props_with_mtx
     meshes = create_model_meshes(model, name, apply_mtx, asset_type, matcache)
 
-    if len(meshes) > 1:
+    # when importing models for editing, always create a hierarchy
+    if asset_type == ASSET_TYPE_MODEL or len(meshes) > 1:
         model_obj = pdu.new_empty_obj(name, link=False)
         for mesh in meshes:
             mesh.parent = model_obj
@@ -538,7 +538,7 @@ def loadimages_embedded(model):
         teximg.height = h
         teximg.depth = d
 
-        imgname = f'{texnum & 0xffffff:04X}.png'
+        imgname = f'{texnum & 0xffffff:04x}.png'
 
         if imgname not in imglib:
             texdata = model.texdata[texnum].bytes
@@ -554,7 +554,7 @@ def loadimages_embedded(model):
 
 def loadimage(texdata, tex_path, texnum):
     imglib = bpy.data.images
-    imgname = f'{texnum & 0xffffff:04X}.png'
+    imgname = f'{texnum & 0xffff:04x}.png'
     texture = tex.tex_load(texdata, tex_path, imgname)
     img = imglib.load(f'{tex_path}/{imgname}')
 
@@ -572,7 +572,6 @@ def loadimages_external(path, texlist):
     for filename in glob.iglob(f'{path}/*.bin'):
         basename = os.path.basename(filename).split('.')[0]
         texnum = int(basename, 16)
-        if texnum not in texlist: continue
 
         texdata = pdu.read_file(filename, autodecomp=False)
         loadimage(texdata, tex_path, texnum)
@@ -582,16 +581,19 @@ def loadimages(romdata, texnums):
     tex_path = pdu.tex_path()
 
     for texnum in texnums:
-        if texnum & 0x05000000 or texnum > 3503: continue #TODO temp hack
+        # skip embedded
+        if texnum & 0x05000000: continue
 
-        imgname = f'{texnum & 0xffffff:04X}.png'
+        imgname = f'{texnum & 0xffffff:04x}.png'
 
         if imgname not in imglib:
             if texnum <= 3503: #TODO temp hack
                 texdata = romdata.texturedata(texnum)
                 loadimage(texdata, tex_path, texnum)
+                # print(f'  tex {texnum:02x} loaded')
             else:
                 img = imglib.load(f'{tex_path}/{imgname}')
+                # print(f'  tex {texnum:02x} loaded')
 
 def loadmodeldata(romdata, modelname=None, filename=None):
     modeldata = pdu.read_file(filename) if filename else romdata.filedata(modelname)
