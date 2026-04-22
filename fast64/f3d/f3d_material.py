@@ -3512,6 +3512,11 @@ class RDPSettings(PropertyGroup):
     )
 
     # lower half mode
+    lower_en: bpy.props.BoolProperty(
+        name='lower_en',
+        default=False,
+        description='Enabled')
+
     g_mdsft_alpha_compare: bpy.props.EnumProperty(
         name="Alpha Compare",
         items=enumAlphaCompare,

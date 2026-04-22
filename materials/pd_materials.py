@@ -188,7 +188,7 @@ class PDMaterialPanel(Panel):
         layout.row().prop(pd_mat, "menu_tab", expand=True)
 
         if pd_mat.menu_tab == 'Combiner':
-            mat_setcombine_draw(pd_mat.combiner, layout, context)
+            mat_setcombine_draw(material, layout, context)
         elif pd_mat.menu_tab == 'Geo':
             matgeo_draw(pd_mat.geomode, layout, context)
         elif pd_mat.menu_tab == 'Sources':
@@ -401,6 +401,7 @@ def material_create_f3d(bl_obj, matcmds, name):
             material_othermodeH(matf3d, cmd)
         elif op == G_SetOtherMode_L:
             material_othermodeL(matf3d, cmd)
+            matf3d.rdp_settings.lower_en = len(matcmds.othermodeL) > 0
         elif op == G_SETCOMBINE:
             material_setcombine(matf3d, cmd)
         elif op == G_PDTEX:
@@ -502,6 +503,8 @@ def material_setup_props(mat, matcmds):
 
     for cmd in matcmds.othermodeL.values():
         mat_othermodeL_set(pd_mat.othermodeL, cmd)
+
+    pd_mat.othermodeL.lower_en = len(matcmds.othermodeL) > 0
 
     for cmd in matcmds.othermodeH.values():
         mat_othermodeH_set(pd_mat.othermodeH, cmd)
@@ -678,6 +681,8 @@ def export_combiner(mat, prev_mat):
     return cmd if cmd != prevcmd else 0
 
 def export_othermodeL(othermodeL, prev_othermodeL):
+    if not othermodeL.lower_en: return []
+
     cmds = []
     # export alphacompare and zsource modes
     for modename, _, mode in LOWER_MODES[:2]:

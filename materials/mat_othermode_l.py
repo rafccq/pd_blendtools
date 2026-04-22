@@ -154,6 +154,8 @@ class MatOtherModeL(PropertyGroup):
 
     num_cycles: IntProperty(name='num_cycles', default=1)
 
+    lower_en: BoolProperty(name='lower_en', default=False, description='Enabled')
+
 
 def mat_othermodeL_set(mat_othermodeL, cmd):
     mode = (cmd & 0xff0000000000) >> 40
@@ -221,7 +223,9 @@ def enum_val(item, enum, idx):
     return -1
 
 def mat_othermodeL_draw(othermodeL, layout, context):
+    layout.prop(othermodeL, 'lower_en', text="Enabled")
     col: UILayout = layout.column(align=True)
+    col.enabled = othermodeL.lower_en
     prop_split(col, othermodeL, "g_mdsft_alpha_compare", "Alpha Compare")
     prop_split(col, othermodeL, "g_mdsft_zsrcsel", "Z Source Selection")
 
