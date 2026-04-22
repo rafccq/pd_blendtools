@@ -1,5 +1,6 @@
 import hashlib
 import shutil
+import time
 import os.path as osp
 
 import bpy
@@ -13,6 +14,7 @@ from materials.mat_othermode_l import *
 from materials.mat_tex import *
 
 from pd_data.gbi import *
+from pd_data import texload as texld
 from utils import pd_utils as pdu
 
 from fast64 import f3d
@@ -903,63 +905,75 @@ def create_texid_map(start_id, reset=False):
 
     update_texid_map(scn[TEXMAP], start_id)
 
-def export_tex(path):
-    '''
-    Save the texture images to the export folder, naming them according to the ID
-    '''
-
-    imglib = bpy.data.images
-
-    scn = bpy.context.scene
-    tex_ids = scn[TEXMAP]
-    to_remove = []
-    num_exp = 0
-    for name, id in tex_ids.items():
-        if name not in imglib:
-            to_remove.append(name)
-            print(f'[{name} not found, will remove]')
-            continue
-
-        if name.startswith('0'):
-            print(f'[skipping {name}]')
-            continue
-
-        img = imglib[name]
-        if img.users == 0: continue
-
-        filename = osp.basename(img.filepath)
-        ext = filename.split('.')[-1]
-        imgpath = bpy.path.abspath(img.filepath)
-        shutil.copy(imgpath, f'{path}/{id:04x}.{ext}')
-        print(f'{img.filepath} -> {id:04x} ({img.name})')
-        num_exp += 1
-
-    for name in to_remove:
-        del tex_ids[name]
-
-    # print(f"{len(tex_ids) - len(to_remove)} images exported, {len(to_remove)} removed")
-    print(f"{num_exp} images exported, {len(to_remove)} removed")
-    print('-'*8)
-
-def obj_texs(ob, texlist):
+def obj_textures(ob, texlist):
     if not ob.data: return
 
     for mat in ob.data.materials:
         if not (mat.is_pd or not mat.is_f3d): continue
 
         img = material_get_teximage(mat)
-        # print(' ', mat.name, img)
         if not img or img.name in texlist: continue
 
         texlist.append(img.name)
 
-def test_tex():
-    rooms = pdu.all_objects_in_collection('Rooms')
+def rooms_textures():
     texlist = []
+    rooms = pdu.all_objects_in_collection('Rooms')
+
     for room in rooms:
-        obj_texs(room, texlist)
+        obj_textures(room, texlist)
 
-    for tex in texlist:
-        print(tex)
+    return texlist
 
-    print('TOTAL:', len(texlist))
+def export_textures(path, flip=True):
+    '''
+    # Saves the texture images to the export folder, naming them according to the ID
+    '''
+
+    t0 = time.time()
+    texlist = rooms_textures()
+    texmap = bpy.context.scene[TEXMAP]
+    imglib = bpy.data.images
+
+    to_remove = []
+    num_exp = 0
+    n = len(texmap)
+
+    for name in texlist:
+        if name not in texmap: continue
+
+        if name not in imglib:
+            to_remove.append(name)
+            print(f'[{name} not found, will remove]')
+            continue
+
+        id = texmap[name]
+        img = bpy.data.images[name]
+
+        if img.users == 0:
+            to_remove.append(name)
+            print(f'[{name} is unused, will remove]')
+            continue
+
+        imgcopy = img.copy()
+        imgcopy.update() # to update the copy's buffer content
+
+        filename = osp.basename(img.filepath)
+        ext = filename.split('.')[-1]
+        srcpath = bpy.path.abspath(imgcopy.filepath)
+
+        print(f'{num_exp+1:03d}/{n} {img.name} {id:04x}')
+
+        if flip:
+            texld.flip(imgcopy)
+
+        imgcopy.save(filepath=f'{path}/{id:04x}.{ext}')
+        bpy.data.images.remove(imgcopy)
+
+        num_exp += 1
+
+    for name in to_remove:
+        del texmap[name]
+
+    print(f'{num_exp} textures exported to {path}')
+    print(f'Time: {time.time() - t0:.1f}s')

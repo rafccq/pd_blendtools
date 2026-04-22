@@ -1,3 +1,5 @@
+import numpy as np
+
 from utils import pd_utils as pdu
 from data.bitreader import BitReader
 from .gbi import *
@@ -650,6 +652,27 @@ def tex_config_to_format(fmt, depth):
             return PDFORMAT_RGBA32
 
     return PDFORMAT_I8
+
+
+def flip(image):
+    """Flip image vertically using numpy"""
+
+    width = image.size[0]
+    height = image.size[1]
+    channels = image.channels
+
+    # Get pixels as numpy array
+    pixels = np.array(image.pixels[:])
+
+    # Reshape to image dimensions
+    pixels = pixels.reshape((height, width, channels))
+
+    # Flip vertically
+    pixels = np.flipud(pixels)
+
+    # Flatten and update image
+    image.pixels = pixels.flatten()
+    image.update()
 
 def tex_write_image(outdir, tex, filename):
     colbuffer = bytearray()
