@@ -263,6 +263,10 @@ def select(item, idx):
     elif item == 'face':
         bm.faces.ensure_lookup_table()
         bm.faces[idx].select = True
+    elif item == 'edge':
+        bm.edges.ensure_lookup_table()
+        bm.edges[idx].select = True
+        print('selected')
     else:
         print('invalid item:', item)
 
