@@ -705,8 +705,11 @@ def make_dir_bgdata(filename):
 
     return f'{bgdata}{path.name}'
 
-def pos_to_lhs(pos):
-    return Vector((pos.x, -pos.z, pos.y))
+def to_lhs(x, y, z):
+    return (x, -z, y)
+
+def vec_to_lhs(v):
+    return Vector((v.x, -v.z, v.y))
 
 def obj_pos_to_lhs(bl_obj):
-    bl_obj.location = pos_to_lhs(bl_obj.location)
+    bl_obj.location = vec_to_lhs(bl_obj.location)

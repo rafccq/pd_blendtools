@@ -381,7 +381,7 @@ def gdl_read_data(pdmeshdata, apply_mtx, layer=MeshLayer.OPA):
             col_data = coldata[col_addr:]
             vertlist = []
             for i, v in enumerate(verts[vstart:vstart+nverts]):
-                vpos = (v[0] + pos[0], v[1] + pos[1], v[2] + pos[2])
+                vpos = pdu.to_lhs(v[0] + pos[0], v[1] + pos[1], v[2] + pos[2])
 
                 uv = (v[3], v[4])
                 coloridx = v[5]
