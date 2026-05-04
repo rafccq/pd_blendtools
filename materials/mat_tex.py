@@ -8,6 +8,10 @@ from utils import pd_utils as pdu
 
 from fast64.utility import prop_split, get_material_from_context
 
+# extended textures have UVs scaled
+EXT_TEX_UV_SCALE = 16
+MAX_TEXTURES_PD = 3503
+
 
 class MatSetTImage(PropertyGroup):
     def init(self, _context):
@@ -224,6 +228,18 @@ def mat_tex_draw(pd_mat, layout, context):
     row.label(text=f'Sound Type')
     row.prop(tex.pd_image, 'sound_type', text='')
 
+def tex_id(image):
+    scn = bpy.context.scene
+
+    name = image.name
+    if not scn.remap_texids:
+        return int(pdu.filename(name), 16)
+
+    if name not in texmap:
+        print(f'WARNING: no ID for tex {name}')
+        return 0
+
+    return texmap[name]
 
 def get_texnums(mat):
     if not(mat.is_pd or mat.is_f3d): return 0, 0
@@ -240,8 +256,7 @@ def get_texnums(mat):
         print(f"ERROR Tex not mapped: '{texlist[0].name}'")
 
     texmap = scn['map_texids']
-    lookup = lambda idx: texmap[texlist[idx].name] if scn.remap_texids and texlist[idx].name in texmap else int(pdu.filename(texlist[idx].name), 16)
-    id = lambda idx: lookup(idx) if texlist[idx] else 0
+    id = lambda idx: tex_id(texlist[idx]) if texlist[idx] else 0
 
     return id(0), id(1)
 

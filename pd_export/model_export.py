@@ -9,6 +9,7 @@ from pd_data.pd_model import PD_ModelFile
 from ui import mtxpalette as mtxp
 from pd_data import romdata as rom
 from materials import pd_materials as pdm
+from materials import mat_tex as mtex
 
 
 def update_log():
@@ -30,7 +31,10 @@ def coord_to_bytes(coord):
     return [round(ci).to_bytes(2, 'big', signed=True) for ci in coord]
 
 def uv_to_bytes(uv, texsize):
-    return [round(32*uvi*ti).to_bytes(2,'big',signed=True) for (uvi, ti) in zip(uv, texsize)]
+    return [round(32*uvi*ti).to_bytes(2, 'big', signed=True) for (uvi, ti) in zip(uv, texsize)]
+
+def uv_to_bytes_ext(uv, scale):
+    return [round(32*uvi*scale).to_bytes(2, 'big', signed=True) for uvi in uv]
 
 # returns an array of (v.position, v.color/normal, v.uv_coords, v.mtx)
 # normals are mapped from -1.0:1.0 to -128:127 (s8)
@@ -203,7 +207,7 @@ class TriBatch:
         self.vtxdata = vtxdata
         self.color_indices = colorindices
 
-    def vtx_bytes(self, texsize, matrices=None, bbox=None):
+    def vtx_bytes(self, texsize, texscale, tex_extended, matrices=None, bbox=None):
         if not self.colors: self.build_color_indices()
 
         vtxdata = bytearray()
@@ -218,7 +222,7 @@ class TriBatch:
             vtxbytes += coord_to_bytes(vpos)
             vtxbytes += [b'\x00'] # flag
             vtxbytes += [self.color_indices[v].to_bytes(1, 'big')]
-            vtxbytes += uv_to_bytes(uvcoord, texsize)
+            vtxbytes += uv_to_bytes_ext(uvcoord, mtex.EXT_TEX_UV_SCALE) if tex_extended else uv_to_bytes(uvcoord, texsize)
 
             if bbox: bbox.update(vpos)
 
@@ -350,7 +354,7 @@ def mesh_to_gdl(mesh, vtx_start, nverts, segment_vtx, segment_col, is_model=Fals
     gdlbytes = pdm.cmd_G_RDPPIPESYNC()
 
     for batch in mesh.batches:
-        batch.vtx_start = 0 if ismodel else vtx_start
+        batch.vtx_start = 0 if is_model else vtx_start
         batch.color_start = 0
 
     gdlbytes += create_gdl(mesh, segment_vtx, segment_col)
@@ -471,8 +475,13 @@ def export_model(model_obj, filename):
                 else:
                     print(f'WARNING: material has no texture. Mesh{mesh.name} mat {mat.name}')
 
+                id = mtex.tex_id(image) if image else 0
+                tex_extended = id > mtex.MAX_TEXTURES_PD
+
+                texconfig = pdm.material_get_texconfig(mat)
+                texscale = texconfig.tex_scale
                 mtxs = model.matrices if apply_mtx else None
-                vtxdata += batch.vtx_bytes(texsize, mtxs)
+                vtxdata += batch.vtx_bytes(texsize, texscale, mtxs, tex_extended)
                 colordata += batch.color_bytes()
 
         model.replace_vtxdata(idx, vtxdata)

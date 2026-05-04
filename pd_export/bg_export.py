@@ -15,6 +15,7 @@ from data.datablock import DataBlock
 from data.bytestream import ByteStream, add_padding
 import pd_mtx as mtx
 from materials import pd_materials as pdm
+from materials import mat_tex as mtex
 import pd_blendprops as pdprops
 
 
@@ -196,9 +197,12 @@ def export_roomGDL(roomblocks):
             else:
                 print(f'WARNING: material has no texture. Mesh {mesh.name} mat {mat.name}')
 
+            id = mtex.tex_id(image) if image else 0
+            tex_extended = id > mtex.MAX_TEXTURES_PD
+
             texconfig = pdm.material_get_texconfig(mat)
             texscale = texconfig.tex_scale
-            vtxdata += batch.vtx_bytes(texsize, texscale, bbox=bbox)
+            vtxdata += batch.vtx_bytes(texsize, texscale, tex_extended, bbox=bbox)
             colordata += batch.color_bytes()
             nverts_batches += batch.nverts()
 
