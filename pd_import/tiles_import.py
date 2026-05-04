@@ -87,7 +87,7 @@ def tiles_import(romdata, tilenum, count):
             verts = []
             for v in range(0, numvtx * 3, 3):
                 x, y, z = [int16(geoverts[v+k]) for k in range(3)]
-                verts.append((z, x, y))
+                verts.append((x, -z, y))
 
             basename = f'Tile_{tilenum:02X}'
             tilemesh = pdu.mesh_from_verts(verts, f'{basename}_mesh', triangulate=False)
