@@ -65,11 +65,16 @@ def vtx_data(mesh, bm):
 
         if len(loops) == 0:
             print(f'v {v.index} SKIPPED (no geometry)')
+            logger.debug(f'v {v.index} SKIPPED (no geometry)')
             continue
 
         # face index -> uv coords
         uvs = {l.face.index: (l[uv_layer].uv[0], l[uv_layer].uv[1]) for l in loops}
         colornorms = {} # face index -> color or normal coords
+
+        for face, uv in uvs.items():
+            if uv[0] > 50 or uv[1] > 50:
+                print('  LARGE_UV', uv, 'f', face)
 
         mat_idx = loops[0].face.material_index
         mat = mesh.materials[mat_idx]
@@ -93,7 +98,8 @@ def vtx_data(mesh, bm):
             mtx = mtxp.color2mtx(mtxcol)
 
         co = v.co
-        data = ((co.x, co.y, co.z), colornorms, uvs, mtx)
+        data = ((co.x, co.z, -co.y), colornorms, uvs, mtx)
+        # logger.debug(f'[v {idx}] {data}')
         vtxdata.append(data)
 
     return vtxdata
@@ -338,17 +344,14 @@ def build_meshmap(obj):
 
     return meshmap
 
-def mesh_to_gdl(mesh, vtx_start, nverts, segment_vtx, segment_col):
-    # print(f'meshes: {meshes} {len(meshes)}')
+def mesh_to_gdl(mesh, vtx_start, nverts, segment_vtx, segment_col, is_model=False):
     if not mesh: return None
-
-    color_start = pdu.align(vtx_start + nverts * 12, 8) if vtx_start else  0
 
     gdlbytes = pdm.cmd_G_RDPPIPESYNC()
 
     for batch in mesh.batches:
-        batch.vtx_start = vtx_start
-        batch.color_start = color_start
+        batch.vtx_start = 0 if ismodel else vtx_start
+        batch.color_start = 0
 
     gdlbytes += create_gdl(mesh, segment_vtx, segment_col)
     gdlbytes += pdm.cmd_G_END()
@@ -489,11 +492,11 @@ def export_model(model_obj, filename):
         mesh_opa = meshes[0]
         mesh_xlu = meshes[1] if multiple else None
 
-        vtx_start = rodata['vertices']
+        vtx_start = rodata['vertices'] & 0xffffff
 
         nverts = rodata['numvertices'] if nodetype in [0x04, 0x18] else rodata['unk00'] * 4
-        gdlbytes_opa = mesh_to_gdl(mesh_opa, vtx_start, nverts, 0x5, 0x5)
-        gdlbytes_xlu = mesh_to_gdl(mesh_xlu, vtx_start, nverts, 0x5, 0x5)
+        gdlbytes_opa = mesh_to_gdl(mesh_opa, vtx_start, nverts, 0x4, 0x6, True)
+        gdlbytes_xlu = mesh_to_gdl(mesh_xlu, vtx_start, nverts, 0x4, 0x6, True)
 
         opa = 'opagdl' if nodetype in [0x04, 0x18] else 'gdl'
         xlu = 'xlugdl'
