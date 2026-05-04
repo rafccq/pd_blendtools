@@ -916,22 +916,22 @@ def obj_textures(ob, texlist):
 
         texlist.append(img.name)
 
-def rooms_textures():
+def textures_list(coll):
     texlist = []
-    rooms = pdu.all_objects_in_collection('Rooms')
+    rooms = pdu.all_objects_in_collection(coll)
 
     for room in rooms:
         obj_textures(room, texlist)
 
     return texlist
 
-def export_textures(path, flip=True):
+def export_textures(path, coll, flip=True):
     '''
     # Saves the texture images to the export folder, naming them according to the ID
     '''
 
     t0 = time.time()
-    texlist = rooms_textures()
+    texlist = textures_list(coll)
     texmap = bpy.context.scene[TEXMAP]
     imglib = bpy.data.images
 

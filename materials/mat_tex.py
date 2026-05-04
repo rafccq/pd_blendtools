@@ -236,7 +236,7 @@ def get_texnums(mat):
         texlist = [f3dmat.tex0.tex, f3dmat.tex1.tex]
 
     scn = bpy.context.scene
-    if texlist[0].name not in scn['map_texids'] and scn.remap_texids:
+    if scn.remap_texids and texlist[0].name not in scn['map_texids']:
         print(f"ERROR Tex not mapped: '{texlist[0].name}'")
 
     texmap = scn['map_texids']
