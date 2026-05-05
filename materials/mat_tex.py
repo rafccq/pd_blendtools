@@ -235,6 +235,7 @@ def tex_id(image):
     if not scn.remap_texids:
         return int(pdu.filename(name), 16)
 
+    texmap = scn['map_texids']
     if name not in texmap:
         print(f'WARNING: no ID for tex {name}')
         return 0
