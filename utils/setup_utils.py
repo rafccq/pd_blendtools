@@ -10,10 +10,12 @@ from pd_import import model_import as mdi
 from pd_data import romdata as rom, pd_padsfile as pdp
 
 
-def obj_setup_mtx(obj, look, up, pos, rotation=None, scale=None, flags=None, bbox=None):
-    conv = pdu.pos_to_lhs
+def obj_setup_mtx(obj, look, up, pos, rotation=None, scale=None, flags=None, bbox=None, conv_hand=True):
+    conv = pdu.vec_to_lhs if conv_hand else lambda p: p
 
-    look = conv(-look)
+    if conv_hand:
+        look = conv(-look)
+
     up = conv(up)
 
     side = look.cross(up).normalized()
@@ -67,7 +69,8 @@ def obj_setup_mtx(obj, look, up, pos, rotation=None, scale=None, flags=None, bbo
 
     obj.matrix_world = M @ T
     obj.matrix_world.translation = newpos
-    pdu.obj_pos_to_lhs(obj)
+    if conv_hand:
+        pdu.obj_pos_to_lhs(obj)
 
 def obj_getscale(modelscale, padbbox, bbox, flags):
     sx = sy = sz = 1.0

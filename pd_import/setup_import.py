@@ -477,14 +477,14 @@ def import_intro(introcmds, paddata):
         pad = paddata.pad_unpack(padnum, PADFIELD_POS | PADFIELD_LOOK | PADFIELD_UP)
         create_intro_obj(name, pad, padnum, pdtype, case_set=case_set)
 
-def create_intro_obj(name, pad, padnum, objtype, sc=16, case_set=None):
+def create_intro_obj(name, pad, padnum, objtype, sc=16, case_set=None, conv=True):
     meshname = name.lower()
     name = f'{name}_{padnum:02X}'
     intro_obj = tmesh.create_mesh(name, meshname)
     intro_obj.show_wire = True
     collection = pdu.new_collection('Intro')
     collection.objects.link(intro_obj)
-    stu.obj_setup_mtx(intro_obj, Vector(pad.look), Vector(pad.up), pad.pos, scale = pdp.Vec3(sc, sc, sc))
+    stu.obj_setup_mtx(intro_obj, Vector(pad.look), Vector(pad.up), pad.pos, scale = pdp.Vec3(sc, sc, sc), conv_hand=conv)
 
     intro_obj.pd_obj.type = objtype
     intro_obj.pd_intro.type = objtype
