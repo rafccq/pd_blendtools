@@ -621,9 +621,7 @@ class PDTOOLS_OT_SetupObjectCreate(Operator):
     created_objs = []
 
     def get_objs(self):
-        lib = bpy.data.collections[coll].objects
-        objlist = lambda coll: [obj for obj in lib if obj.data and not obj.hide_render]
-
+        objlist = lambda coll: [obj for obj in bpy.data.collections[coll].objects if obj.data and not obj.hide_render]
         return objlist('Rooms') + objlist('Props')
 
     def raycast(self, context, event):
@@ -631,6 +629,7 @@ class PDTOOLS_OT_SetupObjectCreate(Operator):
         region = context.region
         rv3d = context.region_data
         coord = event.mouse_region_x, event.mouse_region_y
+        sel_type = scn['pd_obj_type']
 
         # get the ray from the viewport and mouse
         view_vector = view3d_utils.region_2d_to_vector_3d(region, rv3d, coord)
@@ -640,12 +639,14 @@ class PDTOOLS_OT_SetupObjectCreate(Operator):
 
         best_length_squared = -1.0
         picked_obj = None
-        hit_pos = None
+        hitpos = None
 
-        coll = bpy.data.collections['Rooms']
-        for obj in coll.objects:
-            if obj.pd_obj.type != pdprops.PD_OBJTYPE_ROOMBLOCK: continue
-            if obj.pd_room.blocktype == pdprops.BLOCKTYPE_BSP: continue
+        objs = self.get_objs()
+        for obj in objs:
+            # if not obj.data: continue
+            if sel_type != pdprops.PD_PROP_TAG:
+                if obj.pd_obj.type != pdprops.PD_OBJTYPE_ROOMBLOCK: continue
+                # if obj.pd_room.blocktype == pdprops.BLOCKTYPE_BSP: continue
 
             M = obj.matrix_world
             hit, normal, face_index = pdu.obj_ray_cast(obj, M, ray_origin, ray_target)
@@ -685,9 +686,9 @@ class PDTOOLS_OT_SetupObjectCreate(Operator):
 
         bpy.context.view_layer.objects.active = None
 
-        pos = Vec3(pos.y, pos.z, pos.x)
+        pos = Vec3(pos.x, pos.y, pos.z)
         bbox = Bbox(-10, 10, -10, 10, -10, 10)
-        up, look, normal = Vec3(0,1,0), Vec3(1,0,0), Vec3(0,0,1)
+        look, normal, up = Vec3(0,1,0), Vec3(1,0,0), Vec3(0,0,1)
         flags = 0 if sel_type == pdprops.PD_PROP_WEAPON else PADFLAG_HASBBOXDATA
         header = pdpads.pad_makeheader(flags, picked_obj.pd_room.roomnum, 0)
 
@@ -761,7 +762,7 @@ class PDTOOLS_OT_SetupObjectCreate(Operator):
             elif sel_type == pdprops.PD_PROP_TAG:
                 bl_tag = pdu.new_empty_obj('Tag', None, dsize=50, dtype='PLAIN_AXES', link=False)
                 pdu.add_to_collection(bl_tag, 'Props')
-                bl_tag.matrix_world.translation = click_pos
+                bl_tag.matrix_world.translation = pos
                 bl_tag.pd_obj.type = pdprops.PD_PROP_TAG
                 if pdu.pdtype(picked_obj) == pdprops.PD_OBJTYPE_PROP:
                     bl_tag.pd_tag.obj = picked_obj
@@ -771,14 +772,14 @@ class PDTOOLS_OT_SetupObjectCreate(Operator):
             ofs = 0 if pdtype == pdprops.PD_INTRO_CASE else 24
             pos = Vec3(pos.x, pos.y + ofs, pos.z)
             pad = pdpads.Pad(pos, look, up, normal, bbox, 0x3ff << 4)
-            obj = stpi.create_intro_obj(scn.pd_obj_type, pad, padnum, sel_type, 24, scn.case_setnum)
+            obj = stpi.create_intro_obj(scn.pd_obj_type, pad, padnum, sel_type, 24, scn.case_setnum, False)
             obj.pd_prop.pad.room = picked_obj.pd_room.room
             return obj
         elif pdtype == pdprops.PD_OBJTYPE_PATH:
             bl_path = pdu.new_empty_obj('Path', None, dsize=50, dtype='CIRCLE', link=False)
             pdu.add_to_collection(bl_path, 'Paths')
             # bl_path.matrix_world.translation = ctx.scene.cursor.location
-            bl_path.matrix_world.translation = click_pos
+            bl_path.matrix_world.translation = pos
             bl_path.rotation_euler[0] -= math.pi / 2
             bl_path.pd_obj.type = pdprops.PD_OBJTYPE_PATH
             return bl_path
