@@ -181,6 +181,20 @@ def draw_multiammocrate(props_mpammocrate, layout, context, multiple):
     pdu.ui_separator(column, type='LINE')
     column.prop(props_mpammocrate, 'weapon', text='Weapon')
 
+def draw_fan(props_fan, layout, context, multiple):
+    column = layout.column()
+    pdu.ui_separator(column, type='LINE')
+    column.prop(props_fan, 'yaccel', text='Accel')
+    column.prop(props_fan, 'ymaxspeed', text='Max Speed')
+
+def draw_cctv(props_cctv, layout, context, multiple):
+    column = layout.column()
+    pdu.ui_separator(column, type='LINE')
+    column.prop(props_cctv, 'yleft', text='Pan Left')
+    column.prop(props_cctv, 'yright', text='Pan Right')
+    column.prop(props_cctv, 'ymaxspeed', text='Rotation Speed')
+    column.prop(props_cctv, 'maxdist', text='Detection Range')
+
 
 class PDTOOLS_PT_SetupObjectTools(Panel):
     bl_label = 'Object Tools'
@@ -327,6 +341,14 @@ class PDTOOLS_PT_SetupObject(Panel):
             self.bl_label = 'Multi-Ammo Crate'
             props_mpammocrate = obj.pd_mp_ammocrate
             draw_multiammocrate(props_mpammocrate, layout, context, multiple)
+        elif obj.pd_obj.type == pdprops.PD_PROP_FAN:
+            self.bl_label = 'Fan'
+            props_fan = obj.pd_fan
+            draw_fan(props_fan, layout, context, multiple)
+        elif obj.pd_obj.type == pdprops.PD_PROP_CCTV:
+            self.bl_label = 'Security Camera'
+            props_cctv = obj.pd_cctv
+            draw_cctv(props_cctv, layout, context, multiple)
 
 
 class PDTOOLS_PT_SetupIntro(Panel):

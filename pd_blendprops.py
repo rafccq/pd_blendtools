@@ -51,6 +51,7 @@ PD_PROP_LIFT            = PD_OBJTYPE_PROP | OBJTYPE_LIFT
 PD_PROP_FAN             = PD_OBJTYPE_PROP | OBJTYPE_FAN
 PD_PROP_HOVERCAR        = PD_OBJTYPE_PROP | OBJTYPE_HOVERCAR
 PD_PROP_TAG             = PD_OBJTYPE_PROP | OBJTYPE_TAG
+PD_PROP_CCTV            = PD_OBJTYPE_PROP | OBJTYPE_CCTV
 
 #### Setup:Intro Objs
 PD_INTRO_SPAWN          = PD_OBJTYPE_INTRO | 0x00
@@ -71,6 +72,7 @@ OBJ_NAMES = {
     PD_PROP_HOVERCAR:       'Hovercar',
     PD_PROP_TAG:            'Tag',
     PD_OBJTYPE_PATH:        'Path',
+    PD_PROP_CCTV:           'Security Camera',
 
     PD_INTRO_SPAWN:         'Spawn',
     PD_INTRO_HILL:          'Hill',
@@ -898,6 +900,14 @@ class PDObject_SetupDoor(PropertyGroup):
     laserfade: IntProperty(name='laserfade', min=0, max=255, default=0, description='Laser Opacity', options={'LIBRARY_EDITABLE'})
 
 
+# objtype 0x06
+class PDObject_SetupCCTV(PropertyGroup):
+    yleft: FloatProperty(name='yleft', default=0)
+    yright: FloatProperty(name='yright', default=0)
+    ymaxspeed: FloatProperty(name='ymaxspeed', default=0, min=0)
+    maxdist: FloatProperty(name='maxdist', default=0, min=0)
+    lookatpadnum: IntProperty(name='lookatpadnum')
+
 # objtype 0x08
 class PDObject_SetupWeapon(PropertyGroup):
     weaponnum: EnumProperty(items = WEAPONS_NUMS_ITEMS, name='weaponnum')
@@ -1409,6 +1419,7 @@ classes = [
     PDObject_SetupHovercar,
     PDObject_SetupTag,
     PDObject_SetupMpAmmoCrate,
+    PDObject_SetupCCTV,
     PD_AIList,
     PD_BGCmd,
     PD_PathPad,
@@ -1450,6 +1461,7 @@ def register():
     Object.pd_hovercar = bpy.props.PointerProperty(type=PDObject_SetupHovercar)
     Object.pd_tag = bpy.props.PointerProperty(type=PDObject_SetupTag)
     Object.pd_mp_ammocrate = bpy.props.PointerProperty(type=PDObject_SetupMpAmmoCrate)
+    Object.pd_cctv = bpy.props.PointerProperty(type=PDObject_SetupCCTV)
     Scene.wp_group_room = bpy.props.PointerProperty(type=Object, poll=check_isroom)
 
     # setup path
@@ -1570,6 +1582,11 @@ def unregister():
     del Object.pd_weapon
     del Object.pd_tintedglass
     del Object.pd_lift
+    del Object.pd_fan
+    del Object.pd_hovercar
+    del Object.pd_tag
+    del Object.pd_mp_ammocrate
+    del Object.pd_cctv
 
     del Scene.pd_room_goto
     del Scene.pd_tile_hilightmode

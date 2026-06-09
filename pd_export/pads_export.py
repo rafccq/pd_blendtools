@@ -382,6 +382,13 @@ def add_lift_stops(props):
             add_stop(pd_lift.stop3, idx)
             add_stop(pd_lift.stop4, idx)
 
+def add_cctv_lookatpad(props):
+    for idx, prop in enumerate(props):
+        if prop.pd_obj.type != pdprops.PD_PROP_CCTV: continue
+        if len(prop.children) == 0: continue
+
+        props.insert(idx + 1, prop.children[0])
+
 def get_objs(collname, objtype):
     lib = bpy.data.collections
     if collname not in lib: return []
@@ -396,6 +403,7 @@ def export(filename, compress):
     pathpads = get_objs('Paths', pdprops.PD_OBJTYPE_PATHPAD)
 
     add_lift_stops(props)
+    add_cctv_lookatpad(props)
 
     dataout = bytearray()
     rd = ByteStream(None)

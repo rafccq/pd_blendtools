@@ -41,6 +41,7 @@ OBJ_TYPES1 = [
     OBJTYPE_WEAPON,
     OBJTYPE_FAN,
     OBJTYPE_HOVERCAR,
+    OBJTYPE_CCTV,
 ]
 
 # these objects are just the 'base' struct
@@ -253,6 +254,8 @@ def setup_create_obj(prop, prop_base, romdata, pad, paddata=None):
         obj_init_weapon(bl_obj, prop)
     elif proptype == OBJTYPE_FAN:
         obj_init_fan(bl_obj, prop)
+    elif proptype == OBJTYPE_CCTV:
+        obj_init_cctv(bl_obj, prop)
 
     return bl_obj
 
@@ -441,6 +444,12 @@ def obj_init_fan(bl_prop, prop):
     pd_fan.yaccel = prop['yaccel'] / 0x10000
     pd_fan.ymaxspeed = prop['ymaxspeed'] / 0x10000
 
+def obj_init_cctv(bl_prop, prop):
+    pd_cctv = bl_prop.pd_cctv
+    pd_cctv.yleft = prop['yleft'] * M_BADPI * 2 / 0x10000
+    pd_cctv.yright = prop['yright'] * M_BADPI * 2 / 0x10000
+    pd_cctv.ymaxspeed = prop['ymaxspeed'] * M_BADPI * 2 / 0x10000
+    pd_cctv.maxdist = prop['maxdist']
 
 def setup_fix_refs(all_props, setup_props):
     pad2obj = {prop.pd_prop.pad.padnum: prop for prop in all_props if prop}
@@ -635,8 +644,8 @@ def create_path_pad(bl_path):
         bl_pad.data.materials.append(path_material)
 
     pd_pads = pd_path.pads
-    pads = pd_pads.add()
-    pads.obj = bl_pad
+    pad = pd_pads.add()
+    pad.obj = bl_pad
 
 def register():
     TypeInfo.register_all(setupfile_decls)

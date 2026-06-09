@@ -241,10 +241,10 @@ decl_cctvobj = [
     'f32 camrotm[4][4]',
     'f32 yzero',
     'f32 yrot',
-    'f32 yleft',
-    'f32 yright',
+    's32 yleft', # changed type to s32, because the game reads it as such
+    's32 yright',
     'f32 yspeed',
-    'f32 ymaxspeed',
+    's32 ymaxspeed',
     's32 seebondtime60',
     'f32 maxdist',
     'f32 xzero',

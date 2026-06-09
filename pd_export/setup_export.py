@@ -177,12 +177,20 @@ def export_objects(rd, dataout):
         blockmap[bl_obj.name] = block
 
         # insert the ammo crates linked to this weapon after it in the list
-        ofs = 1
         if bl_obj.pd_obj.type == pdprops.PD_PROP_WEAPON:
+            ofs = 1
             for child in bl_obj.children:
                 if child.pd_obj.type != pdprops.PD_PROP_MULTIAMMOCRATE: continue
                 objects.insert(idx + ofs, child)
                 ofs += 1
+        # update the cctv's lookatpadnum
+        elif bl_obj.pd_obj.type == pdprops.PD_PROP_CCTV:
+            if len(bl_obj.children):
+                lookatpad = bl_obj.children[0]
+                pd_cctv = bl_obj.pd_cctv
+                # padnum was written during pad export
+                pd_cctv.lookatpadnum = lookatpad.pd_prop.padnum
+
 
     setup_fix_refs(dataout, blockmap, objects)
     rd.write(dataout, OBJTYPE_END, 'u32')
@@ -202,6 +210,7 @@ def set_props(bl_obj, block):
         OBJTYPE_FAN: setup_fan,
         OBJTYPE_HOVERCAR: setup_hovercar,
         OBJTYPE_TAG: setup_tag,
+        OBJTYPE_CCTV: setup_cctv,
     }
 
     if type1 or type2:
@@ -280,6 +289,17 @@ def setup_tag(bl_obj, block):
     pd_tag = bl_obj.pd_tag
     block['header']['type'] = OBJTYPE_TAG
     block['tagnum'] = pd_tag.tagnum
+
+def setup_cctv(bl_obj, block):
+    pd_cctv = bl_obj.pd_cctv
+    block['yleft'] = round(pd_cctv.yleft * 0x10000 / (M_BADPI * 2))
+    block['yright'] = round(pd_cctv.yright * 0x10000 / (M_BADPI * 2))
+    block['ymaxspeed'] = round(pd_cctv.ymaxspeed * 0x10000 / (M_BADPI * 2))
+    block['maxdist'] = as_u32(pd_cctv.maxdist)
+    block['lookatpadnum'] = -1
+    if len(bl_obj.children):
+        lookatpad = bl_obj.children[0]
+        block['lookatpadnum'] = lookatpad.pd_prop.padnum
 
 def setup_fix_refs(dataout, blockmap, objects):
     # print('---- REFS ----')
