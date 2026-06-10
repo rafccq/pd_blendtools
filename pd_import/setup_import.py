@@ -40,7 +40,6 @@ OBJ_TYPES1 = [
     OBJTYPE_TINTEDGLASS,
     OBJTYPE_WEAPON,
     OBJTYPE_FAN,
-    OBJTYPE_HOVERCAR,
     OBJTYPE_CCTV,
 ]
 
@@ -154,7 +153,7 @@ def obj_make_opaque(bl_obj):
     edit_mat(bl_obj)
     for child in bl_obj.children: edit_mat(child)
 
-def setup_create_obj(prop, prop_base, romdata, pad, paddata=None):
+def setup_create_obj(prop, prop_base, romdata, pad, paddata=None, conv_hand=False):
     if not pad:
         print(f"TMP: skipping obj with no pad {prop_base['modelnum']:04X}")
         return None
@@ -237,7 +236,7 @@ def setup_create_obj(prop, prop_base, romdata, pad, paddata=None):
 
         # print(f'  c {center}')
 
-    stu.obj_setup_mtx(bl_obj, Vector(pad.look), Vector(pad.up), center, rotation, scale, flags, bbox)
+    stu.obj_setup_mtx(bl_obj, Vector(pad.look), Vector(pad.up), center, rotation, scale, flags, bbox, conv_hand)
 
     if hasbbox:
         stu.set_bbox(pd_pad.model_bbox, bbox)
@@ -334,7 +333,7 @@ def import_objects(romdata, setupdata, paddata, all_props, objnum, duration):
             prop_base = prop['base'] if type1 else prop
             fields = PADFIELD_POS | PADFIELD_LOOK | PADFIELD_UP | PADFIELD_NORMAL | PADFIELD_BBOX
             pad = paddata.pad_unpack(prop_base['pad'], fields)
-            bl_prop = setup_create_obj(prop, prop_base, romdata, pad, paddata)
+            bl_prop = setup_create_obj(prop, prop_base, romdata, pad, paddata, True)
             all_props.append(bl_prop)
         else:
             # to make sure both lists have the same size
