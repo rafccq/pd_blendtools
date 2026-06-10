@@ -721,7 +721,9 @@ class PDTOOLS_OT_SetupObjectCreate(Operator):
                 pdprops.PD_PROP_STANDARD,
                 pdprops.PD_PROP_GLASS,
                 pdprops.PD_PROP_MULTIAMMOCRATE,
+                pdprops.PD_PROP_HOVERBIKE,
             ]
+
             if sel_type in basic_objs:
                 return stpi.setup_create_obj({}, prop_base, romdata, pad)
             elif sel_type == pdprops.PD_PROP_WEAPON:
@@ -739,8 +741,8 @@ class PDTOOLS_OT_SetupObjectCreate(Operator):
                 return stpi.setup_create_obj(prop, prop_base, romdata, pad)
             elif sel_type == pdprops.PD_PROP_LIFT:
                 prop = {
-                    'accel'   : 0x0000071C,
-                    'maxspeed': 0x0010AAAA,
+                    'accel'   : 0x0000071c,
+                    'maxspeed': 0x0010aaaa,
                     'pads': [],
                 }
                 bbox = Bbox(-100, 100, -100, 100, -100, 100)
@@ -752,6 +754,15 @@ class PDTOOLS_OT_SetupObjectCreate(Operator):
                     'ymaxspeed': 0x00000044,
                 }
                 bbox = Bbox(-100, 100, -100, 100, -100, 100)
+                pad = pdpads.Pad(pos, look, up, normal, bbox, header)
+                return stpi.setup_create_obj(prop, prop_base, romdata, pad)
+            elif sel_type == pdprops.PD_PROP_CCTV:
+                prop = {
+                    'yleft'    : 0x0000238e,
+                    'yright'   : 0x00000000,
+                    'ymaxspeed': 0x00000020,
+                    'maxdist'  : 0x000002bc,
+                }
                 pad = pdpads.Pad(pos, look, up, normal, bbox, header)
                 return stpi.setup_create_obj(prop, prop_base, romdata, pad)
             elif sel_type == pdprops.PD_PROP_HOVERCAR:

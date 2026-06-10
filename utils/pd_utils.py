@@ -269,6 +269,10 @@ def select(item, idx):
         print('selected')
     else:
         print('invalid item:', item)
+        return
+
+    bmesh.update_edit_mesh(mesh, loop_triangles=True, destructive=False)
+    bpy.context.view_layer.update()
 
 def select_obj(bl_obj, clear_selection=True):
     if clear_selection:

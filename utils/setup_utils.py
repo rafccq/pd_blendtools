@@ -155,6 +155,7 @@ def obj_hasmodel(type):
         pdprops.OBJTYPE_FAN, 'fan',
         pdprops.OBJTYPE_HOVERCAR, 'hovercar',
         pdprops.OBJTYPE_CCTV, 'security camera',
+        pdprops.OBJTYPE_HOVERBIKE, 'hoverbike',
     ]
 
 def obj_load_model(romdata, modelnum):

@@ -52,6 +52,7 @@ PD_PROP_FAN             = PD_OBJTYPE_PROP | OBJTYPE_FAN
 PD_PROP_HOVERCAR        = PD_OBJTYPE_PROP | OBJTYPE_HOVERCAR
 PD_PROP_TAG             = PD_OBJTYPE_PROP | OBJTYPE_TAG
 PD_PROP_CCTV            = PD_OBJTYPE_PROP | OBJTYPE_CCTV
+PD_PROP_HOVERBIKE       = PD_OBJTYPE_PROP | OBJTYPE_HOVERBIKE
 
 #### Setup:Intro Objs
 PD_INTRO_SPAWN          = PD_OBJTYPE_INTRO | 0x00
@@ -73,6 +74,7 @@ OBJ_NAMES = {
     PD_PROP_TAG:            'Tag',
     PD_OBJTYPE_PATH:        'Path',
     PD_PROP_CCTV:           'Security Camera',
+    PD_PROP_HOVERBIKE:      'Hoverbike',
 
     PD_INTRO_SPAWN:         'Spawn',
     PD_INTRO_HILL:          'Hill',
@@ -1011,6 +1013,9 @@ class PDObject_SetupLift(PropertyGroup):
     interlinks: CollectionProperty(name='interlinks', type=PDObject_SetupInterlinkObject)
     active_interlink_idx: IntProperty(name='active_interlink_idx', default=0, options={'LIBRARY_EDITABLE'})
 
+# objtype 0x33
+class PDObject_SetupHoverbike(PropertyGroup): pass # (this prop has no editable properties)
+
 class PDObject_SetupHovercar(PropertyGroup):
     ailist: IntProperty(name='ailist', default=0, min=0, options={'LIBRARY_EDITABLE'})
     path: PointerProperty(name='path', type=Object, poll=check_is_path, options={'LIBRARY_EDITABLE'})
@@ -1412,6 +1417,7 @@ classes = [
     PDObject_SetupTintedGlass,
     PDObject_SetupInterlinkObject,
     PDObject_SetupLift,
+    PDObject_SetupHoverbike,
     PDObject_SetupFan,
     PDObject_SetupWaypointNeighbour,
     PDObject_SetupWaypoint,
@@ -1455,6 +1461,7 @@ def register():
     Object.pd_weapon = bpy.props.PointerProperty(type=PDObject_SetupWeapon)
     Object.pd_tintedglass = bpy.props.PointerProperty(type=PDObject_SetupTintedGlass)
     Object.pd_lift = bpy.props.PointerProperty(type=PDObject_SetupLift)
+    Object.pd_hoverbike = bpy.props.PointerProperty(type=PDObject_SetupHoverbike)
     Object.pd_waypoint = bpy.props.PointerProperty(type=PDObject_SetupWaypoint)
     Object.pd_intro = bpy.props.PointerProperty(type=PDObject_SetupIntro)
     Object.pd_fan = bpy.props.PointerProperty(type=PDObject_SetupFan)
