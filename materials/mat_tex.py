@@ -198,6 +198,7 @@ def material_get_teximage(mat):
 def mat_tex_draw(pd_mat, layout, context):
     texload = pd_mat.texload
 
+    #### TEX LOAD ####
     col = layout.column()
     col.prop(texload, 'menu0', text = 'Texture 0 Properties', icon = 'TRIA_DOWN' if texload.menu0 else 'TRIA_RIGHT')
     if texload.menu0:
@@ -208,6 +209,7 @@ def mat_tex_draw(pd_mat, layout, context):
         if texload.menu1:
             mat_texload_draw(texload, 1, col, context)
 
+    #### ENV COLOR ####
     pdu.ui_separator(col, type='SPACE')
     box = col.box()
     row_cb = box.row()
@@ -216,35 +218,41 @@ def mat_tex_draw(pd_mat, layout, context):
     col_env.prop(pd_mat, 'env_color', text='')
     col_env.enabled = pd_mat.has_env_color
 
+    #### TEX CONFIG ####
     texconfig = pd_mat.texconfig
     pdu.ui_separator(col, type='SPACE')
     box = col.box()
     mat_texconfig_draw(texconfig, box, context)
 
     tex = pd_mat.texload.tex0
-    # image = material_get_teximage(pd_mat)
+    pd_image = tex.pd_image
+
+    #### SURFACE/SOUND TYPES ####
     box = col.box()
     row = box.split(factor=0.5)
     row.label(text=f'Surface Type')
-    row.prop(tex.pd_image, 'surface_type', text='')
+    row.prop(pd_image, 'surface_type', text='')
 
     row = box.split(factor=0.5)
     row.label(text=f'Sound Type')
-    row.prop(tex.pd_image, 'sound_type', text='')
+    row.prop(pd_image, 'sound_type', text='')
 
-def tex_id(image):
-    scn = bpy.context.scene
+    custom_id = pd_image.custom_id
 
-    name = image.name
-    if not scn.remap_texids:
-        return int(pdu.filename(name), 16)
+    #### TEXTURE ID ####
+    box = col.box()
+    row = box.row()
+    row.prop(pd_image, 'custom_id', text='Custom ID')
 
-    texmap = scn['map_texids']
-    if name not in texmap:
-        print(f'WARNING: no ID for tex {name}')
-        return 0
-
-    return texmap[name]
+    row = box.split(factor=0.5)
+    row.label(text=f'ID')
+    id_valid, _ = pdu.validate_number(pd_image.id_ui)
+    status_icon = 'NONE' if id_valid else 'ERROR'
+    row.prop(pd_image, 'id_ui', text='', icon=status_icon)
+    row.enabled = custom_id
+    if pd_image.id < 0:
+        row = box.row()
+        row.label(text='No ID assigned', icon='ERROR')
 
 def get_texnums(mat):
     if not(mat.is_pd or mat.is_f3d): return 0, 0
@@ -257,11 +265,15 @@ def get_texnums(mat):
         texlist = [f3dmat.tex0.tex, f3dmat.tex1.tex]
 
     scn = bpy.context.scene
-    if scn.remap_texids and texlist[0].name not in scn['map_texids']:
-        print(f"ERROR Tex not mapped: '{texlist[0].name}'")
+    tex0_invalid = texlist[0].pd_image.id < 0
+    tex1_invalid = texlist[1] and texlist[1].pd_image.id < 0
+    if tex0_invalid or tex1_invalid:
+        name = texlist[0].name if tex0_invalid else tex1_invalid
+        title = f'Invalid ID for texture {name}'
+        pdu.msg_box(title, "Go to 'Export Textures > Assign IDs' to fix")
+        raise RuntimeError(title)
 
-    texmap = scn['map_texids']
-    id = lambda idx: tex_id(texlist[idx]) if texlist[idx] else 0
+    id = lambda idx: texlist[idx].pd_image.id if texlist[idx] else 0
 
     return id(0), id(1)
 

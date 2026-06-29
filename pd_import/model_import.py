@@ -566,6 +566,13 @@ def loadimage(texdata, tex_path, texnum):
         'depth': teximg.depth,
     }
 
+    # by default don't remap tex IDs for imported maps
+    bl_image = imglib[imgname]
+    pd_image = bl_image.pd_image
+    pd_image.custom_id = True
+    pd_image.id = texnum
+    pd_image.id_ui = hex(texnum)
+
 def loadimages_external(path, texlist):
     tex_path = pdu.tex_path()
 

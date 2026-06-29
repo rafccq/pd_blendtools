@@ -5,6 +5,7 @@ from glob import glob
 import struct
 import os
 import pathlib
+import string
 
 import bpy
 import bmesh
@@ -717,3 +718,19 @@ def vec_to_lhs(v):
 
 def obj_pos_to_lhs(bl_obj):
     bl_obj.location = vec_to_lhs(bl_obj.location)
+
+def is_hex(val):
+    if len(val) > 2 and val[:2].lower() == '0x':
+        val = val[2:]
+        return all(c in string.hexdigits for c in val)
+    return False
+
+def validate_number(val):
+    n = len(val)
+    if not n: return False, False
+
+    if n > 2 and val[:2].lower() == '0x':
+        val = val[2:]
+        return all(c in string.hexdigits for c in val), True
+
+    return all(c in string.digits for c in val), False

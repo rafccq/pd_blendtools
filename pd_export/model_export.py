@@ -475,7 +475,7 @@ def export_model(model_obj, filename):
                 else:
                     print(f'WARNING: material has no texture. Mesh{mesh.name} mat {mat.name}')
 
-                id = mtex.tex_id(image) if image else 0
+                id = image.pd_image.id if image else 0
                 tex_extended = id > mtex.MAX_TEXTURES_PD
 
                 texconfig = pdm.material_get_texconfig(mat)

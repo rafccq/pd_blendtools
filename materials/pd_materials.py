@@ -31,8 +31,6 @@ WAYPOINT_MAT = 'PD_WaypointMat'
 COVER_MAT = 'PD_CoverMat'
 PATH_MAT = 'PD_PathMat'
 
-TEXMAP = 'map_texids'
-
 class PDMaterialCommands:
     def __init__(self):
         self.texload = 0
@@ -873,41 +871,6 @@ def get_tex(mat):
         f3dmat = mat.f3d_mat
         return f3dmat.tex0.tex, f3dmat.tex1.tex
 
-def update_texid_map(tex_ids, start_id):
-    '''
-    Creates a map {texname -> texid}
-    This function is called before export, to map the material texture names to an ID
-    '''
-    id = start_id
-    for mat in bpy.data.materials:
-        if not (mat.is_pd or mat.is_f3d): continue
-
-        # print(f'[{mat.name}]')
-        tex0, tex1 = get_tex(mat)
-        if tex0 and tex0.name not in tex_ids and tex0.users > 0 and not tex0.name.startswith('0'):
-            # print(f'  t0 {tex0.name} {id:04X}')
-            tex_ids[tex0.name] = id
-            id += 1
-
-        if tex1 and tex1.name not in tex_ids and tex1.users > 0:
-            # print(f'  t1 {tex1.name} {id:04X}')
-            tex_ids[tex1.name] = id
-            start_id += 1
-
-    scn = bpy.context.scene
-
-def create_texid_map(start_id, reset=False):
-    scn = bpy.context.scene
-    map_exists = TEXMAP in scn and len(scn[TEXMAP])
-    if reset or not map_exists:
-        scn[TEXMAP] = {}
-    else:
-        start_id = max(id for id in scn[TEXMAP].values()) + 1
-        print(f'new startid {start_id} (0x{start_id:04X})')
-
-    scn.remap_texids = True
-    update_texid_map(scn[TEXMAP], start_id)
-
 def imgname(texnum, default_ext='png'):
     imglib = bpy.data.images
     extensions = ['png', 'tga', 'tif', 'tiff', 'jpg', 'jpeg']
@@ -925,6 +888,10 @@ def obj_textures(ob, texlist):
     if not ob.data: return
 
     for mat in ob.data.materials:
+        if not mat:
+            print(f'WARNING: empty material from {ob.name}, skipping...')
+            continue
+
         if not (mat.is_pd or not mat.is_f3d): continue
 
         img = material_get_teximage(mat)
@@ -941,6 +908,33 @@ def textures_list(coll):
 
     return texlist
 
+def assign_texture_ids(start_id, coll):
+    texlist = pdm.textures_list(coll)
+    custom_ids = set()
+
+    id = start_id
+    for imgname in texlist:
+        pd_image = bpy.data.images[imgname].pd_image
+
+        if pd_image.custom_id:
+            if pd_image.id < 0:
+                print(f'WARNING: Image with invalid custom ID: {imgname}')
+                continue
+
+            custom_ids.add(pd_image.id)
+        else:
+            while id in custom_ids: id += 1
+
+            pd_image.id = id
+            pd_image.id_ui = hex(id)
+            
+            id += 1
+
+def validate_texture_ids(coll):
+    texlist = pdm.textures_list(coll)
+    imglib = bpy.data.images
+    return all([imglib[tex].pd_image.id >= 0 for tex in texlist])
+
 def export_textures(path, coll, flip=True):
     '''
     # Saves the texture images to the export folder, naming them according to the ID
@@ -948,28 +942,15 @@ def export_textures(path, coll, flip=True):
 
     t0 = time.time()
     texlist = textures_list(coll)
-    texmap = bpy.context.scene[TEXMAP]
     imglib = bpy.data.images
 
-    to_remove = []
+    n = len(texlist)
     num_exp = 0
-    n = len(texmap)
 
     for name in texlist:
-        if name not in texmap: continue
-
-        if name not in imglib:
-            to_remove.append(name)
-            print(f'[{name} not found, will remove]')
-            continue
-
-        id = texmap[name]
-        img = bpy.data.images[name]
-
-        if img.users == 0:
-            to_remove.append(name)
-            print(f'[{name} is unused, will remove]')
-            continue
+        img = imglib[name]
+        pd_image = imglib[name].pd_image
+        id = pd_image.id
 
         imgcopy = img.copy()
         imgcopy.update() # to update the copy's buffer content
@@ -988,8 +969,8 @@ def export_textures(path, coll, flip=True):
 
         num_exp += 1
 
-    for name in to_remove:
-        del texmap[name]
-
-    print(f'{num_exp} textures exported to {path}')
+    fliptxt = 'yes' if flip else 'no'
+    print(f'{num_exp} textures exported to {path}. Flip: {fliptxt}')
     print(f'Time: {time.time() - t0:.1f}s')
+
+

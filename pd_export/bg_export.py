@@ -197,7 +197,7 @@ def export_roomGDL(roomblocks):
             else:
                 print(f'WARNING: material has no texture. Mesh {mesh.name} mat {mat.name}')
 
-            id = mtex.tex_id(image) if image else 0
+            id = image.pd_image.id if image else 0
             tex_extended = id > mtex.MAX_TEXTURES_PD
 
             texconfig = pdm.material_get_texconfig(mat)
@@ -351,10 +351,6 @@ def export_section1(out_gfxdatalens, out_bboxes, out_textures):
     #### patch all gfx data
     gfxdata = bytearray()
 
-    scn = bpy.context.scene
-    if scn.remap_texids:
-        pdm.create_texid_map(scn.texid_start)
-
     ofs_room = primsize + 0x0f000000
     coll = bpy.data.collections['Rooms']
     idx = 1
@@ -407,11 +403,9 @@ def export_section2(textures):
     rd = ByteStream(dataout)
 
     scn = bpy.context.scene
-    texmap = scn['map_texids']
     for tex in textures:
-        name = tex.name
-        texnum = texmap[name] if scn.remap_texids and name in texmap else int(pdu.filename(name), 16)
-        rd.write(dataout, texnum, 's16')
+        pd_image = tex.pd_image
+        rd.write(dataout, pd_image.id, 's16')
 
     return pack_section(dataout, mask=0x7fff)
 

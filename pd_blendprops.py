@@ -1309,6 +1309,11 @@ ITEMS_IMPORT_SRC = [
     ('File', 'File', 'Import From File', 'File', 2)
 ]
 
+ITEMS_TEX_EXPORT_COLL = [
+    ('Rooms', 'Textures From Rooms (BG)', 'Export BG Textures', 'Rooms', 1),
+    ('Models', 'Textures From Models', 'Export Models Textures', 'Models', 2)
+]
+
 def on_select_bg(self, context):
     scn = context.scene
     lvcode = pdu.get_lvcode(scn.rom_bgs)
@@ -1389,6 +1394,22 @@ def on_update_surface(self, _context):
     pd_image = self.id_data.pd_image
     pd_image.sound_type = pd_image.surface_type
 
+def on_update_custom_id(self, _context):
+    pd_image = self.id_data.pd_image
+    custom_id = pd_image.custom_id
+    if not custom_id:
+        valid, ishex = pdu.validate_number(pd_image.id_ui)
+        if not valid:
+            pd_image.id_ui = hex(pd_image.id)
+
+def on_update_id(self, _context):
+    pd_image = self.id_data.pd_image
+
+    id = pd_image.id_ui
+    valid, ishex = pdu.validate_number(id)
+    if valid:
+        pd_image.id = int(id, 16 if ishex else 10)
+
 class PD_ImageProperties(PropertyGroup):
     surface_type: EnumProperty(
         name="Surface Type",
@@ -1403,6 +1424,9 @@ class PD_ImageProperties(PropertyGroup):
         default = ENUM_SURFACE_TYPES[0][0],
     )
 
+    id: IntProperty(name='id', default=-1, min=-1)
+    id_ui: StringProperty(name='id_ui', update=on_update_id)
+    custom_id: BoolProperty(name='custom_id', default=False, update=on_update_custom_id)
 
 classes = [
     PDObject,
@@ -1546,18 +1570,21 @@ def register():
     Scene.export_file_bg = StringProperty(name='export_file_bg',
                                           get=lambda _: name_get('export_file_bg'), set=lambda _, val: name_set(val, 'export_file_bg'))
     Scene.export_file_pads = StringProperty(name='export_file_pads',
-                                            get=lambda _: name_get('export_file_pads'), set=lambda _, val: name_set(val, 'export_file_pads'))
+                                          get=lambda _: name_get('export_file_pads'), set=lambda _, val: name_set(val, 'export_file_pads'))
     Scene.export_file_setup = StringProperty(name='export_file_setup',
-                                             get=lambda _: name_get('export_file_setup'), set=lambda _, val: name_set(val, 'export_file_setup'))
+                                          get=lambda _: name_get('export_file_setup'), set=lambda _, val: name_set(val, 'export_file_setup'))
     Scene.export_file_tiles = StringProperty(name='export_file_tiles',
-                                             get=lambda _: name_get('export_file_tiles'), set=lambda _, val: name_set(val, 'export_file_tiles'))
+                                          get=lambda _: name_get('export_file_tiles'), set=lambda _, val: name_set(val, 'export_file_tiles'))
+
+    # textures export
+    Scene.tex_export_collection = EnumProperty(items=ITEMS_TEX_EXPORT_COLL, name="tex_export_collection", default="Rooms")
+    Scene.tex_export_dir = StringProperty(name='tex_export_dir', description="Folder To Export Textures To", subtype='DIR_PATH')
+    Scene.tex_export_flip = BoolProperty(name='tex_export_flip', default=True, description="Flip Textures On Export")
+    Scene.tex_export_startid = IntProperty(name='tex_export_startid', default=3512, description="") #TEMP
 
     # external textures
     Scene.level_external_tex = BoolProperty(name='level_external_tex', default=False, description="")
     Scene.external_tex_dir = StringProperty(name='external_tex_dir', description="")
-
-    Scene.remap_texids = BoolProperty(name='remap_texids', default=False, description="")
-    Scene.texid_start = IntProperty(name='texid_start', default=3600, description="")
 
     Scene.level_loading = BoolProperty(name='level_loading', default=False)
 

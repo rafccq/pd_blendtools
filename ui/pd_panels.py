@@ -46,6 +46,9 @@ class PDTOOLS_PT_ImportExport(Panel):
         row = self.layout.row()
         row.operator("pdtools.export_level")
 
+        row = self.layout.row()
+        row.operator("pdtools.tex_manage")
+
         # draw the progress bar
         if context.scene.level_loading:
             if bpy.app.version >= (4, 0, 0):

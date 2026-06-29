@@ -4,7 +4,7 @@ import time
 import bpy
 from bpy.types import Operator
 from bpy_extras.io_utils import ImportHelper
-from bpy.props import StringProperty, BoolProperty
+from bpy.props import StringProperty, BoolProperty, IntProperty
 
 from pd_data.model_info import ModelNames, ModelStates
 from pd_blendprops import LEVELNAMES
@@ -442,10 +442,138 @@ class PDTOOLS_OT_ImportLevel(Operator):
         self.draw_tiles(context)
 
 
+class PDTOOLS_OT_TexPrintIDs(Operator):
+    bl_idname = "pdtools.tex_print_ids"
+    bl_label = "Print Texture IDs"
+    bl_description = "Print Texture IDs To Console"
+
+    def execute(self, context):
+        scn = context.scene
+
+        texlist = pdm.textures_list('Rooms')
+        for imgname in texlist:
+            img = bpy.data.images[imgname]
+            print(imgname, img.pd_image.id)
+
+        return {'FINISHED'}
+
+
+class PDTOOLS_OT_TexAssignIDs(Operator):
+    bl_idname = "pdtools.tex_assign_ids"
+    bl_label = "Assign Texture IDs"
+    bl_description = "Assign Texture IDs Without Exporting"
+
+    def execute(self, context):
+        scn = context.scene
+
+        start_id = scn.tex_export_startid
+        coll = context.scene.tex_export_collection
+        pdm.assign_texture_ids(start_id, coll)
+
+        return {'FINISHED'}
+
+
+class PDTOOLS_OT_TexManage(Operator):
+    bl_idname = "pdtools.tex_manage"
+    bl_label = "Export Textures"
+    bl_description = "Export Textures And Manage IDs"
+
+    def on_update_startid(self, context):
+        scn = context.scene
+
+        id = self.start_id
+        valid, ishex = pdu.validate_number(id)
+        if valid:
+            scn.tex_export_startid = int(id, 16 if ishex else 10)
+
+    start_id: StringProperty(name='start_id', description="", update=on_update_startid)
+
+    def execute(self, context):
+        scn = context.scene
+
+        s = self.start_id
+        id_valid, _ = pdu.validate_number(s)
+        if not id_valid:
+            self.report({'ERROR'}, 'Invalid Texture Start ID')
+            return {'CANCELLED'}
+
+        start_id = scn.tex_export_startid
+        path = scn.tex_export_dir
+        coll = scn.tex_export_collection
+        flip = scn.tex_export_flip
+
+        pdm.assign_texture_ids(start_id, coll)
+        pdm.export_textures(path, coll, flip)
+
+        return {"FINISHED"}
+
+    def invoke(self, context, event):
+        scn = context.scene
+        wm = context.window_manager
+
+        id = scn.tex_export_startid
+        self.start_id = '' if id < 0 else hex(id)
+        return wm.invoke_props_dialog(self, width=300,
+                                      confirm_text='Export Textures', cancel_default=True)
+
+    def draw(self, context):
+        scn = context.scene
+
+        # magic numbers to make it look right
+        f = 0.22
+
+        ######### SOURCE #########
+        row = self.layout.row().split(factor=f+0.008)
+        row.label(text='Source:')
+        row.prop(scn, 'tex_export_collection', text='')
+
+        ######### EXPORT DIR #########
+        row = self.layout.row()
+        row.prop(scn, 'tex_export_dir', text='Path')
+
+        ######### START ID #########
+        row = self.layout.row()
+        col = row.column()
+        s = self.start_id
+        id_valid, _ = pdu.validate_number(s)
+        status_icon = 'NONE' if id_valid and len(s) else 'ERROR'
+        col.prop(self, 'start_id', text='Start ID', icon=status_icon)
+
+        ######### ASSIGN/PRINT/EXPORT #########
+        row = self.layout.row()
+        row = self.layout.row().split(factor=f)
+        row.label(text='')
+        op = row.operator('pdtools.tex_assign_ids', text='Assign IDs')
+        row.enabled = id_valid
+
+        row = self.layout.row().split(factor=f)
+        row.label(text='')
+        op = row.operator('pdtools.tex_print_ids', text='Print IDs')
+        row = self.layout.row().split(factor=f)
+        row.label(text='Flip:')
+        row.prop(scn, 'tex_export_flip', text='')
+
+
+class PDTOOLS_OT_TexPrintIDs(Operator):
+    bl_idname = "pdtools.tex_print_ids"
+    bl_label = "Print Texture IDs"
+    bl_description = "Print Texture IDs To Console"
+
+    def execute(self, context):
+        scn = context.scene
+
+        texlist = pdm.textures_list('Rooms')
+        for imgname in texlist:
+            img = bpy.data.images[imgname]
+            print(imgname, hex(img.pd_image.id))
+
+        return {'FINISHED'}
+
+
 class PDTOOLS_OT_ExportLevel(Operator):
     bl_idname = "pdtools.export_level"
     bl_label = "Export Level"
-    bl_description = "Export Level To A File"
+    bl_description = "Export Level Files"
 
     def export(self, scene, module, filename):
         dir = scene.export_dir
@@ -460,6 +588,10 @@ class PDTOOLS_OT_ExportLevel(Operator):
             return {'CANCELLED'}
 
         if scn.export_bg:
+            if not self.tex_ids_ok:
+                self.report({'ERROR'}, 'Invalid Texture Start ID')
+                return {'CANCELLED'}
+
             self.export(scn, bge, scn.export_file_bg)
 
         if scn.export_pads:
@@ -474,6 +606,8 @@ class PDTOOLS_OT_ExportLevel(Operator):
         return {'FINISHED'}
 
     def invoke(self, context, event):
+        scn = context.scene
+        self.tex_ids_ok = pdm.validate_texture_ids('Rooms')
         return context.window_manager.invoke_props_dialog(self, width=300)
 
     def draw_options(self, context):
@@ -509,6 +643,11 @@ class PDTOOLS_OT_ExportLevel(Operator):
         self.draw_file(context, 'pads', 'Pads', scn.export_pads)
         self.draw_file(context, 'setup', 'Setup', scn.export_setup)
         self.draw_file(context, 'tiles', 'Tiles', scn.export_tiles)
+
+        if not self.tex_ids_ok and scn.export_bg:
+            pdu.ui_separator(self.layout, type='LINE')
+            row = self.layout.row()
+            row.label(text='Not all textures have a valid ID', icon='ERROR')
 
 
 class PDTOOLS_OT_MessageBox(Operator):
@@ -568,6 +707,9 @@ classes = [
     PDTOOLS_OT_ImportLevel,
     PDTOOLS_OT_ImportSelectFile,
     PDTOOLS_OT_ExportLevel,
+    PDTOOLS_OT_TexPrintIDs,
+    PDTOOLS_OT_TexAssignIDs,
+    PDTOOLS_OT_TexManage,
     PDTOOLS_OT_SelectDirectory,
     PDTOOLS_OT_MessageBox,
     PDTOOLS_OT_UnlinkPDMaterialImage0,
