@@ -1333,10 +1333,18 @@ def on_update_exportname(self, context):
         scn.export_file_pads = f'bg_{scn.export_name}_padsZ'
 
     if scn.export_setup:
-        scn.export_file_setup = f'Usetup{scn.export_name}Z'
+        mp = 'mp_' if scn.export_multiplayer else ''
+        scn.export_file_setup = f'U{mp}setup{scn.export_name}Z'
 
     if scn.export_tiles:
         scn.export_file_tiles = f'bg_{scn.export_name}_tilesZ'
+
+def on_update_exportmultiplayer(self, context):
+    scn = context.scene
+
+    if scn.export_setup:
+        mp = 'mp_' if scn.export_multiplayer else ''
+        scn.export_file_setup = f'U{mp}setup{scn.export_name}Z'
 
 def name_get(name):
     val = bpy.context.scene.get(name)
@@ -1461,10 +1469,6 @@ classes = [
     PD_ImageProperties,
 ]
 
-def create_collections():
-    for name in PD_COLLECTIONS:
-        pdu.new_collection(name)
-
 def register():
     global vp_drawhandler
 
@@ -1566,6 +1570,8 @@ def register():
                                        options={"TEXTEDIT_UPDATE"}, subtype='FILE_NAME', update=on_update_exportname,
                                        get=lambda _: name_get('export_name'), set=lambda _, val: name_set(val, 'export_name'))
     Scene.export_compress = BoolProperty(name='export_compress', default=True, description="Compress Exported Files")
+    Scene.export_multiplayer = BoolProperty(name='export_multiplayer', default=True, description="Level is a Multiplayer arena",
+                                            update=on_update_exportmultiplayer)
 
     Scene.export_file_bg = StringProperty(name='export_file_bg',
                                           get=lambda _: name_get('export_file_bg'), set=lambda _, val: name_set(val, 'export_file_bg'))
