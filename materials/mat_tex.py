@@ -5,6 +5,7 @@ from bpy.props import (
 from bpy.types import PropertyGroup
 
 from utils import pd_utils as pdu
+from . import pd_materials as pdm
 
 from fast64.utility import prop_split, get_material_from_context
 
@@ -146,18 +147,21 @@ def mat_texload_set(texload, cmd):
     tex0 = cmd & 0x0fff
 
     if tex0:
-        texload.tex0 = imglib[f'{tex0:04x}.png']
+        texname = pdm.imgname(tex0)
+        texload.tex0 = imglib[texname]
         texload.tex_set = True
 
     tex1 = (cmd >> 4*3) & 0xfff
     if tex1:
-        texload.tex1 = imglib[f'{tex1:04x}.png']
+        texname = pdm.imgname(tex1)
+        texload.tex1 = imglib[texname]
 
 def mat_settimg_set(texload, cmd):
-    texnum = cmd & 0xffff
-    texname = f'{texnum:04x}.png'
-
     imglib = bpy.data.images
+
+    texnum = cmd & 0xffff
+    texname = pdm.imgname(texnum)
+    # texname = f'{texnum:04x}.png'
 
     texload.tex0 = imglib[texname]
     texload.tex_set = True

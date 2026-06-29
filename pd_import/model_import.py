@@ -121,7 +121,7 @@ def create_mesh(mesh, tex_configs, name, matcache, asset_type):
         if matsetup.texnum in tex_configs:
             tc = tex_configs[matsetup.texnum]
         else:
-            print(f'WARNING: No config found for tex {matsetup.texnum:04X}')
+            print(f'WARNING: No config found for tex {matsetup.texnum:04x}')
 
         n_mats = len(bl_obj.data.materials)
         matname = f'{name}_Mat{n_mats}_{matsetup.texnum:04X}'
@@ -538,7 +538,7 @@ def loadimages_embedded(model):
         teximg.height = h
         teximg.depth = d
 
-        imgname = f'{texnum & 0xffffff:04x}.png'
+        imgname = pdm.imgname(texnum & 0xffffff)
 
         if imgname not in imglib:
             texdata = model.texdata[texnum].bytes
@@ -554,7 +554,7 @@ def loadimages_embedded(model):
 
 def loadimage(texdata, tex_path, texnum):
     imglib = bpy.data.images
-    imgname = f'{texnum & 0xffff:04x}.png'
+    imgname = pdm.imgname(texnum & 0xffff)
     texture = tex.tex_load(texdata, tex_path, imgname)
     img = imglib.load(f'{tex_path}/{imgname}')
 
@@ -584,7 +584,7 @@ def loadimages(romdata, texnums):
         # skip embedded
         if texnum & 0x05000000: continue
 
-        imgname = f'{texnum & 0xffffff:04x}.png'
+        imgname = pdm.imgname(texnum & 0xffffff)
 
         if imgname not in imglib:
             if texnum <= 3503: #TODO temp hack

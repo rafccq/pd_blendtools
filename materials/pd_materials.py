@@ -308,7 +308,7 @@ def material_setcombine(mat, cmd):
 
 def material_settex(mat, cmd):
     texnum0 = cmd & 0xfff
-    texname0 = f'{texnum0:04X}.png'
+    texname0 = imgname(texnum0)
 
     min = (cmd >> 8*4) & 0xff
 
@@ -320,7 +320,7 @@ def material_settex(mat, cmd):
 
     texnum1 = (cmd >> 4*3) & 0xfff
     if texnum1:
-        texname1 = f'{texnum1:04X}.png'
+        texname1 = imgname(texnum1)
         mat.tex1.tex = imglib[texname1]
 
     w0 = (cmd & 0xffffffff00000000) >> 32
@@ -367,7 +367,7 @@ def mat_presetcombine(mat):
 
 def material_settimg(mat, cmd):
     texnum = cmd & 0xffff
-    texname = f'{texnum:04x}.png'
+    texname = imgname(texnum)
 
     imglib = bpy.data.images
 
@@ -480,7 +480,8 @@ def material_new(matcmds, use_alpha, name):
 
     if matcmds.texnum:
         texnum = matcmds.texnum & 0xffff
-        node_tex.image = imglib[f'{texnum:04x}.png']
+        texname = imgname(texnum)
+        node_tex.image = imglib[texname]
     elif matcmds.texname:
         node_tex.image = imglib[matcmds.texname]
 
@@ -902,8 +903,23 @@ def create_texid_map(start_id, reset=False):
         scn[TEXMAP] = {}
     else:
         start_id = max(id for id in scn[TEXMAP].values()) + 1
+        print(f'new startid {start_id} (0x{start_id:04X})')
 
+    scn.remap_texids = True
     update_texid_map(scn[TEXMAP], start_id)
+
+def imgname(texnum, default_ext='png'):
+    imglib = bpy.data.images
+    extensions = ['png', 'tga', 'tif', 'tiff', 'jpg', 'jpeg']
+    for ext in extensions:
+        imgname = f'{texnum:04x}.{ext}'
+        if imgname in imglib:
+            return imgname
+
+    # TODO: handle non-existent textures with a placeholder
+    print(f'WARNING: texture {texnum:04x} not found')
+
+    return f'{texnum:04x}.{default_ext}'
 
 def obj_textures(ob, texlist):
     if not ob.data: return
