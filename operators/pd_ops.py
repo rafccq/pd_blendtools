@@ -1,10 +1,12 @@
 import os
+import os.path as osp
 import time
+import glob
 
 import bpy
-from bpy.types import Operator
+from bpy.types import Operator, PropertyGroup
 from bpy_extras.io_utils import ImportHelper
-from bpy.props import StringProperty, BoolProperty, IntProperty
+from bpy.props import StringProperty, BoolProperty, IntProperty, CollectionProperty, EnumProperty
 
 from pd_data.model_info import ModelNames, ModelStates
 from pd_blendprops import LEVELNAMES
@@ -126,41 +128,6 @@ class PDTOOLS_OT_LoadRom(Operator, ImportHelper):
 
             item = scn.pd_modelfilenames.add()
             item.name = romdata.filenames[filenum]
-
-
-class PDTOOLS_OT_SelectDirectory(Operator):
-    bl_idname = "pdtools.select_directory"
-    bl_label = "Select Directory"
-    bl_options = {'REGISTER'}
-
-    # define this to tell 'fileselect_add' that we want a directory
-    directory: StringProperty(name="Path", description="Select Directory")
-    filter_folder: BoolProperty(default=True, options={"HIDDEN"})
-    type: StringProperty(name='type', options={'LIBRARY_EDITABLE'})
-
-    @classmethod
-    def description(cls, context, properties):
-        if properties.type == 'EXT_TEXTURES':
-            return 'Directory With Replacement Textures'
-        elif properties.type == 'EXT_MODELS':
-            return 'Directory With Replacement Models'
-        else:
-            return 'Select Directory'
-
-    def execute(self, context):
-        scn = context.scene
-
-        if self.type == 'EXT_TEXTURES':
-           scn.external_tex_dir = self.directory
-        elif self.type == 'EXT_MODELS':
-            scn.external_models_dir = self.directory
-
-        return {'FINISHED'}
-
-    def invoke(self, context, event):
-        context.window_manager.fileselect_add(self)
-        return {'RUNNING_MODAL'}
-
 
 
 class PDTOOLS_OT_ImportSelectFile(Operator, ImportHelper):
@@ -335,10 +302,8 @@ class PDTOOLS_OT_ImportLevel(Operator):
         row = box.row()
         row.prop(scn, 'level_external_tex', text='Replace Textures')
         row.enabled = scn.import_bg
-        row = box.row().split(factor=0.9)
+        row = box.row().split()
         row.prop(scn, 'external_tex_dir', text='')
-        op = row.operator('pdtools.select_directory', text='...')
-        op.type = 'EXT_TEXTURES'
         row.enabled = scn.level_external_tex and scn.import_bg
 
     def draw_pads(self, context):
@@ -391,10 +356,8 @@ class PDTOOLS_OT_ImportLevel(Operator):
         row = box.row()
         row.prop(scn, 'level_external_models', text='Replace Models')
         row.enabled = enabled
-        row = box.row().split(factor=0.9)
+        row = box.row().split()
         row.prop(scn, 'external_models_dir', text='')
-        op = row.operator('pdtools.select_directory', text='...')
-        op.type = 'EXT_MODELS'
         row.enabled = scn.import_setup and scn.import_pads
 
     def draw_tiles(self, context):
@@ -570,6 +533,176 @@ class PDTOOLS_OT_TexPrintIDs(Operator):
         return {'FINISHED'}
 
 
+class StringItem(PropertyGroup):
+    value: StringProperty(name='value')
+
+class PDTOOLS_UL_BasicList(bpy.types.UIList):
+    bl_idname = "pdtools.basic_list"
+    item_icon: str = 'OBJECT_DATA'
+
+    def draw_item(self, context, layout, data, item, icon, active_data, active_propname):
+        row = layout.row()
+        row.label(text=item.name, icon=self.item_icon)
+
+def update_files_collection(path, coll, filter = lambda _: True):
+    coll.clear()
+
+    if not path:
+        return
+
+    for filename in glob.iglob(f'{path}/*'):
+        if osp.isdir(filename) or not filter(filename): continue
+        filename2 = osp.basename(filename).split('.')[0]
+        file, ext = osp.splitext(filename)
+
+        item = coll.add()
+        item.name = osp.basename(filename)
+
+# thanks to @unwave from blender stackexchange for this solution
+popup_regions = set()
+
+def region_exists(region):
+    """ hack: https://github.com/blender/blender/blob/83dcaf0501390bef1c6073f9e3103923c405050a/scripts/addons_core/bl_pkg/bl_extension_notify.py#L544 """
+    try:
+        with bpy.context.temp_override(region=region):
+            return True
+    except TypeError:
+        return False
+
+def update_popups():
+    for region in list(popup_regions):
+        if region_exists(region):
+            region.tag_redraw()
+            region.tag_refresh_ui()
+        else:
+            popup_regions.discard(region)
+
+    return None
+
+ITEMS_REPLACEMENT = [
+    ('Textures', 'Textures', 'Textures', 'Textures', 1),
+    ('Models', 'Models', 'Models', 'Models', 2),
+]
+
+IMAGE_EXTS = ['.png', '.jpg', '.jpeg', '.tga', '.tif', '.tiff']
+
+def schedule_ui_update():
+    bpy.app.timers.register(update_popups, first_interval=0.1)
+
+def dir_get(self, prop):
+    return self.get(prop, '')
+
+def dir_set(self, val, prop):
+    if val and not osp.exists(val):
+        print(f"Folder doesn't exist: {val}")
+        pdu.msg_box('', "Folder Doesn't Exist")
+        return
+
+    scn = bpy.context.scene
+    if prop == 'TEX':
+        self['ext_tex_dir'] = val
+        scn.external_tex_dir = val
+    else:
+        self['ext_models_dir'] = val
+        scn.external_models_dir = val
+
+    # update the UI
+    if prop == 'TEX':
+        filter = lambda filename: osp.splitext(filename)[1] in IMAGE_EXTS
+        update_files_collection(self.ext_tex_dir, self.collection_textures, filter)
+    else:
+        update_files_collection(self.ext_models_dir, self.collection_models)
+
+    schedule_ui_update()
+
+class PDTOOLS_OT_ReplacementDirClear(Operator):
+    bl_idname = "pdtools.replacement_dir_clear"
+    bl_label = "Clear"
+    bl_description = "Clear The Directory"
+
+    prop: StringProperty(name='prop')
+
+    def execute(self, context):
+        op = context.op
+        if self.prop == 'TEX':
+            op.ext_tex_dir = ''
+        else:
+            op.ext_models_dir = ''
+
+        return {'FINISHED'}
+
+class PDTOOLS_OT_Replacements(Operator):
+    bl_idname = "pdtools.replacements"
+    bl_label = "Replacements"
+    bl_description = "Manage Model and Texture Replacements"
+
+    replacement_item:  EnumProperty(items=ITEMS_REPLACEMENT, name="replacement_item", default="Textures")
+
+    ext_tex_dir: StringProperty(name='ext_tex_dir', description="", subtype='DIR_PATH',
+                                get = lambda self: dir_get(self, 'ext_tex_dir'), set = lambda self, val: dir_set(self, val, 'TEX'))
+    ext_models_dir: StringProperty(name='ext_models_dir', description="", subtype='DIR_PATH',
+                                   get = lambda self: dir_get(self, 'ext_models_dir'), set = lambda self, val: dir_set(self, val, 'MODELS'))
+
+    collection_textures: CollectionProperty(type=StringItem)
+    collection_models: CollectionProperty(type=StringItem)
+
+    tex_idx: IntProperty(name='tex_idx', default=0)
+    model_idx: IntProperty(name='tex_idx', default=0)
+
+    def execute(self, context):
+        return {'FINISHED'}
+
+    def invoke(self, context, event):
+        scn = context.scene
+
+        self.ext_tex_dir = scn.external_tex_dir
+        self.ext_models_dir = scn.external_models_dir
+
+        return context.window_manager.invoke_popup(self, width=300)
+
+    def execute(self, context):
+        return {'FINISHED'}
+
+    def draw(self, context):
+        scn = context.scene
+
+        # to be used by schedule_ui_update()
+        region_popup = context.region_popup
+        if region_popup:
+            popup_regions.add(region_popup)
+
+        # which tab to draw: textures/models
+        sel_models = self.replacement_item == ITEMS_REPLACEMENT[1][0]
+
+        layout = self.layout
+
+        row = layout.row()
+        row.label(text='Model/Texture Replacements')
+        pdu.ui_separator(layout, type='LINE')
+
+        layout.prop(self, 'replacement_item', expand=True)
+        row = layout.row()
+        row.label(text='Models' if sel_models else 'Textures')
+
+        prop_dir = 'ext_models_dir' if sel_models else 'ext_tex_dir'
+        prop_coll = 'collection_models' if sel_models else 'collection_textures'
+        prop_idx = 'model_idx' if sel_models else 'tex_idx'
+
+        PDTOOLS_UL_BasicList.item_icon = 'MESH_DATA' if sel_models else 'IMAGE_DATA'
+
+        row = layout.row().split(factor=0.93)
+        row.prop(self, prop_dir, text='')
+        row.context_pointer_set(name='op', data=self)
+        op = row.operator('pdtools.replacement_dir_clear', text='', icon='X')
+        op.prop = 'MODELS' if sel_models else 'TEX'
+        layout.template_list('pdtools.basic_list', '', self, prop_coll, self, prop_idx, rows=8)
+
+        ntex = len(self.collection_models) if sel_models else len(self.collection_textures)
+        row = layout.row()
+        row.label(text=f'Total: {ntex}')
+
+        pdu.ui_separator(layout, type='LINE')
+
 class PDTOOLS_OT_ExportLevel(Operator):
     bl_idname = "pdtools.export_level"
     bl_label = "Export Level"
@@ -711,7 +844,10 @@ classes = [
     PDTOOLS_OT_TexPrintIDs,
     PDTOOLS_OT_TexAssignIDs,
     PDTOOLS_OT_TexManage,
-    PDTOOLS_OT_SelectDirectory,
+    StringItem,
+    PDTOOLS_UL_BasicList,
+    PDTOOLS_OT_Replacements,
+    PDTOOLS_OT_ReplacementDirClear,
     PDTOOLS_OT_MessageBox,
     PDTOOLS_OT_UnlinkPDMaterialImage0,
     PDTOOLS_OT_UnlinkPDMaterialImage1,

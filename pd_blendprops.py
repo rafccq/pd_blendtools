@@ -1586,17 +1586,17 @@ def register():
     Scene.tex_export_collection = EnumProperty(items=ITEMS_TEX_EXPORT_COLL, name="tex_export_collection", default="Rooms")
     Scene.tex_export_dir = StringProperty(name='tex_export_dir', description="Folder To Export Textures To", subtype='DIR_PATH')
     Scene.tex_export_flip = BoolProperty(name='tex_export_flip', default=True, description="Flip Textures On Export")
-    Scene.tex_export_startid = IntProperty(name='tex_export_startid', default=3512, description="") #TEMP
+    Scene.tex_export_startid = IntProperty(name='tex_export_startid', default=3512, description="")
 
     # external textures
     Scene.level_external_tex = BoolProperty(name='level_external_tex', default=False, description="")
-    Scene.external_tex_dir = StringProperty(name='external_tex_dir', description="")
+    Scene.external_tex_dir = StringProperty(name='external_tex_dir', description="", subtype='DIR_PATH')
 
     Scene.level_loading = BoolProperty(name='level_loading', default=False)
 
     # external models
     Scene.level_external_models = BoolProperty(name='level_external_models', default=False, description="")
-    Scene.external_models_dir = StringProperty(name='external_models_dir', description="")
+    Scene.external_models_dir = StringProperty(name='external_models_dir', description="", subtype='DIR_PATH')
 
     Scene.fast64 = bpy.props.PointerProperty(type=Fast64_Properties, name='Fast64 Properties')
     bpy.types.Scene.gameEditorMode = StringProperty(name='gameEditorMode', default='', description='')

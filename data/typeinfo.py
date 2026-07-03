@@ -4,10 +4,8 @@ from utils import pd_utils as pdu
 
 
 class TypeInfo:
-    SIZE_PTR = 4
-
     sizes = {
-        'pointer': SIZE_PTR,
+        'pointer': 4,
         'u8': 1,
         's8': 1,
         's16': 2,

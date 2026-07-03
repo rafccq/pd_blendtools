@@ -4,7 +4,6 @@ class BitReader:
         self.accum_value = 0
         self.accum_nbits = 0
         self.idx = 0
-
     def read(self, nbits):
         while self.accum_nbits < nbits:
             self.accum_value = self.buffer[self.idx] | (self.accum_value << 8)
@@ -13,6 +12,5 @@ class BitReader:
 
         self.accum_nbits -= nbits
         return (self.accum_value >> self.accum_nbits) & ((1 << nbits) - 1)
-
     def cur_buffer(self):
         return self.buffer[self.idx:]
