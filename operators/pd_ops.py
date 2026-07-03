@@ -623,6 +623,7 @@ class PDTOOLS_OT_ExportLevel(Operator):
 
         row = self.layout.row()
         row.prop(scn, 'export_compress', text='Compress Files')
+        row.prop(scn, 'export_multiplayer', text='Multiplayer')
 
     def draw_file(self, context, prop_name, prop_text, enabled):
         scn = context.scene
