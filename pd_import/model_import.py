@@ -188,6 +188,9 @@ def create_mesh(mesh, tex_configs, name, matcache, asset_type):
     bm.to_mesh(me)
     bm.free()
 
+    me.color_attributes.active_color_index = 0
+    me.uv_layers.active_index = 0
+
     return bl_obj
 
 def should_use_f3d(matsetup, asset_type):
