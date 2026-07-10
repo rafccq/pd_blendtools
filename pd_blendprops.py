@@ -1064,24 +1064,31 @@ def update_scene_tilehighlight(_self, context):
 def update_scene_wp_vis(_self, context):
     scn = context.scene
 
+
+TILE_FLAGS_PRESETS_MAP = {
+    'ground': ['Floor1', 'Floor2', 'Block Sight', 'Block Shoot'],
+    'ground|step': ['Floor1', 'Floor2', 'Block Sight', 'Block Shoot', 'Step'],
+    'wall': ['Wall', 'Block Sight', 'Block Shoot'],
+    'ladder': ['Wall', 'Block Sight', 'Block Shoot', 'Ladder'],
+    'clear': [],
+}
+
+
+def tile_apply_flags_preset(pd_tile, preset):
+    if preset not in TILE_FLAGS_PRESETS_MAP: return
+
+    preset_flags = TILE_FLAGS_PRESETS_MAP[preset]
+    for idx, flag in enumerate(TILE_FLAGS):
+        pd_tile.flags[idx] = flag in preset_flags
+
 def update_scene_tile_presets(_self, context):
     scn = context.scene
     multiple = len(context.selected_objects) > 1
     obj = context.selected_objects[-2] if multiple else context.active_object
     print(scn.pd_tile_flag_presets)
 
-    presets = {
-        'ground': [ 'Floor1', 'Floor2', 'Block Sight', 'Block Shoot' ],
-        'ground|step': [ 'Floor1', 'Floor2', 'Block Sight', 'Block Shoot', 'Step' ],
-        'wall': [ 'Wall', 'Block Sight', 'Block Shoot' ],
-        'ladder': [ 'Wall', 'Block Sight', 'Block Shoot', 'Ladder'],
-        'clear': [],
-    }
-
     pd_tile = obj.pd_tile
-    preset_flags = presets[scn.pd_tile_flag_presets]
-    for idx, flag in enumerate(TILE_FLAGS):
-        pd_tile.flags[idx] = flag in preset_flags
+    tile_apply_flags_preset(pd_tile, scn.pd_tile_flag_presets)
 
 def update_scene_roomgoto(self, _context):
     area = next(area for area in bpy.context.screen.areas if area.type == 'VIEW_3D')

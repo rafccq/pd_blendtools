@@ -149,6 +149,20 @@ class PDTOOLS_PT_RoomTools(Panel):
         row.enabled = pdu.get_mode(context) in ['', 'OBJECT']
 
         row.operator('pdtools.room_create_from_obj', text='Create Room From Obj')
+        row.operator('pdtools.op_portal_from_edge', text='Create Portal')
+
+        ops = bpy.context.window.modal_operators if bpy.app.version >= (4, 2, 0) else []
+
+        if 'PDTOOLS_OT_op_tile_create_mode' in ops:
+            box = layout.box()
+            box.alignment = 'CENTER'
+            box.scale_x = 2.0
+            box.label(text='Right click to exit, ENTER to create', icon='INFO')
+            context.workspace.status_text_set(text='Click on waypoints to add. Right click/ESC to end.')
+        else:
+            row = layout.column()
+            row.operator('pdtools.op_tile_create_mode', text='Create Tiles Mode')
+            row.enabled = bl_obj is not None and bl_obj.mode == 'EDIT'
 
 
 class PDTOOLS_PT_ImagePanel(Panel):

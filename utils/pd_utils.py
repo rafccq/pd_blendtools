@@ -381,7 +381,15 @@ def redraw_ui() -> None:
     """Forces blender to redraw the UI."""
     for screen in bpy.data.screens:
         for area in screen.areas:
+            print(area)
             area.tag_redraw()
+
+    for window in bpy.context.window_manager.windows:
+        for area in window.screen.areas:
+            print(area)
+            area.tag_redraw()
+
+    bpy.context.view_layer.update()
 
 def msg_box(title, message, icon = 'INFO'):
     def draw(self, _context):
@@ -734,3 +742,20 @@ def validate_number(val):
         return all(c in string.hexdigits for c in val), True
 
     return all(c in string.digits for c in val), False
+
+def get_region(context, areatype, regiontype):
+    for area in context.screen.areas:
+        if area.type != areatype: continue
+        for region in area.regions:
+            if region.type != regiontype: continue
+            return region, area.spaces.active.region_3d
+
+    return None, None
+
+def region_visible(context, regiontype):
+    for region in context.area.regions:
+        if region.type == regiontype:
+            return region.width > 1
+
+    return False
+
