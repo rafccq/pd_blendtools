@@ -613,6 +613,11 @@ class PDTOOLS_OT_SetupCreateMultiAmmoCrate(Operator):
         return {'FINISHED'}
 
 
+def objlist(coll):
+    lib = bpy.data.collections
+    if coll not in lib: return []
+    return [obj for obj in lib[coll].objects if obj.data and not obj.hide_render]
+
 class PDTOOLS_OT_SetupObjectCreate(Operator):
     bl_idname = "pdtools.op_setup_object_create"
     bl_label = 'Create Object'
@@ -621,7 +626,6 @@ class PDTOOLS_OT_SetupObjectCreate(Operator):
     created_objs = []
 
     def get_objs(self):
-        objlist = lambda coll: [obj for obj in bpy.data.collections[coll].objects if obj.data and not obj.hide_render]
         return objlist('Rooms') + objlist('Props')
 
     def raycast(self, context, event):
@@ -629,7 +633,7 @@ class PDTOOLS_OT_SetupObjectCreate(Operator):
         region = context.region
         rv3d = context.region_data
         coord = event.mouse_region_x, event.mouse_region_y
-        sel_type = scn['pd_obj_type']
+        sel_type = pdprops.OBJ_TYPES[scn.pd_obj_type]
 
         # get the ray from the viewport and mouse
         view_vector = view3d_utils.region_2d_to_vector_3d(region, rv3d, coord)
@@ -682,7 +686,7 @@ class PDTOOLS_OT_SetupObjectCreate(Operator):
 
     def create_obj(self, pos, picked_obj):
         scn = bpy.context.scene
-        sel_type = scn['pd_obj_type']
+        sel_type = pdprops.OBJ_TYPES[scn.pd_obj_type]
 
         bpy.context.view_layer.objects.active = None
 

@@ -82,6 +82,7 @@ OBJ_NAMES = {
     PD_INTRO_CASERESPAWN:   'CaseRespawn',
 }
 
+OBJ_TYPES = {name: id for id, name in OBJ_NAMES.items()}
 OBJ_TYPES_ITEMS = [(e, e, e, id) for id, e in OBJ_NAMES.items()]
 
 PD_COLLECTIONS = [
