@@ -75,12 +75,14 @@ def export_bgcmds(rd, dataout):
 def export_portals(rd, dataout):
     start = len(dataout)
 
-    coll = bpy.data.collections['Portals']
+    lib = bpy.data.collections
+    portals = lib['Portals'].objects if 'Portals' in lib else []
+
     R_inv = mtx.rot_blender_inv()
 
     portalvertices = []
     idx = 0
-    for bl_portal in coll.objects:
+    for bl_portal in portals:
         pd_portal = bl_portal.pd_portal
 
         data = DataBlock.New('bgportal')
