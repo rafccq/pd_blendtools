@@ -4,6 +4,9 @@ import bmesh
 import gpu
 from bl_ui import space_toolsystem_common
 from gpu_extras.batch import batch_for_shader
+from bpy_extras import view3d_utils
+from mathutils import Vector
+from bpy.props import IntProperty, StringProperty, BoolProperty, EnumProperty, FloatProperty
 
 from utils import bg_utils as bgu
 from pd_data.pd_padsfile import *
@@ -578,6 +581,250 @@ class PDTOOLS_OT_PortalFromFace(Operator):
         return {'FINISHED'}
 
 
+shader_portal = gpu.shader.from_builtin('UNIFORM_COLOR')
+
+class PDTOOLS_OT_PortalFromEdge(Operator):
+    bl_idname = "pdtools.op_portal_from_edge"
+    bl_label = "PD: Create Portal From Edge"
+    bl_description = "Creates portal from the edge under the mouse cursor"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    status_text = 'Left Click: Create Portal | Right Click/ESC: Cancel | Mouse Wheel: Change Height | Alt: Bigger Step Size'
+
+    _current_edge = None
+    _last_object = None
+
+    vtx0 = None
+    vtx1 = None
+    height_auto = None
+    height_manual = 1
+    steps_v = 1
+    altdown = False
+
+    v0 = None
+    v1 = None
+    v2 = None
+    v3 = None
+
+    def update_edgedata(self, context, event):
+        edge_data = self.get_edge_under_mouse(context, event)
+
+        if edge_data:
+            # check if the user hovered over a different edge/object
+            if (self._current_edge != edge_data['edge_index'] or
+                    self._last_object != edge_data['object']):
+                self._current_edge = edge_data['edge_index']
+                self._last_object = edge_data['object']
+        else:
+            if self._current_edge is not None:
+                self._current_edge = None
+                self._last_object = None
+
+    def create_portal(self):
+        b0 = self.vtx0
+        b1 = self.vtx1
+
+        if not b0 or not b1: return
+
+        h = self.height_auto if self.height_auto else self.height_manual
+        u0 = b1 + Vector((0, 0, h))
+        u1 = b0 + Vector((0, 0, h))
+
+        bgu.new_portal_from_verts([b0, b1, u0, u1])
+
+    def finish(self, context):
+        bpy.types.SpaceView3D.draw_handler_remove(self._draw_handler, 'WINDOW')
+        context.area.tag_redraw()
+
+    def modal(self, context, event):
+        context.area.tag_redraw()
+
+        if event.type == 'MOUSEMOVE':
+            self.update_edgedata(context, event)
+
+        if event.type in {'RIGHTMOUSE', 'ESC'}:
+            self.finish(context)
+            return {'CANCELLED'}
+
+        if event.type == 'LEFTMOUSE' and event.value == 'PRESS':
+            self.create_portal()
+            self.finish(context)
+            return {'FINISHED'}
+
+        if event.type == 'LEFT_ALT' and event.value == 'PRESS':
+            self.altdown = True
+        if event.type == 'LEFT_ALT' and event.value == 'RELEASE':
+            self.altdown = False
+
+        if event.type in ['WHEELUPMOUSE', 'WHEELDOWNMOUSE']:
+            s = 10 if event.type == 'WHEELUPMOUSE' else -10
+            f = 3 if self.altdown else 1
+            self.height_manual += f*s/10
+            self.steps_v += s
+            self.steps_v = max(1, self.steps_v)
+            self.update_edgedata(context, event)
+
+        return {'RUNNING_MODAL'}
+
+    def get_extremity(self, edge, vtx, stop_at_perp=True):
+        if stop_at_perp and self.get_edge_perpendicular(vtx): return vtx
+
+        prev_edge = edge
+        next_edge = None
+        last_vtx = vtx
+
+        v0 = (edge.verts[1].co - edge.verts[0].co).normalized()
+
+        queue = [vtx]
+        nstep = 1
+        while queue:
+            v = queue.pop()
+            next_edge = None
+            for e in v.link_edges:
+                if e == prev_edge: continue
+
+                v1 = (e.verts[1].co - e.verts[0].co).normalized()
+                dot = v0.dot(v1)
+
+                if pdu.fcomp(abs(dot), 1.0):
+                    prev_edge = e
+                    next_edge = e
+                    break
+
+            if next_edge:
+                last_vtx = next_edge.other_vert(v)
+                perp = self.get_edge_perpendicular(v)
+                if perp:
+                    if stop_at_perp: return v
+                    elif self.steps_v > 0 and nstep >= self.steps_v:
+                        return v
+                queue.append(last_vtx)
+            nstep += 1
+
+        return last_vtx
+
+    # tries to find a perpendicular edge aligned with the Z axis, from this vtx
+    def get_edge_perpendicular(self, vtx):
+        up = Vector((0, 0, 1))
+        for e in vtx.link_edges:
+            v_other = e.other_vert(vtx)
+            v = (v_other.co - vtx.co).normalized()
+            dot = v.dot(up)
+            if pdu.fcomp(dot, 1.0):
+                return e
+
+        return None
+
+    def get_edge_under_mouse(self, context, event, max_distance=10):
+        """Get edge under mouse cursor"""
+
+        region = context.region
+        region_3d = context.space_data.region_3d
+        coord = (event.mouse_region_x, event.mouse_region_y)
+
+        view_vector = view3d_utils.region_2d_to_vector_3d(region, region_3d, coord)
+        ray_origin = view3d_utils.region_2d_to_origin_3d(region, region_3d, coord)
+
+        # raycast to get the obj, face_index etc under the mouse
+        result, location, normal, face_index, obj, matrix = context.scene.ray_cast(
+            context.view_layer.depsgraph,
+            ray_origin,
+            view_vector
+        )
+
+        if not result or obj.type != 'MESH':
+            return None
+
+        bm = bmesh.new()
+        bm.from_mesh(obj.data)
+        bm.transform(obj.matrix_world)
+        bm.faces.ensure_lookup_table()
+
+        if face_index >= len(bm.faces):
+            bm.free()
+            return None
+
+        face = bm.faces[face_index]
+
+        closest_edge = None
+        closest_distance = float('inf')
+
+        # search for the closest edge
+        for edge in face.edges:
+            v1_2d = view3d_utils.location_3d_to_region_2d(region, region_3d, edge.verts[0].co)
+            v2_2d = view3d_utils.location_3d_to_region_2d(region, region_3d, edge.verts[1].co)
+
+            if v1_2d is None or v2_2d is None:
+                continue
+
+            mouse_vec = Vector(coord)
+            edge_vec = v2_2d - v1_2d
+            edge_length = edge_vec.length
+
+            if edge_length < 0.001:
+                continue
+
+            edge_dir = edge_vec / edge_length
+            t = (mouse_vec - v1_2d).dot(edge_dir)
+            t = max(0, min(edge_length, t))
+
+            closest_point = v1_2d + edge_dir * t
+            distance = (mouse_vec - closest_point).length
+
+            if distance < closest_distance:
+                closest_distance = distance
+                closest_edge = edge
+
+        edge_idx = closest_edge.index if closest_edge else -1
+        if closest_edge and closest_distance <= max_distance:
+            h0 = self.get_extremity(closest_edge, closest_edge.verts[0])
+            h1 = self.get_extremity(closest_edge, closest_edge.verts[1])
+
+            p0 = self.get_edge_perpendicular(h0)
+            p1 = self.get_edge_perpendicular(h1)
+            self.height_auto = None
+            if p0 or p1:
+                perp = p0 if p0 else p1
+                v0 = self.get_extremity(perp, perp.verts[0], False)
+                self.height_auto = abs(v0.co.z - h0.co.z)
+
+            self.vtx0 = h0.co.copy()
+            self.vtx1 = h1.co.copy()
+
+        bm.free()
+
+        if closest_distance <= max_distance:
+            return { 'edge_index': edge_idx, 'object': obj }
+
+        return None
+
+    def invoke(self, context, event):
+        # add draw handler
+        if context.area.type == 'VIEW_3D':
+            self._draw_handler = bpy.types.SpaceView3D.draw_handler_add(
+                self.draw_callback, (context,), 'WINDOW', 'POST_VIEW')
+
+            context.window_manager.modal_handler_add(self)
+            return {'RUNNING_MODAL'}
+        return {'CANCELLED'}
+
+    def draw_callback(self, context):
+        context.workspace.status_text_set(text=self.status_text)
+        b0 = self.vtx0
+        b1 = self.vtx1
+
+        if not b0 or not b1: return
+
+        h = self.height_auto if self.height_auto else self.height_manual
+        u0 = b1 + Vector((0, 0, h))
+        u1 = b0 + Vector((0, 0, h))
+
+        coords = [b0, b1, b1, u0, u0, u1, b0, u1]
+        batch = batch_for_shader(shader_portal, 'LINES', {"pos": coords})
+        shader_portal.uniform_float("color", (0.0, 1.0, 1.0, 1.0))
+        batch.draw(shader_portal)
+
+
 # this callback is to detect when the selected tool changed, and update the drawing
 # state of the PortalFromEdge tool
 def factory_callback(func):
@@ -609,6 +856,7 @@ classes = [
     PDTOOLS_OT_RoomBlockCreateFromSelection,
     PDTOOLS_OT_PortalFromEdgeEditMode,
     PDTOOLS_OT_PortalFromFace,
+    PDTOOLS_OT_PortalFromEdge,
 ]
 
 register_cls, unregister_cls = bpy.utils.register_classes_factory(classes)
