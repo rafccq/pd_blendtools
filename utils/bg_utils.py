@@ -376,7 +376,7 @@ def portal_verts_from_edge(edge, M, width, height, elevation, pitch, direction):
 
     return [v0, v1, v2, v3]
 
-def new_portal_from_verts(bl_obj, verts):
+def new_portal_from_verts(verts, bl_obj=None):
     center = pdu.points_median(verts)
 
     for v in verts: v -= center
@@ -513,6 +513,9 @@ def portal_from_face(name, bl_obj, face):
 def obj_from_face(name, bl_obj, face, pdtype, collname=None, show_wire=True):
     M = bl_obj.matrix_world
     verts = [M @ v.co for v in face.verts]
+    return obj_from_verts(name, verts, pdtype, collname, show_wire)
+
+def obj_from_verts(name, verts, pdtype, collname=None, show_wire=True):
     center = pdu.points_median(verts)
 
     for v in verts:

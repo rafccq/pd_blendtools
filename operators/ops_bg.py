@@ -348,15 +348,14 @@ class PDTOOLS_OT_RoomCreate(Operator):
         return {'FINISHED'}
 
 
-class PDTOOLS_OT_PortalFromEdge(Operator):
-    bl_idname = "pdtools.op_portal_from_edge"
+class PDTOOLS_OT_PortalFromEdgeEditMode(Operator):
+    bl_idname = "pdtools.op_portal_from_edge_editmode"
     bl_label = "Portal From Edge"
-    # bl_options = {'REGISTER', 'INTERNAL'}
 
     def ws_update_geometry(_self, _ctx):
         PD_WSTOOL_PortalFromEdge.update_geometry()
 
-    direction: bpy.props.EnumProperty(
+    direction: EnumProperty(
         items=[
             ('vertical', 'Vertical', 'Vertical', 'Vertical', 1),
             ('horizontal', 'Horizontal', 'Horizontal', 'Horizontal', 2),
@@ -366,19 +365,21 @@ class PDTOOLS_OT_PortalFromEdge(Operator):
         default='vertical',
     )
 
-    elevation: bpy.props.FloatProperty(name='Elevation', default=0, min=-180, max=180,
+    elevation: FloatProperty(name='Elevation', default=0, min=-180, max=180,
                              description='Rotation From The Edge Towards The Up Direction',
                              update=ws_update_geometry)
 
-    pitch: bpy.props.FloatProperty(name='Pitch', default=0, min=-180, max=180,
-                         # description='' ,
+    pitch: FloatProperty(name='Pitch', default=0, min=-180, max=180,
                          description='Rotation Around The Edge Axis',
                          update=ws_update_geometry)
 
-    width: bpy.props.FloatProperty(name='width', default=10, min=1, max=10000,
+    width: FloatProperty(name='width', default=10, min=1, max=10000,
                          update=ws_update_geometry)
 
-    height: bpy.props.FloatProperty(name='height', default=10, min=1, max=10000,
+    use_edge_width: BoolProperty(name='use_edge_width', default=True)
+    edge_width: FloatProperty(name='edge_width')
+
+    height: FloatProperty(name='height', default=10, min=1, max=10000,
                           update = ws_update_geometry)
 
     def execute(self, context):
@@ -397,24 +398,33 @@ class PDTOOLS_OT_PortalFromEdge(Operator):
         tool = context.workspace.tools.from_space_view3d_mode(context.mode, create=False)
         props = tool.operator_properties(self.bl_idname)
 
-        w, h = props.width, props.height
+        w = props.edge_width if props.use_edge_width else props.width
+        h = props.height
         elv, pitch = props.elevation, props.pitch
         direction = props.direction
 
         edge = edges_sel[0]
+
         M = bl_obj.matrix_world
         verts = bgu.portal_verts_from_edge(edge, M, w, h, elv, pitch, direction)
-        print(w, h, edge)
-        print(verts)
-        print(M)
-        bgu.new_portal_from_verts(bl_obj, verts)
+        bgu.new_portal_from_verts(verts, bl_obj)
         edge.select = False
-        bm.free()
+
         return {'FINISHED'}
 
     def invoke(self, context, event):
         return self.execute(context)
 
+
+def draw_prop(layout, props, name, label = None, enabled = True):
+    row = layout.row()
+
+    if not label:
+        label = name.title()
+
+    row.label(text=f'{label}:')
+    row.prop(props, name.lower(), text='')
+    row.enabled = enabled
 
 class PD_WSTOOL_PortalFromEdge(WorkSpaceTool):
     bl_space_type = 'VIEW_3D'
@@ -422,41 +432,34 @@ class PD_WSTOOL_PortalFromEdge(WorkSpaceTool):
     bl_idname = "pdtools.ws_new_portal_from_edge"
     bl_label = "Portal From Edge"
     bl_description = "Creates a new portal from the selected edge"
-    bl_icon = "ops.mesh.primitive_cube_add_gizmo"
+    bl_icon = "ops.sculpt.border_mask"
     bl_widget = None
-    # bl_keymap = (
-    #     ("object.simple_operator", {"type": 'LEFTMOUSE', "value": 'PRESS'}, None),
-    # )
 
     _batch = None
     _draw_handle = None
     _shader = None
 
     @staticmethod
-    def draw_prop(layout, props, name):
-        layout.label(text=f'{name}:')
-        layout.prop(props, name.lower(), text='')
-
-    @staticmethod
     def draw_settings(context, layout, tool, extra=False):
-        props = tool.operator_properties('pdtools.op_portal_from_edge')
+        props = tool.operator_properties(PDTOOLS_OT_PortalFromEdgeEditMode.bl_idname)
 
         if extra:
             col = layout.column()
             row = col.row()
-            PD_WSTOOL_PortalFromEdge.draw_prop(row, props, 'Direction')
+            draw_prop(row, props, 'Direction')
             row = col.row()
-            PD_WSTOOL_PortalFromEdge.draw_prop(row, props, 'Elevation')
+            draw_prop(row, props, 'Elevation')
             row = col.row()
-            PD_WSTOOL_PortalFromEdge.draw_prop(row, props, 'Pitch')
+            draw_prop(row, props, 'Pitch')
             return
 
-        PD_WSTOOL_PortalFromEdge.draw_prop(layout, props, 'width')
-        PD_WSTOOL_PortalFromEdge.draw_prop(layout, props, 'height')
+        draw_prop(layout, props, 'use_edge_width', label = 'Use Edge Width')
+        draw_prop(layout, props, 'width', not props.use_edge_width)
+        draw_prop(layout, props, 'height')
 
         # this will call this very function, with the parameter extra = True
         layout.popover("TOPBAR_PT_tool_settings_extra", text="...")
-        layout.operator("pdtools.op_portal_from_edge", text='Create Portal')
+        layout.operator("pdtools.op_portal_from_edge_editmode", text='Create Portal')
 
     @classmethod
     def poll(self, context):
@@ -481,13 +484,16 @@ class PD_WSTOOL_PortalFromEdge(WorkSpaceTool):
                 context.area.tag_redraw()
                 return 1
 
-            props = tool.operator_properties(PDTOOLS_OT_PortalFromEdge.bl_idname)
+            props = tool.operator_properties(PDTOOLS_OT_PortalFromEdgeEditMode.bl_idname)
             w, h = props.width, props.height
 
             elv, pitch = props.elevation, props.pitch
             direction = props.direction
 
             edge = edges_sel[0]
+            if props.use_edge_width:
+                w = props.edge_width = edge.calc_length()
+
             M = bl_obj.matrix_world
             coords = bgu.portal_verts_from_edge(edge, M, w, h, elv, pitch, direction)
             indices = [(0, 1), (1, 2), (2, 3), (3, 0)]
@@ -601,7 +607,7 @@ classes = [
     PDTOOLS_OT_RoomCreate,
     PDTOOLS_OT_RoomCreateFromObject,
     PDTOOLS_OT_RoomBlockCreateFromSelection,
-    PDTOOLS_OT_PortalFromEdge,
+    PDTOOLS_OT_PortalFromEdgeEditMode,
     PDTOOLS_OT_PortalFromFace,
 ]
 
