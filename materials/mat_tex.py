@@ -144,7 +144,7 @@ def mat_texload_set(texload, cmd):
     texload.subcmd = w0 & 0x7
 
     imglib = bpy.data.images
-    tex0 = cmd & 0x0fff
+    tex0 = cmd & (0x0fff if texload.subcmd == 1 else 0xffff)
 
     if tex0:
         texname = pdm.imgname(tex0)
@@ -152,7 +152,7 @@ def mat_texload_set(texload, cmd):
         texload.tex_set = True
 
     tex1 = (cmd >> 4*3) & 0xfff
-    if tex1:
+    if texload.subcmd == 1 and tex1:
         texname = pdm.imgname(tex1)
         texload.tex1 = imglib[texname]
 
@@ -161,7 +161,6 @@ def mat_settimg_set(texload, cmd):
 
     texnum = cmd & 0xffff
     texname = pdm.imgname(texnum)
-    # texname = f'{texnum:04x}.png'
 
     texload.tex0 = imglib[texname]
     texload.tex_set = True
@@ -299,4 +298,8 @@ def texload_command(mat):
     w0 = (0xc0 << 24) | (smode << 22) | (tmode << 20) | (offset << 18) | \
          (shifts << 14) | (shiftt << 10) | (texload.lod_flag << 9) | texload.subcmd
 
-    return (w0 << 8*4) | (minlv << 4*6) | (tex1 << 4*3) | (tex0 & 0xfff)
+    texid = (tex0 & 0xffff)
+    if texload.subcmd == 1:
+        texid = (tex1 << 4 * 3) | (tex0 & 0xfff)
+
+    return (w0 << 8*4) | (minlv << 4*6) | texid

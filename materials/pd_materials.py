@@ -51,8 +51,11 @@ class PDMaterialCommands:
         cmdint = int.from_bytes(cmd, 'big')
 
         if op == G_PDTEX:
+            w0 = (cmdint & 0xffffffff00000000) >> 32
+            subcmd = w0 & 0x7
+
             self.texload = cmdint
-            self.texnum = cmdint & 0xfff
+            self.texnum = cmdint & (0xfff if subcmd == 1 else 0xffff)
         elif op == G_TEXTURE:
             self.texconfig = cmdint
         elif op == G_SetOtherMode_L:
@@ -708,7 +711,7 @@ def export_othermodeL(othermodeL, prev_othermodeL):
             cmd = (0xb900 << 8 * 6) | (mode << 8*5) | (n << 8 * 4) | modebits
             cmds.append(cmd)
 
-    # export alphacompare and zsource modes
+    # export rendermode params
     if othermodeL.set_rendermode:
         cmd = othermodeL_rendermode_cmd(othermodeL)
         prevcmd = othermodeL_rendermode_cmd(prev_othermodeL) if prev_othermodeL else 0
@@ -892,7 +895,7 @@ def obj_textures(ob, texlist):
             print(f'WARNING: empty material from {ob.name}, skipping...')
             continue
 
-        if not (mat.is_pd or not mat.is_f3d): continue
+        if not (mat.is_pd or mat.is_f3d): continue
 
         img = material_get_teximage(mat)
         if not img or img.name in texlist: continue
