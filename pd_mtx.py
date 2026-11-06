@@ -33,13 +33,20 @@ def rot_doorinv():
     rot_rh = C @ rot_lh @ C.inverted()
     return rot_rh.inverted()
 
-def mtx_basis(M):
-    conv = lambda v: Vector((v[0], v[2], -v[1]))
+def mtx_basis(M, conv_hand=True):
+    conv = lambda v: Vector((v[0], v[1], v[2]))
+    if conv_hand:
+        conv = lambda v: Vector((v[0], v[2], -v[1]))
+
     vec = lambda mat, i: conv([mat[k][i] for k in range(3)])
 
-    _loc, rotmat, _sca = M.decompose()
+    _, rotmat, _ = M.decompose()
     R = rotmat.to_matrix()
-    return vec(R, 0), vec(R, 1), vec(R, 2)
+
+    if conv_hand:
+        return vec(R, 0), vec(R, 1), vec(R, 2)
+
+    return vec(R, 0), vec(R, 2), vec(R, 1)
 
 # returns a mtx that properly aligns PD objects in the Blender viewport
 # (90d on X and Z axes)
