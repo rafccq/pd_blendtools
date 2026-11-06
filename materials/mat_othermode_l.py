@@ -229,7 +229,14 @@ def mat_othermodeL_draw(othermodeL, layout, context):
     prop_split(col, othermodeL, "g_mdsft_alpha_compare", "Alpha Compare")
     prop_split(col, othermodeL, "g_mdsft_zsrcsel", "Z Source Selection")
 
-    draw_rendermode(col, othermodeL, context)
+    pdu.ui_separator(col, type='LINE')
+    col.prop(othermodeL, "set_rendermode", text="Render Mode")
+
+    if othermodeL.set_rendermode:
+        draw_rendermode(col, othermodeL, context)
+
+    cmd = othermodeL_rendermode_cmd(othermodeL)
+    col.label(text=f'Command: {cmd&0xffffffff:08X}')
 
 def draw_rendermode(col, othermodeL, context):
     prop_split(col, othermodeL, 'aa_en'         ,'Antialiasing'),
@@ -254,9 +261,6 @@ def draw_rendermode(col, othermodeL, context):
     if twocycles:
         pdu.ui_separator(col, type='AUTO')
         draw_blender(othermodeL, 2, 'Cycle 2', col)
-
-    cmd = othermodeL_rendermode_cmd(othermodeL)
-    col.label(text=f'Command: {cmd&0xffffffff:08X}')
 
 def draw_blender(othermodeL, cycle, header, layout):
     ui_box = layout.box()
