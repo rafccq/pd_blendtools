@@ -164,6 +164,19 @@ class PDTOOLS_PT_RoomTools(Panel):
             row.operator('pdtools.op_tile_create_mode', text='Create Tiles Mode')
             row.enabled = bl_obj is not None and bl_obj.mode == 'EDIT'
 
+def ui_tex_id(layout, pd_image):
+    row = layout.row()
+    row.prop(pd_image, 'custom_id', text='Custom ID')
+
+    row = layout.split(factor=0.5)
+    row.label(text=f'ID')
+    id_valid, _ = pdu.validate_number(pd_image.id_ui)
+    status_icon = 'NONE' if id_valid else 'ERROR'
+    row.prop(pd_image, 'id_ui', text='', icon=status_icon)
+    row.enabled = pd_image.custom_id
+    if pd_image.id < 0:
+        row = layout.row()
+        row.label(text='No ID assigned', icon='ERROR')
 
 class PDTOOLS_PT_ImagePanel(Panel):
     bl_label = "PD Image"
@@ -189,6 +202,15 @@ class PDTOOLS_PT_ImagePanel(Panel):
         row = layout.split(factor=0.5)
         row.label(text=f'Sound Type')
         row.prop(props, 'sound_type', text='')
+
+        pdu.ui_separator(layout, type='LINE')
+        filename = osp.basename(image.filepath)
+
+        #### TEXTURE ID ####
+        ui_tex_id(layout, props)
+        row = layout.split()
+        filename = osp.basename(image.filepath)
+        row.label(text=f'File: {filename}')
 
 classes = [
     PDTOOLS_PT_Portal,
