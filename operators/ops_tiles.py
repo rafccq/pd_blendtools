@@ -356,7 +356,7 @@ class PDTOOLS_OT_TileCreateMode(Operator):
         pos.x -= dx
         x, y = pos
         size = 20
-        c = 0.8
+        c = 1.0
         col = (c, c, c)
         self.draw_text(flag_preset, (x, y), size, col)
 
@@ -371,7 +371,8 @@ class PDTOOLS_OT_TileCreateMode(Operator):
         bpy.types.SpaceView3D.draw_handler_remove(self._draw_handler_text, 'WINDOW')
 
     def modal(self, context, event):
-        context.area.tag_redraw()
+        if context.area:
+            context.area.tag_redraw()
 
         if context.active_object.mode != 'EDIT':
             self.finish()
