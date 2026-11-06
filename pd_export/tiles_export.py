@@ -15,7 +15,7 @@ import pd_blendprops as pdprops
 
 def get_numrooms():
     coll = bpy.data.collections['Rooms']
-    rooms = list(filter(lambda r: r.pd_obj.type == pdprops.PD_OBJTYPE_ROOM, coll.objects))
+    rooms = list(filter(lambda r: r.pd_obj.type == pdprops.PD_OBJTYPE_ROOM and not r.hide_render, coll.objects))
     return len(rooms)
 
 def colRGBA_to_444(col):
