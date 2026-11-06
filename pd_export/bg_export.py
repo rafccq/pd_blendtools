@@ -30,7 +30,7 @@ def export_rooms(rd, dataout):
 
     rooms = [dummyroom]
     for bl_room in coll.objects:
-        if bl_room.pd_obj.type != pdprops.PD_OBJTYPE_ROOM: continue
+        if bl_room.pd_obj.type != pdprops.PD_OBJTYPE_ROOM or bl_room.hide_render: continue
 
         data = DataBlock.New('bgroom')
         rooms.append(data)
@@ -87,12 +87,12 @@ def export_portals(rd, dataout):
 
         data = DataBlock.New('bgportal')
 
-        if not pd_portal.room1 or not pd_portal.room2:
-            print(f'WARNING missing room in {bl_portal.name}')
-            continue
-
         if bl_portal.hide_render:
             print(f'SKIPPED {bl_portal.name}')
+            continue
+
+        if not pd_portal.room1 or not pd_portal.room2:
+            print(f'WARNING missing room in {bl_portal.name}')
             continue
 
         pd_room1, pd_room2 = pd_portal.room1.pd_room, pd_portal.room2.pd_room
@@ -357,7 +357,7 @@ def export_section1(out_gfxdatalens, out_bboxes, out_textures):
     coll = bpy.data.collections['Rooms']
     idx = 1
     for bl_room in coll.objects:
-        if bl_room.pd_obj.type != pdprops.PD_OBJTYPE_ROOM: continue
+        if bl_room.pd_obj.type != pdprops.PD_OBJTYPE_ROOM or bl_room.hide_render: continue
         roomgfxdata, textures, bbox = export_roomgfxdata(rd, bl_room, ofs_room)
         comp = pdu.compress(roomgfxdata)
         complen = pdu.align(len(comp), 4)
