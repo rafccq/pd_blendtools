@@ -2,6 +2,7 @@ import hashlib
 import shutil
 import time
 import os.path as osp
+import numpy as np
 
 import bpy
 from bpy.types import PointerProperty, Panel
@@ -799,7 +800,15 @@ def mat_has_alpha(mat):
     in_alpha = node_bsdf.inputs['Alpha'].links
     return len(in_alpha) > 0
 
+def img_has_alpha(img):
+    px = np.empty(len(img.pixels), dtype=np.float32)
+    img.pixels.foreach_get(px)
+    return (px[3::4] < 1.0).any()
+
 def mat_convert_to_pd(mat, name, idx, matmap):
+    if mat.is_pd:
+        return mat
+
     node_img = mat_node_by_type(mat, bpy.types.ShaderNodeTexImage)
     if not node_img:
         print(f'WARNING: mat_convert_to_pd() material has no image node: {mat.name}') # TODO report
@@ -822,7 +831,7 @@ def mat_convert_to_pd(mat, name, idx, matmap):
     matcmds.add_cmd(0xc008000200000000.to_bytes(8, 'big')) # texload
     matcmds.add_cmd(0xfb000000000000ff.to_bytes(8, 'big')) # envcolor
 
-    hasalpha = mat_has_alpha(mat)
+    hasalpha = img_has_alpha(img)
 
     matcmds.texname = img.name
 
@@ -904,10 +913,10 @@ def obj_textures(ob, texlist):
 
 def textures_list(coll):
     texlist = []
-    rooms = pdu.all_objects_in_collection(coll)
+    objs = pdu.all_objects_in_collection(coll)
 
-    for room in rooms:
-        obj_textures(room, texlist)
+    for obj in objs:
+        obj_textures(obj, texlist)
 
     return texlist
 
@@ -916,6 +925,7 @@ def assign_texture_ids(start_id, coll):
     custom_ids = set()
 
     id = start_id
+    numimgs = 0
     for imgname in texlist:
         pd_image = bpy.data.images[imgname].pd_image
 
@@ -930,8 +940,11 @@ def assign_texture_ids(start_id, coll):
 
             pd_image.id = id
             pd_image.id_ui = hex(id)
-            
+
             id += 1
+            numimgs += 1
+
+    return numimgs
 
 def validate_texture_ids(coll):
     texlist = pdm.textures_list(coll)
@@ -952,17 +965,23 @@ def export_textures(path, coll, flip=True):
 
     for name in texlist:
         img = imglib[name]
+        if not img.has_data:
+            print(f'WARNING: image {img.name} has no data')
+            continue
+
         pd_image = imglib[name].pd_image
         id = pd_image.id
 
         imgcopy = img.copy()
         imgcopy.update() # to update the copy's buffer content
 
-        filename = osp.basename(img.filepath)
+        relative_path = img.filepath.startswith('//')
+        filename = osp.basename(img.filepath[2:] if relative_path else img.filepath)
+
         ext = filename.split('.')[-1]
         srcpath = bpy.path.abspath(imgcopy.filepath)
 
-        print(f'{num_exp+1:03d}/{n} {img.name} {id:04x}')
+        print(f"{num_exp+1:03d}/{n} {img.name} {id:04x} {img.filepath} EXT: {ext} FILENAME: {filename}")
 
         if flip:
             texld.flip(imgcopy)
