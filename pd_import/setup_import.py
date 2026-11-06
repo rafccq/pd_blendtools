@@ -222,7 +222,7 @@ def setup_create_obj(prop, prop_base, romdata, pad, paddata=None, conv_hand=Fals
     # print(f'{bl_obj.name} pad {padnum} c {center} bbox {hasbbox}')
 
     bbox = None
-    if hasbbox:
+    if hasbbox and model:
         bbox = model.find_bbox()
         stu.set_bbox(pd_pad.model_bbox, bbox)
         sx, sy, sz = stu.obj_getscale(modelscale, pad.bbox, bbox, flags)
@@ -238,7 +238,7 @@ def setup_create_obj(prop, prop_base, romdata, pad, paddata=None, conv_hand=Fals
 
     stu.obj_setup_mtx(bl_obj, Vector(pad.look), Vector(pad.up), center, rotation, scale, flags, bbox, conv_hand)
 
-    if hasbbox:
+    if hasbbox and model:
         stu.set_bbox(pd_pad.model_bbox, bbox)
         stu.set_bbox(pd_pad.bbox, pad.bbox)
         stu.set_bbox(pd_pad.bbox_p, pad.bbox)
