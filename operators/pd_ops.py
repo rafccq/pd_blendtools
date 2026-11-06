@@ -245,11 +245,13 @@ class PDTOOLS_OT_ImportLevel(Operator):
 
         self.current_item = 0
         scn.level_loading = True
-        scn['rooms'] = {}
+        if 'rooms' not in scn:
+            scn['rooms'] = {}
         self.t_bgload = time.time()
         self.t_setup = time.time()
 
         loadrom = 'ROM' in [scn.import_src_bg, scn.import_src_tiles]
+        loadrom = 1
         if loadrom:
             self.loadrom()
 
@@ -405,22 +407,6 @@ class PDTOOLS_OT_ImportLevel(Operator):
         self.draw_tiles(context)
 
 
-class PDTOOLS_OT_TexPrintIDs(Operator):
-    bl_idname = "pdtools.tex_print_ids"
-    bl_label = "Print Texture IDs"
-    bl_description = "Print Texture IDs To Console"
-
-    def execute(self, context):
-        scn = context.scene
-
-        texlist = pdm.textures_list('Rooms')
-        for imgname in texlist:
-            img = bpy.data.images[imgname]
-            print(imgname, img.pd_image.id)
-
-        return {'FINISHED'}
-
-
 class PDTOOLS_OT_TexAssignIDs(Operator):
     bl_idname = "pdtools.tex_assign_ids"
     bl_label = "Assign Texture IDs"
@@ -431,7 +417,8 @@ class PDTOOLS_OT_TexAssignIDs(Operator):
 
         start_id = scn.tex_export_startid
         coll = context.scene.tex_export_collection
-        pdm.assign_texture_ids(start_id, coll)
+        numimgs = pdm.assign_texture_ids(start_id, coll)
+        self.report({'INFO'}, f'{numimgs} textures were assigned IDs')
 
         return {'FINISHED'}
 
@@ -525,7 +512,9 @@ class PDTOOLS_OT_TexPrintIDs(Operator):
     def execute(self, context):
         scn = context.scene
 
-        texlist = pdm.textures_list('Rooms')
+        coll = context.scene.tex_export_collection
+        texlist = pdm.textures_list(coll)
+
         for imgname in texlist:
             img = bpy.data.images[imgname]
             print(imgname, hex(img.pd_image.id))
@@ -736,6 +725,7 @@ class PDTOOLS_OT_ExportLevel(Operator):
         if scn.export_tiles:
             self.export(scn, tle, scn.export_file_tiles)
 
+        print('Export done.')
         return {'FINISHED'}
 
     def invoke(self, context, event):
